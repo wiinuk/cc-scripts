@@ -1,3 +1,4 @@
 /temp/
-/.paket/load/
-/.ionide/
+.paket/
+.ionide/
+paket-files/
