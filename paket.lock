@@ -1,0 +1,17 @@
+GENERATE-LOAD-SCRIPTS: ON
+STORAGE: NONE
+RESTRICTION: || (== netcoreapp3.1) (== netstandard2.0) (== netstandard2.1)
+NUGET
+  remote: https://api.nuget.org/v3/index.json
+    AngleSharp (0.14)
+      System.Text.Encoding.CodePages (>= 4.5)
+    AngleSharp.Css (0.14.1)
+      AngleSharp (>= 0.14)
+    FParsec (1.1.1)
+      FSharp.Core (>= 4.3.4)
+    FSharp.Core (4.7.2)
+    Microsoft.NETCore.Platforms (3.1.1) - restriction: || (== netcoreapp3.1) (&& (== netstandard2.0) (>= netcoreapp2.0)) (&& (== netstandard2.1) (>= netcoreapp2.0))
+    System.Runtime.CompilerServices.Unsafe (4.7.1) - restriction: || (&& (== netcoreapp3.1) (>= net461)) (&& (== netcoreapp3.1) (< netcoreapp2.0)) (== netstandard2.0) (== netstandard2.1)
+    System.Text.Encoding.CodePages (4.7.1)
+      Microsoft.NETCore.Platforms (>= 3.1.1) - restriction: || (== netcoreapp3.1) (&& (== netstandard2.0) (>= netcoreapp2.0)) (&& (== netstandard2.1) (>= netcoreapp2.0))
+      System.Runtime.CompilerServices.Unsafe (>= 4.7.1) - restriction: || (&& (== netcoreapp3.1) (>= net461)) (&& (== netcoreapp3.1) (< netcoreapp2.0)) (== netstandard2.0) (== netstandard2.1)
