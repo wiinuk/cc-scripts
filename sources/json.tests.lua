@@ -1,39 +1,48 @@
-local Json = require("json")
-
-local function deepEq(a, b)
-    if a == b then return true end
-
-    local at = type(a)
-    local bt = type(b)
-    if at ~= bt then return false end
-    if at == "number" then
-        -- nan
-        if at ~= at and bt ~= bt then return true end
-        return false
-    elseif at == "table" then
-end
-local function assertEquals(a, b)
-    if not (a == b) then
-        assert(false, string.format("assertEquals(%s, %s)", tostring(a), tostring(b)))
-    end
-end
-
+local Json = require "json"
+local Assert = require "assert"
 local tests = {}
 
 function tests.stringifySimple()
-    assertEquals(Json.stringify(nil), "null")
-    assertEquals(Json.stringify(0), "0")
-    assertEquals(Json.stringify(0/0), "nan")
-    assertEquals(Json.stringify "abc", "\"abc\"")
-    assertEquals(Json.stringify(true), "true")
-    assertEquals(Json.stringify(false), "false")
-    assertEquals(Json.stringify {"a","b","c"}, [=[[ "a", "b", "c" ]]=])
-    assertEquals(Json.stringify({ x = 10, y = 20, list = {1, 2, 3} }), [[{ "y": 10, "x": 20, "list": [ 1, 2, 3 ] }]])
-
-    local d = { x = 10, y = 20 }
-    print(tostring(d))
+    Assert.equals(Json.stringify(nil), "null")
+    Assert.equals(Json.stringify(0), "0")
+    Assert.equals(Json.stringify(0/0), "nan")
+    Assert.equals(Json.stringify("abc"), "\"abc\"")
+    Assert.equals(Json.stringify(true), "true")
+    Assert.equals(Json.stringify(false), "false")
+    Assert.equals(Json.stringify {"a","b","c"}, [=[[ "a", "b", "c" ]]=])
 end
 
-for k, test in pairs(tests) do
-    test()
+function tests.roundtrip()
+    local function roundtrip(expected)
+        local source, error = Json.stringify(expected)
+        if source == nil then Assert.failure("error: `"..error.."` from Json.stringify("..tostring(expected)..")") end
+
+        local ok, actual = Json.parse(source)
+        if not ok then Assert.failure("error: `"..actual.."` from Json.parse(\""..tostring(source).."\")") end
+
+        Assert.equals(expected, actual)
+    end
+
+    local values = {
+        nil,
+        true,
+        false,
+        0,
+        1,
+        -1,
+        -0.5,
+        0/0,
+        1/0,
+        -1/0,
+        "",
+        "abc",
+        "a\"b\\c",
+        {},
+        {1,2,3},
+        { x = 10, y = 20 },
+        { x = 10, y = 20, xs = { 1, 2, 3 }, d = { name = "bob", age = 256 } },
+    }
+    for i = 1, #values do roundtrip(values[i]) end
 end
+
+Assert.runTests(tests)

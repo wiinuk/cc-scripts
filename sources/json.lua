@@ -1,50 +1,52 @@
-local char_A = ("A").byte(1)
-local char_E = ("E").byte(1)
-local char_F = ("F").byte(1)
-local char_a = ("a").byte(1)
-local char_b = ("b").byte(1)
-local char_e = ("e").byte(1)
-local char_f = ("f").byte(1)
-local char_n = ("n").byte(1)
-local char_r = ("r").byte(1)
-local char_t = ("t").byte(1)
-local char_u = ("u").byte(1)
-local char_0 = ("0").byte(1)
-local char_9 = ("9").byte(1)
+local function byte1(x) return string.byte(x, 1) end
+
+local char_A = byte1 'A'
+local char_E = byte1 'E'
+local char_F = byte1 'F'
+local char_a = byte1 'a'
+local char_b = byte1 'b'
+local char_e = byte1 'e'
+local char_f = byte1 'f'
+local char_n = byte1 'n'
+local char_r = byte1 'r'
+local char_t = byte1 't'
+local char_u = byte1 'u'
+local char_0 = byte1 '0'
+local char_9 = byte1 '9'
 --- `-`
-local char_minus = ("-").byte(1)
+local char_minus = byte1 '-'
 --- `+`
-local char_plus = ("+").byte(1)
+local char_plus = byte1 '+'
 --- `,`
-local char_comma = (",").byte(1)
+local char_comma = byte1 ','
 --- `.`
-local char_dot = (".").byte(1)
+local char_dot = byte1 '.'
 --- `:`
-local char_colon = (":").byte(1)
+local char_colon = byte1 ':'
 --- `"`
-local char_dq = ("\"").byte(1)
+local char_dq = byte1 '\"'
 --- `\`
-local char_bsl = ("\\").byte(1)
+local char_bsl = byte1 '\\'
 --- `[`
-local char_lsb = ("[").byte(1)
+local char_lsb = byte1 '['
 --- `]`
-local char_rsb = ("]").byte(1)
+local char_rsb = byte1 ']'
 --- `{`
-local char_lcb = ("{").byte(1)
+local char_lcb = byte1 '{'
 --- `}`
-local char_rcb = ("}").byte(1)
+local char_rcb = byte1 '}'
 --- ` `
-local char_sp = (" ").byte(1)
+local char_sp = byte1 ' '
 --- `\b`
-local char_bs = ("\b").byte(1)
+local char_bs = byte1 '\b'
 --- `\f`
-local char_ff = ("\f").byte(1)
+local char_ff = byte1 '\f'
 --- `\n`
-local char_nl = ("\n").byte(1)
+local char_nl = byte1 '\n'
 --- `\r`
-local char_cr = ("\r").byte(1)
+local char_cr = byte1 '\r'
 --- `\t`
-local char_tab = ("\t").byte(1)
+local char_tab = byte1 '\t'
 
 ---@class Parser
 ---@field public source string
@@ -61,7 +63,7 @@ local function newParser(source)
     ---@type Parser
     local p = {
         source = source,
-        length = string.len(source),
+        length = #source,
         position = 1,
     }
     setmetatable(p, { __index = Parser })
@@ -69,31 +71,27 @@ local function newParser(source)
 end
 
 ---@param self Parser
+---@param message string
+local function errorMessage(self, message)
+    return message..". position: "..tostring(self.position)..", source: \""..self.source.."\""
+end
+
+---@param self Parser
 local function peekChar(self)
     if self.length < self.position then
-        return true, self.source.byte(self.position)
+        return false
     else
-        return false, "requires any char"
+        return true, string.byte(self.source, self.position)
     end
 end
 
 ---@param self Parser
 local function skipWhiteSpaces(self)
-    local length = self.length
-    local source = self.source
-    local position = self.position
-
     while true do
-        if length < position then
-            self.position = position
-            return
-        end
-
-        local b = source.byte(position)
-        if b == char_sp or b == char_nl or b == char_cr or b == char_tab then
-            position = position + 1
+        local ok, c = peekChar(self)
+        if ok and (c == char_sp or c == char_nl or c == char_cr or c == char_tab) then
+            self.position = self.position + 1
         else
-            self.position = position
             return
         end
     end
@@ -104,7 +102,7 @@ end
 local function skipChar(self, code)
     local position = self.position
     if self.length < position then return false end
-    if self.source.byte(position) ~= code then return false end
+    if string.byte(self.source, position) ~= code then return false end
     self.position = position + 1
     return true
 end
@@ -113,8 +111,8 @@ end
 ---@return boolean success
 ---@return integer|string charOrError
 local function readChar(self)
-    if self.length < self.position then return false, "requires /./" end
-    return true, self.source.byte(self.position)
+    if self.length < self.position then return false, errorMessage(self, "requires /./") end
+    return true, string.byte(self.source, self.position)
 end
 
 ---@param self Parser
@@ -124,10 +122,11 @@ local function skipString(self, template)
     local position = self.position
     local source = self.source
 
-    local l = string.len(template)
+    local l = #template
+    if length < position + l - 1 then return false end
+
     for offset = 0, l - 1 do
-        if length < position + offset then return false end
-        if template.byte(offset + 1) ~= source.byte(position + offset) then return false end
+        if string.byte(template, offset + 1) ~= string.byte(source, position + offset) then return false end
     end
 
     self.position = position + l
@@ -150,19 +149,19 @@ end
 ---@param self Parser
 local function parseUnicodeEscape(self)
     local position = self.position
-    if self.length < position + 3 then return false, "requires /[\\da-fA-F]{4}/" end
+    if self.length < position + 3 then return false, errorMessage(self, "requires /[\\da-fA-F]{4}/") end
 
     local source = self.source
 
-    local ok1, d1 = hexToInt(source.byte(position))
-    local ok2, d2 = hexToInt(source.byte(position + 1))
-    local ok3, d3 = hexToInt(source.byte(position + 2))
-    local ok4, d4 = hexToInt(source.byte(position + 3))
+    local ok1, d1 = hexToInt(string.byte(source, position))
+    local ok2, d2 = hexToInt(string.byte(source, position + 1))
+    local ok3, d3 = hexToInt(string.byte(source, position + 2))
+    local ok4, d4 = hexToInt(string.byte(source, position + 3))
     if ok1 and ok2 and ok3 and ok4 then
         self.position = position + 4
         return true, 4096 * d1 + 256 * d2 + 16 * d3 + d4
     else
-        return false, "requires /[\\da-fA-F]{4}/"
+        return false, errorMessage(self, "requires /[\\da-fA-F]{4}/")
     end
 end
 
@@ -179,7 +178,7 @@ local function parseEscape(self)
         else return true, c
         end
     else
-        return false, "requires /[bfnrtu]|[\\da-fA-F]{4}/"
+        return false, errorMessage(self, "requires /[bfnrtu]|[\\da-fA-F]{4}/")
     end
 end
 
@@ -193,7 +192,9 @@ local function parseStringLiteral(self)
     if skipChar(self, char_dq) then
         while true do
             if skipChar(self, char_dq) then
-                return true, string.char(table.unpack(buffer))
+                local chars = {}
+                for i = 1, #buffer do chars[#chars+1] = string.char(buffer[i]) end
+                return true, table.concat(chars)
 
             elseif skipChar(self, char_bsl) then
                 local ok, c = parseEscape(self)
@@ -202,13 +203,13 @@ local function parseStringLiteral(self)
                 buffer[#buffer+1] = c
             else
                 local ok, c = readChar(self)
-                if not ok then return false, "requires /\"|./" end
+                if not ok then return false, errorMessage(self, "requires /\"|./") end
                 
                 buffer[#buffer+1] = c
             end
         end
     else
-        return false, "requires /\"/"
+        return false, errorMessage(self, "requires /\"/")
     end
 end
 
@@ -265,7 +266,7 @@ local function parseNumber(self)
         end
     end
     self.position = oldPosition
-    return false, "requires number literal"
+    return false, errorMessage(self, "requires number literal")
 end
 
 ---@param self Parser
@@ -302,7 +303,7 @@ local function parseElements(self, beginChar, endChar, parse)
                             -- \[\s*@value(\s*,@value)*\]
                             return true, r
                         else
-                            return false, "unexpected token"
+                            return false, errorMessage(self, "unexpected token")
                         end
                     end
                 end
@@ -311,7 +312,7 @@ local function parseElements(self, beginChar, endChar, parse)
             end
         end
     else
-        return false, string.format("requires /\\%s/", string.char(beginChar))
+        return false, errorMessage(self, "requires /\\"..string.char(beginChar).."/")
     end
 end
 
@@ -343,10 +344,10 @@ local function parseKeyValue(self, r)
                 return false, value
             end
         else
-            return false, "requires /:/"
+            return false, errorMessage(self, "requires /:/")
         end
     else
-        return false, "requires string literal"
+        return false, errorMessage(self, "requires string literal")
     end
 end
 
@@ -357,7 +358,7 @@ end
 
 function Parser:_parseValue()
     local ok, c = peekChar(self)
-    if not ok then return false, "Unexpected end of JSON input." end
+    if not ok then return false, errorMessage(self, "unexpected eos") end
 
     if c == char_n then
         if skipString(self, "null") then
@@ -365,21 +366,21 @@ function Parser:_parseValue()
         elseif skipString(self, "nan") then
             return true, 0/0
         else
-            return false, "Unexpected token a in JSON"
+            return false, errorMessage(self, "expected token: /null|nan/")
         end
 
     elseif c == char_t then
         if skipString(self, "true") then
             return true, true
         else
-            return false, "Unexpected token a in JSON"
+            return false, errorMessage(self, "expected token: /true/")
         end
 
     elseif c == char_f then
         if skipString(self, "false") then
             return true, false
         else
-            return false, "Unexpected token a in JSON"
+            return false, errorMessage(self, "expected token: /false/")
         end
 
     elseif c == char_dq then
@@ -391,10 +392,10 @@ function Parser:_parseValue()
     elseif c == char_lcb then
         return parseObject(self)
 
-    elseif c == char_minus or c == (char_0 <= c and c <= char_9) then
+    elseif c == char_minus or (char_0 <= c and c <= char_9) then
         return parseNumber(self)
     else
-        return false, "Unexpected token a in JSON"
+        return false, errorMessage(self, "expected token: any json token, actual char: '"..string.char(c, 98, 99).."'")
     end
 end
 
@@ -405,11 +406,11 @@ local function parse(source)
     local parser = newParser(source)
 
     skipWhiteSpaces(parser)
-    local ok, value = parser:parseValue()
+    local ok, value = parser:_parseValue()
     if ok then
         skipWhiteSpaces(parser)
         if parser.position <= parser.length
-        then return false, "requires eos."
+        then return false, errorMessage(parser, "requires eos.")
         else return true, value
         end
     else
@@ -417,10 +418,19 @@ local function parse(source)
     end
 end
 
+---@class StringifyOptions
+---@field public space integer|string
+
 ---@param value any
----@return string
----@return string|nil
-local function stringify(value)
+---@param options StringifyOptions|nil
+---@return string|nil json
+---@return string|nil error
+local function stringify(value, options)
+    ---@type string|number
+    local space = " "
+    if options then space = options.space end
+    if type(space) ~= "string" then space = string.rep(" ", tonumber(options.space)) end
+
     ---@type any[] buffer
     local b = {}
     local error = ""
@@ -439,6 +449,10 @@ local function stringify(value)
             b[#b+1] = c
         end
         b[#b+1] = "\""
+    end
+
+    local function writeSpace()
+        b[#b+1] = space
     end
 
     ---@param v any
@@ -465,29 +479,40 @@ local function stringify(value)
 
                 -- array
                 if 0 < length then
-                    b[#b+1] = "[ "
+                    b[#b+1] = "["
+                    writeSpace()
+
                     if not writeValue(v[1]) then return false end
                     for i = 2, length do
-                        b[#b+1] = ", "
+                        b[#b+1] = ","
+                        writeSpace()
                         if not writeValue(v[i]) then return false end
                     end
-                    b[#b+1] = " ]"
+                    writeSpace()
+                    b[#b+1] = "]"
 
                 -- table
                 else
-                    b[#b+1] = "{ "
+                    b[#b+1] = "{"
+                    writeSpace()
+
                     local i = 1
                     for tk, tv in pairs(v) do
-                        if 1 < i then b[#b+1] = ", " end
+                        if 1 < i then
+                            b[#b+1] = ","
+                            writeSpace()
+                        end
                         writeStringLiteral(tostring(tk))
-                        b[#b+1] = ": "
+                        b[#b+1] = ":"
+                        writeSpace()
                         if not writeValue(tv) then return false end
                         i = i + 1
                     end
-                    b[#b+1] = " }"
+                    writeSpace()
+                    b[#b+1] = "}"
                 end
             else
-                error = string.format("invalid type: %s, value: %a", v)
+                error = "invalid type: "..t..", value: "..tostring(v)
                 return false
             end
         end
