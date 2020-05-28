@@ -1,4 +1,6 @@
 
+---@version: 0.0.1
+
 -- スクリプト開始時の座標をホームとする
 
 --- ホームを (0, 0, 0) としたときの相対座標
@@ -126,7 +128,7 @@ local function downMining(options)
         return true
     end
 
-    while options.minY <= position.y do
+    while -options.minY <= position.y do
 
         -- 溶岩なら埋める
         local ok, reason = fillIfLava()
@@ -186,6 +188,7 @@ local function miningCommand(...)
     parseMiningOptions(options, {...})
     print("options: ")
     print("- minY", options.minY)
+    print("")
     mining(options)
 end
 
