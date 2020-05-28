@@ -1,5 +1,5 @@
 
----@version: 0.0.1
+---@version: 0.0.2
 
 -- スクリプト開始時の座標をホームとする
 
@@ -156,6 +156,7 @@ local function mining(options)
     downMining(options)
     print("up to "..tostring(startY).."...")
     upTo(startY)
+    print("y: "..tostring(position.y))
 end
 
 ---@param arguments string[]
