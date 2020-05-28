@@ -1,5 +1,4 @@
-
-#load ".paket/load/netstandard2.1/AngleSharp.fsx"
+﻿
 #load ".paket/load/netstandard2.1/AngleSharp.Css.fsx"
 #load ".paket/load/netstandard2.1/FParsec.fsx"
 #r "System.Net.Http.dll"
@@ -15,10 +14,9 @@ open System.IO
 open System
 open System.Text.RegularExpressions
 
-
 type ReturnType<'a,'b> = { name: 'a; comment: 'b }
-type Parameter<'a,'b> = { type': 'a; name: 'b }
-type Parameters<'a,'b> = { reqs: 'a; opts: 'b }
+type Parameter<'``type'``,'name> = { type': '``type'``; name: 'name }
+type Parameters<'reqs,'opts,'varArg> = { reqs: 'reqs; opts: 'opts; varArg: 'varArg }
 type MethodSign<'a,'b,'c> = { this: 'a; name: 'b; ps: 'c }
 type Row<'description,'link,'minVersion,'kind,'returnSign,'methodSign> = {
     description: 'description
@@ -44,7 +42,25 @@ let parseHtmlOfFile path = async {
     return! parser.ParseDocumentAsync(source, cancel) |> Async.AwaitTask
 }
 
+module BacktrackingParsers =
+    /// backtracking version
+    let opt p = opt (attempt p)
+
+    /// backtracking version
+    let many p =
+        let aux, _aux = createParserForwardedToRef()
+        _aux := opt (p .>>. aux) |>> function None -> [] | Some(x, xs) -> x::xs
+        aux
+
+    /// backtracking version
+    let sepBy1 p sep = p .>>. many (attempt (sep >>. p)) |>> fun (x, xs) -> x::xs
+
+    /// backtracking version
+    let choice ps = choice <| List.map attempt ps
+
 module Parsers =
+    open BacktrackingParsers
+
     let trivia0 = spaces
     let token p = p .>> trivia0
 
@@ -55,32 +71,72 @@ module Parsers =
     let typeName = name
 
     let returnParamComment = skipMany1Satisfy (function '/' | ',' -> false | _ -> true) |> skipped |> token
-    let returnType = pipe2 typeName returnParamComment <| fun a b -> { name = a; comment = b }
+    let returnType = choice [
+        typeName .>>. returnParamComment |>> fun (a, b) -> { name = a; comment = Some b }
+        typeName |>> fun n -> { name = n; comment = None }
+    ]
     let returnOrType = sepBy1 returnType (t"/")
     let returnSumType = sepBy1 returnOrType (t",")
     // `boolean success, table data/string error message`
     let returnParameter = returnSumType
 
-    let parameter = pipe2 typeName name <| fun a b -> { type' = a; name = b }
+    let parameter = typeName .>>. many1 name |>> fun (a, b) -> { type' = a; name = String.concat "_" b }
 
-    /// `[, a b [, c d]]`
-    let optionalParametersTail1, _optionalParametersTail1 = createParserForwardedToRef()
-    do _optionalParametersTail1 := pipe5 (t"[") (t",") parameter (opt optionalParametersTail1) (t"]") (fun _ _ p ps _ -> p::List.concat (Option.toList ps))
-    let optionalParametersTail0 = opt optionalParametersTail1 |>> (Option.toList >> List.concat)
-
-    let optionalParameters1 = pipe4 (t"[") parameter optionalParametersTail0 (t"]") <| fun _ p ps _ -> p::ps
+    /// e.g. `a b, c d`
     let requiredParameters1 = sepBy1 parameter (t",")
-    let parameters1 =
-        attempt (optionalParameters1 |>> fun a -> { reqs = []; opts = a }) <|>
-        pipe2 requiredParameters1 optionalParametersTail0 (fun a b -> { reqs = a; opts = b })
+    /// `, ...`
+    let tailVarArg = t"," .>> t"..." >>% ([], true)
 
-    let parameters = opt parameters1 |>> function None -> { reqs = []; opts = [] } | Some x -> x
+    /// `[, a b, c d [, e f]]`, `[, a b, c d, [, e f, g h, ...]]`
+    let optionalParametersTail1, _optionalParametersTail1 = createParserForwardedToRef()
+    do _optionalParametersTail1 :=
+        let tail = choice [
+            tailVarArg
+            optionalParametersTail1
+        ]
+        between (t"[" >>. t",") (t"]") (requiredParameters1 .>>. opt tail) |>> function
+            | head, None -> [head], false
+            | head, Some(tail, varArg) -> head::tail, varArg
 
-    // `turtle.craft(number quantity)`
-    // `turtle.getItemCount([number slotNum])`
-    // `turtle.getItemCount([number slotNum [, number slotNum2]])`
-    // `turtle.transferTo(number slot [, number quantity])`
-    // `turtle.transferTo(number slot [, number quantity [, number quantity2]])`
+    let optionalParametersTail0 =
+        many optionalParametersTail1
+        |>> fun opts -> List.collect fst opts, List.exists snd opts
+
+    let optionalParameters1 = between (t"[") (t"]") (requiredParameters1 .>>. optionalParametersTail0) |>> fun (p, (ps, v)) -> p::ps, v
+    let requiredParameterTail0 = choice [tailVarArg; optionalParametersTail0]
+    let parameters1 = choice [
+        // `...`
+        t"..." >>% { reqs = []; opts = []; varArg = true }
+        optionalParameters1 |>> fun (opts, var) -> { reqs = []; opts = opts; varArg = var }
+        requiredParameters1 .>>. requiredParameterTail0 |>> fun (reqs, (opts, var)) -> { reqs = reqs; opts = opts; varArg = var }
+    ]
+    let parameters = opt parameters1 |>> function None -> { reqs = []; opts = []; varArg = false } | Some x -> x
+
+    let parse p =
+        runParserOnString (trivia0 >>. p .>> eof) () ""
+        >> function Success(x, _, _) -> x | Failure _ as r -> failwithf "%A" r
+
+    let test() =
+        let (=?) l r = if not (l = r) then failwithf "%A =? %A" l r
+        let parse = parse parameters
+
+        let p (p, n) = { type' = p; name = n }
+        let sign va rs os = { reqs = List.map p rs; opts = List.map (List.map p) os; varArg = va }
+        let varSign = sign true
+        let sign = sign false
+
+        parse "" =? sign [] []
+        parse "..." =? varSign [] []
+        parse "a b" =? sign ["a","b"] []
+        parse "a b, ..." =? varSign ["a","b"] []
+        parse "[a b]" =? sign [] [["a","b"]]
+        parse "[a b [, c d, e f, ...]]" =? varSign [] [["a","b"]; ["c","d"; "e","f"]]
+        parse "a b [, c d]" =? sign ["a","b"] [["c","d"]]
+        parse "a b, c d [, e f [, g h, i f, ...]]" =? varSign ["a","b"; "c","d"] [["e","f"]; ["g","h";"i","f"]]
+
+        parse "a b [, c d] [, e f]" =? sign ["a","b"] [["c","d"];["e","f"]]
+        parse "a b [, c d, ...] [, e f]" =? varSign ["a","b"] [["c","d"];["e","f"]]
+
     let methodSign = pipe4 name (t".") name (between (t"(") (t")") parameters) <| fun this _ name ps ->
         { this = this; name = name; ps = ps }
 
@@ -113,12 +169,12 @@ let parseMembers trSelector rowInfo (doc: IParentNode) = seq {
     for r: IElement in rows do
         let r = r :?> IHtmlTableRowElement
         let { return' = return'; methodSign = methodName; description = description; minVersion = minVersion; linkParent = link; kind = kind } = rowInfo r
-        let link = link.QuerySelectorAll "a" |> Seq.map (fun a -> a :?> IHtmlAnchorElement) |> Seq.tryHead |> Option.map (fun a -> a.Href)
+        let link = link.QuerySelectorAll "a" |> Seq.map (fun a -> a :?> IHtmlAnchorElement) |> Seq.map (fun a -> a.Href) |> Seq.tryHead
 
         let returnSign =
             match return' with
             | Match @"^([\w\d]+)\s+([\w\d]+)$" (Group 1 returnType & Group 2 returnName) ->
-                [[{ name = returnType; comment = returnName }]]
+                [[{ name = returnType; comment = Some returnName }]]
 
             | Parse Parsers.returnParameter st -> st
             | _ -> failwithf "unknown return format: %A" return'
@@ -158,10 +214,11 @@ let styleToKind (r: IElement) =
     | "" -> All
     | b -> failwithf "unknown background color: %A" b
 
-type Settings<'baseDomain,'thisName,'trSelector,'rowInfo> = {
+type Settings<'baseDomain,'thisName,'trSelector,'summarySelector,'rowInfo> = {
     baseDomain: 'baseDomain
     thisName: 'thisName
     trSelector: 'trSelector
+    summarySelector: 'summarySelector
     rowInfo: 'rowInfo
 }
 let writeMember w { baseDomain = baseDomain } m =
@@ -172,14 +229,24 @@ let writeMember w { baseDomain = baseDomain } m =
         minVersion = minVersion
         kind = kind
         } = m
-    let link = m.link |> Option.map (fun l -> Uri(baseDomain, l + ""))
-    let ps = methodSign.ps
+    let sign = methodSign.ps
 
-    match link with
+    let makeAbsolute (baseDomain: Uri) address =
+        let address = Uri(address, UriKind.RelativeOrAbsolute)
+        if address.IsAbsoluteUri then
+            if address.Scheme = "about" then Uri(baseDomain, address.AbsolutePath)
+            else address
+        else Uri(baseDomain, address)
+
+    match m.link with
     | None -> ()
-    | Some link -> fprintfn w "--- [■](%s)" <| string link
+    | Some link ->
+        let link = makeAbsolute baseDomain link
+        fprintfn w "--- [■](%s)" <| string link
 
+    let description = Regex.Replace(input = description, pattern = "\s+", replacement = " ")
     fprintfn w "--- %s" description
+
     if minVersion <> "?" then
         fprintfn w "--- (Min version: %s)" minVersion
 
@@ -189,42 +256,102 @@ let writeMember w { baseDomain = baseDomain } m =
         fprintfn w "--- (Only: %A)" kind
 
     for r in returnSign do
-        seq { for { comment = c; name = n } in r -> n + " " + c }
+        seq {
+            for { comment = c; name = n } in r ->
+                match c with
+                | None -> n
+                | Some c -> n + " " + c
+        }
         |> String.concat "|"
         |> fprintfn w "---@return %s"
 
-    for { type' = t; name = n } in Seq.append ps.reqs ps.opts do
+    let concat reqs opts = List.concat (reqs::opts)
+    for { type' = t; name = n } in concat sign.reqs sign.opts do
         fprintfn w "---@param %s %s" n t
 
-    for i in 1..List.length ps.opts-1 do
-        let opts, _ = List.splitAt (i + 1) ps.opts
-        let ps = seq { for p in Seq.append ps.reqs opts do sprintf "%s: %s" p.name p.type' } |> String.concat ", "
-        let returnType = seq { for ot in returnSign do seq { for t in ot do t.name }|> String.concat "|" } |> String.concat ", "
-        fprintfn w "---@overload fun(%s): %s" ps returnType
+    let parametersSign print varArg ps =
+        match ps with
+        | [] -> if varArg then "..." else ""
+        | ps ->
+            let ps = seq { for p in ps -> print p } |> String.concat ", "
+            if varArg then ps + ", ..." else ps
 
-    let methodParameters = seq { for p in Seq.append ps.reqs ps.opts do p.name } |> String.concat ", "
+    for i in 1..List.length sign.opts-1 do
+        let opts, _ = List.splitAt (i + 1) sign.opts
+        let sign =
+            concat sign.reqs opts
+            |> parametersSign (fun p -> sprintf "%s: %s" p.name p.type') sign.varArg
+
+        let returnType = String.concat ", " <| seq {
+            for ot in returnSign do
+                String.concat "|" <| seq {
+                    for t in ot do t.name
+                }
+        }
+        fprintfn w "---@overload fun(%s): %s" sign returnType
+
+    let methodParameters =
+        concat sign.reqs sign.opts
+        |> parametersSign (fun p -> p.name) sign.varArg
+
     fprintfn w "function %s.%s(%s) end" methodSign.this methodSign.name methodParameters
     fprintfn w ""
 
-let writeLuaDeclarationSource w settings (doc: IParentNode) =
+let writeLuaDeclarationSource w settings doc =
     let { baseDomain = baseDomain; thisName = thisName; trSelector = trSelector; rowInfo = rowInfo } = settings
 
-    let summary =
-        let summary = doc.QuerySelector "#mw-content-text > p:nth-child(1)" :?> IHtmlParagraphElement
-        summary.ChildNodes
-        |> Seq.map (function
-            | :? IHtmlAnchorElement as a when String.IsNullOrEmpty a.Relation -> anchorToMd baseDomain a
-            | n -> n.TextContent
+    let summaries =
+        settings.summarySelector(doc: IParentNode)
+        |> Seq.map (fun (e: IElement) ->
+            e.ChildNodes
+            |> Seq.map (function
+                | :? IHtmlAnchorElement as a when String.IsNullOrEmpty a.Relation -> anchorToMd baseDomain a
+                | n -> n.TextContent
+            )
+            |> String.concat ""
         )
-        |> String.concat ""
+        |> Seq.map (fun s -> s.Trim())
 
-    fprintfn w "--- %s" <| summary.Trim()
+    for s in summaries do
+        fprintfn w "--- %s" <| s.Trim()
     fprintfn w "%s = {}" thisName
     fprintfn w ""
     for m in parseMembers trSelector rowInfo doc do
         writeMember w settings m
+    fprintfn w ""
 
-let cell n (r: #IHtmlTableRowElement) = r.Cells.[index = n]
+let cell n (r: #IHtmlTableRowElement) =
+    try r.Cells.[index = n]
+    with :? ArgumentOutOfRangeException ->
+        eprintfn "textContent: %A" r.TextContent
+        reraise()
+
 let cellText n r = (cell n r).TextContent.Trim()
 let querySelectorAll s (n: #IParentNode) = n.QuerySelectorAll s
 let (/) a b = Path.Combine(a, b)
+
+type DocSource<'address,'path> = {
+    address: 'address
+    path: 'path
+}
+let getAndWriteLuaDeclarationSource writer (config, source) = async {
+    let path = source.path
+    if not <| File.Exists path then
+        printfn "download from: %A" source.address
+        let! doc = parseHtml source.address
+        use file = File.OpenWrite path
+        use writer = new StreamWriter(file)
+        do! doc.Prettify() |> writer.WriteAsync |> Async.AwaitTask
+        writeLuaDeclarationSource writer config doc
+    else
+        printfn "read from: %A" path
+        let! doc = parseHtmlOfFile path
+        writeLuaDeclarationSource writer config doc
+}
+
+#if TEST
+do
+#else
+lazy
+#endif
+    Parsers.test()
