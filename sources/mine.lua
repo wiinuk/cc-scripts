@@ -150,7 +150,9 @@ end
 ---@param options MiningOptions
 local function mining(options)
     local startY = position.y
+    print("down mining...")
     downMining(options)
+    print("up to "..tostring(startY).."...")
     upTo(startY)
 end
 
@@ -180,7 +182,10 @@ local function miningCommand(...)
     local options = {
         minY = 10
     }
+    print("# mining")
     parseMiningOptions(options, {...})
+    print("options: ")
+    print("- minY", options.minY)
     mining(options)
 end
 
