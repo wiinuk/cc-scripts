@@ -178,7 +178,7 @@ end
 local function miningCommand(...)
     ---@type MiningOptions
     local options = {
-        minY = 999
+        minY = 10
     }
     parseMiningOptions(options, {...})
     mining(options)
