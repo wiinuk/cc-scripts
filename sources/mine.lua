@@ -43,7 +43,7 @@ local function printError(...)
     for i = 1, #messages do
         messages[i] = tostring(messages[i])
     end
-    io.stderr:write(table.concat(messages, "\t") + "\n")
+    io.stderr:write(table.concat(messages, "\t").."\n")
 end
 
 local function mineDown1()
