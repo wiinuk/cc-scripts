@@ -38,6 +38,10 @@ local function digDown()
     return true
 end
 
+local function printError(...)
+    io.stderr:write(table.concat({...}, "\t") + "\n")
+end
+
 local function mineDown1()
     if not moveDown() then
         -- 行けなかった
@@ -52,7 +56,7 @@ local function mineDown1()
             if not ok then
 
                 -- 拾えなかった
-                error("suckDown failed: "..reason)
+                printError("suckDown failed:", reason)
             end
         end
 
