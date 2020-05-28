@@ -1,5 +1,5 @@
 
----@version: 0.0.4
+---@version: 0.0.5
 
 -- スクリプト開始時の座標をホームとする
 
@@ -37,18 +37,25 @@ local function moveUp()
     return ok, error
 end
 
-local function digDown()
-    local ok, info = turtle.inspectDown()
+local function dig(inspect, dig)
+    local ok, info = inspect()
     if not ok then return false, info end
     local blockName = info.name
 
     memory.blockToDigTryCount[blockName] = (memory.blockToDigTryCount[blockName] or 0) + 1
-    local ok, info = turtle.digDown()
+    local ok, info = dig
 
     if not ok then return false, info end
 
     memory.blockToDigSuccessCount[blockName] = (memory.blockToDigSuccessCount[blockName] or 0) + 1
     return true
+end
+
+local function digDown()
+    return dig(turtle.inspectDown, turtle.digDown)
+end
+local function digUp()
+    return dig(turtle.inspectUp, turtle.digUp)
 end
 
 local function printError(...)
@@ -59,47 +66,64 @@ local function printError(...)
     io.stderr:write(table.concat(messages, "\t").."\n")
 end
 
-local function mineDown1()
-    if not moveDown() then
-        -- 行けなかった
+local function mineMove1(move, detect, dig, suck, attack)
+    if move() then return true end
+    -- 行けなかった
 
-        -- ブロックがあるなら
-        if turtle.detectDown() then
+    -- ブロックがあるなら掘る
+    if detect() then
 
-            -- 掘る
-            digDown()
+        -- 掘る
+        dig()
 
-            -- 拾う
-            local ok, reason = turtle.suckDown()
-            if not ok then
+        -- 拾う
+        local ok, reason = suck()
+        if not ok then
 
-                -- 拾えなかった
-                printError("suckDown failed:", reason)
-            end
+            -- 拾えなかった
+            printError("suck failed:", reason)
         end
-
-        local ok, reason = moveDown()
-        if not ok then printError("moveDown failed: ", reason) end
-        return ok
-    else
-        return true
     end
+
+    -- 掘ったら行けた?
+    if move() then return true end
+
+    -- エンティティがいる?
+    if not detect() and not move() then
+        -- 待機
+        os.sleep(1)
+    end
+
+    -- エンティティがいる?
+    while not detect() and not move() do
+        -- 攻撃
+        attack()
+    end
+
+    local ok, reason = move()
+    if ok then return true end
+
+    printError("move failed: ", reason)
+    return false
+end
+local function mineDown1()
+    return mineMove1(
+        moveDown,
+        turtle.detectDown,
+        digDown,
+        turtle.suckDown,
+        turtle.attackDown
+    )
 end
 
-local function up1()
-    local ok, error = moveUp()
-    if not ok then
-        while not turtle.detectUp() do
-
-            -- 上にエンティティがいる?
-            if moveUp() then return true end
-
-            os.sleep(0.5)
-        end
-        return false, error
-    else
-        return true
-    end
+local function mineUp1()
+    return mineMove1(
+        moveUp,
+        turtle.detectUp,
+        digUp,
+        turtle.suckUp,
+        turtle.attackUp
+    )
 end
 local function selectMostCommonItemSlot()
     local maxFitness = 0
@@ -158,7 +182,7 @@ end
 
 local function upTo(y)
     while position.y ~= y do
-        local ok, error = up1()
+        local ok, error = mineUp1()
         if not ok then return false, error end
     end
     return true
