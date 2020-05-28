@@ -52,6 +52,7 @@ local function mineDown1()
 
         -- ブロックがあるなら
         if turtle.detectDown() then
+
             -- 掘る
             digDown()
 
@@ -65,11 +66,58 @@ local function mineDown1()
         end
 
         local ok, reason = moveDown()
-        if not ok then error("moveDown failed: "..reason) end
+        if not ok then printError("moveDown failed: "..reason) end
+        return ok
+    else
+        return true
+    end
+end
+
+local function selectMostCommonItemSlot()
+    local maxFitness = 0
+    local maxFitnessSlotNumber = nil
+    for i = 1, 16 do
+        local slotItem = turtle.getItemDetail()
+        -- スロットが空なら nil
+        -- ダメージがあるアイテムは除く
+        if slotItem and slotItem.damage == 0 then
+
+            -- local tryCount = memory.blockToDigTryCount[slotItem.name] or 0
+            local successCount = memory.blockToDigSuccessCount[slotItem.name] or 0
+            local fitness = successCount + slotItem.count
+            if maxFitness < fitness then
+                maxFitness = fitness
+                maxFitnessSlotNumber = i
+            end
+        end
+    end
+    if maxFitnessSlotNumber then
+        turtle.select(maxFitnessSlotNumber)
+        return true
+    else
+        return false, "all item slot is empty"
     end
 end
 local function mining()
+    local function fillIfLava()
+        local ok, info = turtle.detectDown()
+        if ok and info.name == "minecraft:lava" then
+            local ok, reason = selectMostCommonItemSlot()
+            if not ok then return false, reason end
+
+            return turtle.placeDown()
+        end
+        return true
+    end
+
     while true do
+
+        -- 溶岩なら埋める
+        local ok, reason = fillIfLava()
+        if not ok then
+            printError("fill lava failed: "..tostring(reason))
+        end
+
         mineDown1()
         os.sleep(0)
     end
