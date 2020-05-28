@@ -1,5 +1,5 @@
 
----@version: 0.0.3
+---@version: 0.0.4
 
 -- スクリプト開始時の座標をホームとする
 
@@ -79,13 +79,28 @@ local function mineDown1()
         end
 
         local ok, reason = moveDown()
-        if not ok then printError("moveDown failed: "..reason) end
+        if not ok then printError("moveDown failed: ", reason) end
         return ok
     else
         return true
     end
 end
 
+local function up1()
+    local ok, error = moveUp()
+    if not ok then
+        while not turtle.detectUp() do
+
+            -- 上にエンティティがいる?
+            if moveUp() then return true end
+
+            os.sleep(0.5)
+        end
+        return false, error
+    else
+        return true
+    end
+end
 local function selectMostCommonItemSlot()
     local maxFitness = 0
     local maxFitnessSlotNumber = nil
@@ -141,21 +156,6 @@ local function downMining(options)
     end
 end
 
-local function up1()
-    local ok, error = moveUp()
-    if not ok then
-        while not turtle.detectUp() do
-
-            -- 上にエンティティがいる?
-            if moveUp() then return true end
-
-            os.sleep(0.5)
-        end
-        return false, error
-    else
-        return true
-    end
-end
 local function upTo(y)
     while position.y ~= y do
         local ok, error = up1()
@@ -167,10 +167,13 @@ end
 ---@param options MiningOptions
 local function mining(options)
     local startY = position.y
+
     print("down mining...")
     downMining(options)
+
     print("up to "..tostring(startY).."...")
     upTo(startY)
+
     print("y: "..tostring(position.y))
 end
 
@@ -180,14 +183,17 @@ local function parseMiningOptions(options, arguments)
     local i = 1
     while i <= #arguments do
         local arg = arguments[i]
-        if string.lower(arg) == string.lower("--minY") then
+        if
+            string.lower(arg) == string.lower("--down") or
+            string.lower(arg) == "-d"
+        then
             i = i + 1
             if i <= #arguments then
                 -- TODO: check format
                 options.minY = tonumber(arguments[i])
                 i = i + 1
             else
-                return error("requires <minY>")
+                return error("requires <down>")
             end
         else
             return error("unrecognized argument"..arg)
