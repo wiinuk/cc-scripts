@@ -39,7 +39,11 @@ local function digDown()
 end
 
 local function printError(...)
-    io.stderr:write(table.concat({...}, "\t") + "\n")
+    local messages = {...}
+    for i = 1, #messages do
+        messages[i] = tostring(messages[i])
+    end
+    io.stderr:write(table.concat(messages, "\t") + "\n")
 end
 
 local function mineDown1()
