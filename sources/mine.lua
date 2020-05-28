@@ -1,5 +1,5 @@
 
----@version: 0.0.5
+---@version: 0.0.6
 
 -- スクリプト開始時の座標をホームとする
 
@@ -37,13 +37,13 @@ local function moveUp()
     return ok, error
 end
 
-local function dig(inspect, dig)
+local function digGeneric(inspect, dig)
     local ok, info = inspect()
     if not ok then return false, info end
     local blockName = info.name
 
     memory.blockToDigTryCount[blockName] = (memory.blockToDigTryCount[blockName] or 0) + 1
-    local ok, info = dig
+    local ok, info = dig()
 
     if not ok then return false, info end
 
@@ -52,10 +52,10 @@ local function dig(inspect, dig)
 end
 
 local function digDown()
-    return dig(turtle.inspectDown, turtle.digDown)
+    return digGeneric(turtle.inspectDown, turtle.digDown)
 end
 local function digUp()
-    return dig(turtle.inspectUp, turtle.digUp)
+    return digGeneric(turtle.inspectUp, turtle.digUp)
 end
 
 local function printError(...)
@@ -88,21 +88,25 @@ local function mineMove1(move, detect, dig, suck, attack)
     -- 掘ったら行けた?
     if move() then return true end
 
-    -- エンティティがいる?
-    if not detect() and not move() then
+    if not detect() then
+        if move() then return true end
+        -- エンティティがいる?
         -- 待機
         os.sleep(1)
     end
 
     -- エンティティがいる?
-    while not detect() and not move() do
+    while not detect() do
+        if move() then return true end
         -- 攻撃
         attack()
     end
 
+    -- 移動
     local ok, reason = move()
     if ok then return true end
 
+    -- 失敗
     printError("move failed: ", reason)
     return false
 end
