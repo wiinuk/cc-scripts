@@ -29,12 +29,12 @@ local function digDown()
     if not ok then return false, info end
     local blockName = info.name
 
-    memory.blockToDigTryCount[blockName] = memory.blockToDigTryCount[blockName] + 1
+    memory.blockToDigTryCount[blockName] = (memory.blockToDigTryCount[blockName] or 0) + 1
     local ok, info = turtle.digDown()
 
     if not ok then return false, info end
 
-    memory.blockToDigSuccessCount[blockName] = memory.blockToDigSuccessCount[blockName] + 1
+    memory.blockToDigSuccessCount[blockName] = (memory.blockToDigSuccessCount[blockName] or 0) + 1
     return true
 end
 
