@@ -2,10 +2,18 @@
     "cSpell.words": [
         "fprintfn",
         "groupnum",
+        "lacc",
+        "pastebin",
         "pstring",
         "reqs",
         "rgba",
         "tbody"
     ],
-    "Lua.runtime.version": "Lua 5.1"
+    "Lua.runtime.version": "Lua 5.1",
+    "files.exclude": {
+        ".paket/load/**/*.csx": true
+    },
+    "Lua.diagnostics.disable": [
+        "redefined-local"
+    ]
 }
