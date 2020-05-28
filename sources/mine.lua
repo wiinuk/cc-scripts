@@ -11,15 +11,26 @@ local memory = {
     moveHistory = {},
 }
 
+local function pushPosition()
+    local h = memory.moveHistory
+    h[#h+1] = position.x
+    h[#h+1] = position.y
+    h[#h+1] = position.z
+end
+
 local function moveDown()
     local ok, error = turtle.down()
     if ok then
         position.y = position.y - 1
-
-        local h = memory.moveHistory
-        h[#h+1] = position.x
-        h[#h+1] = position.y
-        h[#h+1] = position.z
+        pushPosition()
+    end
+    return ok, error
+end
+local function moveUp()
+    local ok, error = turtle.up()
+    if ok then
+        position.y = position.y + 1
+        pushPosition()
     end
     return ok, error
 end
@@ -98,7 +109,7 @@ local function selectMostCommonItemSlot()
         return false, "all item slot is empty"
     end
 end
-local function mining()
+local function downMining()
     local function fillIfLava()
         local ok, info = turtle.inspectDown()
         if ok and info.name == "minecraft:lava" then
@@ -118,9 +129,23 @@ local function mining()
             printError("fill lava failed: "..tostring(reason))
         end
 
-        mineDown1()
+        if not mineDown1() then return end
         os.sleep(0)
     end
+end
+
+local function upTo(y)
+    while position.y ~= y do
+        local ok, error = moveUp()
+        if not ok then return false, error end
+    end
+    return true
+end
+
+local function mining()
+    local startY = position.y
+    downMining()
+    upTo(startY)
 end
 
 -- turtle.detectDown
