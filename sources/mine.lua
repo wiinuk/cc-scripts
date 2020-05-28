@@ -100,7 +100,7 @@ local function selectMostCommonItemSlot()
 end
 local function mining()
     local function fillIfLava()
-        local ok, info = turtle.detectDown()
+        local ok, info = turtle.inspectDown()
         if ok and info.name == "minecraft:lava" then
             local ok, reason = selectMostCommonItemSlot()
             if not ok then return false, reason end
