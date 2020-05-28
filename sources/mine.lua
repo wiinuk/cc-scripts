@@ -109,7 +109,12 @@ local function selectMostCommonItemSlot()
         return false, "all item slot is empty"
     end
 end
-local function downMining()
+
+---@class MiningOptions
+---@field public minY integer
+
+---@param options MiningOptions
+local function downMining(options)
     local function fillIfLava()
         local ok, info = turtle.inspectDown()
         if ok and info.name == "minecraft:lava" then
@@ -121,7 +126,7 @@ local function downMining()
         return true
     end
 
-    while true do
+    while options.minY <= position.y do
 
         -- 溶岩なら埋める
         local ok, reason = fillIfLava()
@@ -142,10 +147,41 @@ local function upTo(y)
     return true
 end
 
-local function mining()
+---@param options MiningOptions
+local function mining(options)
     local startY = position.y
-    downMining()
+    downMining(options)
     upTo(startY)
+end
+
+---@param arguments string[]
+---@param options MiningOptions
+local function parseMiningOptions(options, arguments)
+    local i = 1
+    while i <= #arguments do
+        local arg = arguments[i]
+        if string.lower(arg) == string.lower("--minY") then
+            i = i + 1
+            if i <= #arguments then
+                -- TODO: check format
+                options.minY = tonumber(arguments[i])
+                i = i + 1
+            else
+                return error("requires <minY>")
+            end
+        else
+            return error("unrecognized argument"..arg)
+        end
+    end
+    return true
+end
+local function miningCommand(...)
+    ---@type MiningOptions
+    local options = {
+        minY = 999
+    }
+    parseMiningOptions(options, {...})
+    mining(options)
 end
 
 -- turtle.detectDown
@@ -153,7 +189,7 @@ end
 -- turtle.attack
 
 local commands = {
-    mining = mining
+    mining = miningCommand
 }
 
 local function processArguments(x, ...) commands[x](...) end

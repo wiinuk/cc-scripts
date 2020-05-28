@@ -2,7 +2,7 @@ local args = {...}
 local commandName = "lacc"
 
 -- remote setup mode
--- usage: `pastebin run <lacc_source_id> remote-setup`
+-- usage: `pastebin run W13jSN37 remote-setup`
 if #args == 1 and string.lower(args[1]) == "remote-setup" then
     fs.delete(shell.resolve(commandName))
     shell.run("pastebin", "get", "6ARHfeVq", fs.combine(commandName, "json.lua"))
