@@ -111,8 +111,11 @@ end
 ---@return boolean success
 ---@return integer|string charOrError
 local function readChar(self)
-    if self.length < self.position then return false, errorMessage(self, "requires /./") end
-    return true, string.byte(self.source, self.position)
+    local position = self.position
+    if self.length < position then return false end
+    local c = string.byte(self.source, position)
+    self.position = position + 1
+    return true, c
 end
 
 ---@param self Parser
@@ -149,7 +152,7 @@ end
 ---@param self Parser
 local function parseUnicodeEscape(self)
     local position = self.position
-    if self.length < position + 3 then return false, errorMessage(self, "requires /[\\da-fA-F]{4}/") end
+    if self.length < position + 3 then return false, errorMessage(self, "requires unicode escape sequences, e.g. `\\u00C0`") end
 
     local source = self.source
 
@@ -161,7 +164,7 @@ local function parseUnicodeEscape(self)
         self.position = position + 4
         return true, 4096 * d1 + 256 * d2 + 16 * d3 + d4
     else
-        return false, errorMessage(self, "requires /[\\da-fA-F]{4}/")
+        return false, errorMessage(self, "requires unicode escape sequences, e.g. `\\u00C0`")
     end
 end
 
@@ -178,38 +181,33 @@ local function parseEscape(self)
         else return true, c
         end
     else
-        return false, errorMessage(self, "requires /[bfnrtu]|[\\da-fA-F]{4}/")
+        return false, errorMessage(self, "requires escape sequence, e.g. `\\n` `\\u00C0`")
     end
 end
 
 ---@param self Parser
 local function parseStringLiteral(self)
     if skipString(self, "\"\"") then return true, "" end
+    if not skipChar(self, char_dq) then return false, errorMessage(self, "requires string literal, e.g. `\"abc\"`") end
 
     ---@type integer[]
     local buffer = {}
 
-    if skipChar(self, char_dq) then
-        while true do
-            if skipChar(self, char_dq) then
-                local chars = {}
-                for i = 1, #buffer do chars[#chars+1] = string.char(buffer[i]) end
-                return true, table.concat(chars)
+    while true do
+        if skipChar(self, char_dq) then
+            return true, string.char(unpack(buffer))
 
-            elseif skipChar(self, char_bsl) then
-                local ok, c = parseEscape(self)
-                if not ok then return ok, c end
+        elseif skipChar(self, char_bsl) then
+            local ok, c = parseEscape(self)
+            if not ok then return ok, c end
 
-                buffer[#buffer+1] = c
-            else
-                local ok, c = readChar(self)
-                if not ok then return false, errorMessage(self, "requires /\"|./") end
-                
-                buffer[#buffer+1] = c
-            end
+            buffer[#buffer+1] = c
+        else
+            local ok, c = readChar(self)
+            if not ok then return false, errorMessage(self, "requires `\"` or other character, e.g. `\"abc\"`") end
+
+            buffer[#buffer+1] = c
         end
-    else
-        return false, errorMessage(self, "requires /\"/")
     end
 end
 
@@ -257,16 +255,11 @@ end
 ---@param self Parser
 local function parseNumber(self)
     local oldPosition = self.position
-    if skipInteger(self) then
-        local ok, _ = skipFraction(self)
-        if ok then
-            if skipExponent(self) then
-                return true, tonumber(self.source.sub(oldPosition, self.position - 1))
-            end
-        end
+    if skipInteger(self) and skipFraction(self) and skipExponent(self) then
+        return true, tonumber(string.sub(self.source, oldPosition, self.position - 1))
     end
     self.position = oldPosition
-    return false, errorMessage(self, "requires number literal")
+    return false, errorMessage(self, "requires number literal, e.g. `123` `-1.23e45`")
 end
 
 ---@param self Parser
@@ -296,14 +289,14 @@ local function parseElements(self, beginChar, endChar, parse)
                         if ok then
                             -- \[\s*@value(\s*,@value)*\s*,@value
                         else
-                            return false, r
+                            return false, error
                         end
                     else
                         if skipChar(self, endChar) then
                             -- \[\s*@value(\s*,@value)*\]
                             return true, r
                         else
-                            return false, errorMessage(self, "unexpected token")
+                            return false, errorMessage(self, "requires separator `,` or end character `"..string.char(endChar).."`")
                         end
                     end
                 end
@@ -312,7 +305,7 @@ local function parseElements(self, beginChar, endChar, parse)
             end
         end
     else
-        return false, errorMessage(self, "requires /\\"..string.char(beginChar).."/")
+        return false, errorMessage(self, "requires `"..string.char(beginChar).."`")
     end
 end
 
@@ -336,6 +329,7 @@ local function parseKeyValue(self, r)
     if okK then
         skipWhiteSpaces(self)
         if skipChar(self, char_colon) then
+            skipWhiteSpaces(self)
             local okV, value = self:_parseValue()
             if okV then
                 r[key] = value
@@ -344,10 +338,10 @@ local function parseKeyValue(self, r)
                 return false, value
             end
         else
-            return false, errorMessage(self, "requires /:/")
+            return false, errorMessage(self, "requires `:`")
         end
     else
-        return false, errorMessage(self, "requires string literal")
+        return false, errorMessage(self, "requires property or end character `}`, e.g. `{ \"x\": 10 }`")
     end
 end
 
@@ -358,7 +352,7 @@ end
 
 function Parser:_parseValue()
     local ok, c = peekChar(self)
-    if not ok then return false, errorMessage(self, "unexpected eos") end
+    if not ok then return false, errorMessage(self, "requires any value, e.g. `null` `true` `123` `\"abc\"` `[]` `{}`") end
 
     if c == char_n then
         if skipString(self, "null") then
@@ -366,21 +360,21 @@ function Parser:_parseValue()
         elseif skipString(self, "nan") then
             return true, 0/0
         else
-            return false, errorMessage(self, "expected token: /null|nan/")
+            return false, errorMessage(self, "requires `null`")
         end
 
     elseif c == char_t then
         if skipString(self, "true") then
             return true, true
         else
-            return false, errorMessage(self, "expected token: /true/")
+            return false, errorMessage(self, "requires `true`")
         end
 
     elseif c == char_f then
         if skipString(self, "false") then
             return true, false
         else
-            return false, errorMessage(self, "expected token: /false/")
+            return false, errorMessage(self, "requires `false`")
         end
 
     elseif c == char_dq then
@@ -395,7 +389,7 @@ function Parser:_parseValue()
     elseif c == char_minus or (char_0 <= c and c <= char_9) then
         return parseNumber(self)
     else
-        return false, errorMessage(self, "expected token: any json token, actual char: '"..string.char(c, 98, 99).."'")
+        return false, errorMessage(self, "requires any value, e.g. `null` `true` `123` `\"abc\"` `[]` `{}`")
     end
 end
 
@@ -410,7 +404,7 @@ local function parse(source)
     if ok then
         skipWhiteSpaces(parser)
         if parser.position <= parser.length
-        then return false, errorMessage(parser, "requires eos.")
+        then return false, errorMessage(parser, "requires end of source")
         else return true, value
         end
     else
@@ -419,110 +413,213 @@ local function parse(source)
 end
 
 ---@class StringifyOptions
----@field public space integer|string
+---@field public space string|nil
+---@field public indent string|nil
+---@field public maxWidth integer|nil
+
+---@class Writer
+---@field public b any[]
+---@field public space string
+---@field public indent string
+---@field public newLine string
+---@field public maxWidth integer
+---@field public error string|nil
+---@field public width integer
+local Writer = {
+    b = "b",
+    space = "space",
+    indent = "indent",
+    newLine = "newLine",
+    maxWidth = "maxWidth",
+    error = "error",
+    width = "width",
+}
+
+function Writer.new(space, indent, newLine, maxWidth)
+    ---@type Writer
+    local x = {
+        b = {},
+        space = space,
+        indent = indent,
+        newLine = newLine,
+        maxWidth = maxWidth,
+        error = "",
+        width = 0,
+    }
+    setmetatable(x, { __index = Parser })
+    return x
+end
+
+
+local function minNumberWidth(v)
+    local width = 0
+    -- `-`
+    if v < 0 then width = width + 1 end
+
+    if math.floor(math.abs(v)) == v then
+        if -1e14 < v and v < 1e14 then
+            -- /-?\k<digits>/
+            return width + math.log10(v) + 1
+        else
+            -- /-?\k<digits>[eE]\k<digits>/
+            return width + 3
+        end
+    else
+        if -1e14 < v and v < 1e14 then
+            -- /-?\k<digits>\.\k<digits>[eE]\k<digits>/
+            return width + 5
+        else
+            -- /-?\k<digits>\.\k<digits>/
+            return width + 3
+        end
+    end
+
+end
+
+local function writeNumber(self, v)
+    local b = self.b
+    b[#b+1] = v
+    -- TODO:
+    self.width = self.width + minNumberWidth(v)
+end
+
+---@param self Writer
+---@param x string
+local function writeString(self, x)
+    local b = self.b
+    b[#b+1] = x
+    self.width = self.width + #x
+end
+
+---@param self Writer
+local function writeSpace(self)
+    writeString(self, self.space)
+end
+
+---@param self Writer
+---@param s string
+local function writeStringLiteral(self, s)
+    if s == "" then return writeString(self, "\"\"") end
+
+    writeString(self, "\"")
+    for i = 1, #s do
+        local c = string.sub(s, i, i)
+        if c == "\n" then writeString(self, "\\n")
+        elseif c == "\f" then writeString(self, "\\f")
+        elseif c == "\b" then writeString(self, "\\b")
+        elseif c == "\r" then writeString(self, "\\r")
+        elseif c == "\t" then writeString(self, "\\t")
+        elseif c == "\"" or c == "\\" then
+            writeString(self, "\\")
+            writeString(self, c)
+        else
+            writeString(self, c)
+        end
+    end
+    writeString(self, "\"")
+end
+
+---@param self Writer
+---@param level integer
+local function writeSpaceOrNewLine(self, level)
+    if self.maxWidth < self.width then
+        self.b[#self.b+1] = self.newLine
+        self.width = 0
+        for _ = 1, level do writeString(self, self.indent) end
+    else
+        writeSpace(self)
+    end
+end
+
+---@param self Writer
+---@param v any
+---@param level integer
+---@return boolean success
+local function writeValue(self, v, level)
+    if v == nil then writeString(self, "null")
+    elseif v == true then writeString(self, "true")
+    elseif v == false then writeString(self, "false")
+    else
+        local t = type(v)
+        if t == "number" then
+            -- TODO: NaN
+            if v ~= v then writeString(self, "nan")
+            elseif v == 1 / 0 then writeString(self, "1e+999999")
+            elseif v == -1 / 0 then writeString(self, "-1e+999999")
+            else writeNumber(self, v)
+            end
+
+        elseif t == "string" then
+            writeStringLiteral(self, v)
+
+        elseif t == "table" then
+            local length = #v
+
+            -- array
+            if 0 < length then
+                level = level + 1
+                writeString(self, "[")
+                writeSpaceOrNewLine(self, level)
+
+                if not writeValue(self, v[1], level) then return false end
+                for i = 2, length do
+                    writeString(self, ",")
+                    writeSpaceOrNewLine(self, level)
+                    if not writeValue(self, v[i], level) then return false end
+                end
+                level = level - 1
+                writeSpaceOrNewLine(self, level)
+                writeString(self, "]")
+
+            -- table
+            else
+                level = level + 1
+                writeString(self, "{")
+                writeSpaceOrNewLine(self, level)
+
+                local i = 1
+                for tk, tv in pairs(v) do
+                    if 1 < i then
+                        writeString(self, ",")
+                        writeSpaceOrNewLine(self)
+                    end
+                    writeStringLiteral(self, tostring(tk))
+                    writeString(self, ":")
+                    writeSpace(self)
+                    if not writeValue(self, tv, level) then return false end
+                    i = i + 1
+                end
+                level = level - 1
+                writeSpaceOrNewLine(self, level)
+                writeString(self, "}")
+            end
+        else
+            error = "invalid type: "..t..", value: "..tostring(v)
+            return false
+        end
+    end
+    return true
+end
 
 ---@param value any
 ---@param options StringifyOptions|nil
 ---@return string|nil json
 ---@return string|nil error
 local function stringify(value, options)
-    ---@type string|number
-    local space = " "
-    if options then space = options.space end
-    if type(space) ~= "string" then space = string.rep(" ", tonumber(options.space)) end
+    ---@type string
+    local space = (options and options.space) or ""
+    ---@type string
+    local indent = (options and options.indent) or "  "
+    ---@type string
+    local newLine = "\n"
+    ---@type integer
+    local maxWidth = (options and options.maxWidth) or 999999999999
 
     ---@type any[] buffer
-    local b = {}
-    local error = ""
+    local w = Writer.new(space, indent, newLine, maxWidth)
 
-    ---@param s string
-    local function writeStringLiteral(s)
-        if s == "" then
-            b[#b+1] = "\"\""
-            return
-        end
-
-        b[#b+1] = "\""
-        for i = 1, #s do
-            local c = string.sub(s, i, i)
-            if c == "\"" or c == "\\" then b[#b+1] = "\\" end
-            b[#b+1] = c
-        end
-        b[#b+1] = "\""
-    end
-
-    local function writeSpace()
-        b[#b+1] = space
-    end
-
-    ---@param v any
-    ---@return boolean success
-    local function writeValue(v)
-        if v == nil then b[#b + 1] = "null"
-        elseif v == true then b[#b + 1] = "true"
-        elseif v == false then b[#b + 1] = "false"
-        elseif v == false then b[#b + 1] = "false"
-        else
-            local t = type(v)
-            if t == "number" then
-                -- TODO: NaN
-                if v ~= v then b[#b+1] = "nan"
-                elseif v == 1 / 0 then b[#b+1] = "1e+999999"
-                elseif v == -1 / 0 then b[#b+1] = "-1e+999999"
-                else b[#b+1] = v end
-
-            elseif t == "string" then
-                writeStringLiteral(v)
-
-            elseif t == "table" then
-                local length = #v
-
-                -- array
-                if 0 < length then
-                    b[#b+1] = "["
-                    writeSpace()
-
-                    if not writeValue(v[1]) then return false end
-                    for i = 2, length do
-                        b[#b+1] = ","
-                        writeSpace()
-                        if not writeValue(v[i]) then return false end
-                    end
-                    writeSpace()
-                    b[#b+1] = "]"
-
-                -- table
-                else
-                    b[#b+1] = "{"
-                    writeSpace()
-
-                    local i = 1
-                    for tk, tv in pairs(v) do
-                        if 1 < i then
-                            b[#b+1] = ","
-                            writeSpace()
-                        end
-                        writeStringLiteral(tostring(tk))
-                        b[#b+1] = ":"
-                        writeSpace()
-                        if not writeValue(tv) then return false end
-                        i = i + 1
-                    end
-                    writeSpace()
-                    b[#b+1] = "}"
-                end
-            else
-                error = "invalid type: "..t..", value: "..tostring(v)
-                return false
-            end
-        end
-        return true
-    end
-
-    if writeValue(value) then
-        local s = ""
-        for i = 1, #b do s = s..tostring(b[i]) end
-        return s, nil
+    if writeValue(w, value, 0) then
+        return table.concat(w.b)
     else
         return "", error
     end

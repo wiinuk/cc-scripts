@@ -1,3 +1,5 @@
+local pretty = require "pretty"
+
 local function tablePath(path, key)
     local t = type(key)
     key = tostring(key)
@@ -26,11 +28,10 @@ local function deepDiff(a, b, path, visitedTablesA, visitedTablesB)
     if at ~= bt then return false, "type("..path..")", at, bt end
 
     -- nan
-    if at == "number" and at ~= at and bt ~= bt then return true end
+    if at == "number" and a ~= a and b ~= b then return true end
 
     if at == "table" then
-        if visitedTablesA[a] or visitedTablesB[b] then
-            error "cyclic object."
+        if visitedTablesA[a] == true or visitedTablesB[b] == true then
             return false, "cycle("..path..")", a, b
         end
         visitedTablesA[a] = true
@@ -55,8 +56,11 @@ local function deepDiff(a, b, path, visitedTablesA, visitedTablesB)
             if not aKeys[bk] then
                 return false, kPath, nil, bv
             else
-                local ok, diffPath, diffA, diffB = deepDiff(a[bk], bv, kPath, visitedTablesA, visitedTablesB)
-                if not ok then return false, diffPath, diffA, diffB end
+                local av = a[bk]
+                if not visitedTablesA[av] and not visitedTablesB[bv] then
+                    local ok, diffPath, diffA, diffB = deepDiff(av, bv, kPath, visitedTablesA, visitedTablesB)
+                    if not ok then return false, diffPath, diffA, diffB end
+                end
             end
         end
         return true
@@ -82,10 +86,10 @@ local function deepEquals(a, b)
     if not ok then
         local location = ""
         if path ~= "" then
-            location = ", at: `"..tostring(path).."`, a: "..tostring(diffA)..", b: "..tostring(diffB)
+            location = ", at: `"..path.."`, a: "..pretty(diffA)..", b: "..pretty(diffB)
         end
 
-        failure("deepEquals("..tostring(a)..", "..tostring(b)..")"..location, 2)
+        failure("deepEquals("..pretty(a)..", "..pretty(b)..")"..location, 2)
     end
 end
 
@@ -96,7 +100,7 @@ end
 ---@param b T
 local function equals(a, b)
     if not (a == b) then
-        failure(tostring(a).." == "..tostring(b), 2)
+        failure(pretty(a).." == "..pretty(b), 2)
     end
 end
 
@@ -110,9 +114,11 @@ local function runTests(tests)
 
         totalCount = totalCount + 1
 
-        if not ok then
-            print(k, "[FAIL]")
-            failures[#failures+1] = { name = k, messages = {error} }
+        if ok then
+            print("", k)
+        else
+            print("", k, "[FAIL]")
+            failures[#failures+1] = { name = k, messages = { error } }
         end
     end
     print "finished"
