@@ -1,5 +1,5 @@
 
----@version: 0.0.2
+---@version: 0.0.3
 
 -- スクリプト開始時の座標をホームとする
 
@@ -141,9 +141,24 @@ local function downMining(options)
     end
 end
 
+local function up1()
+    local ok, error = moveUp()
+    if not ok then
+        while not turtle.detectUp() do
+
+            -- 上にエンティティがいる?
+            if moveUp() then return true end
+
+            os.sleep(0.5)
+        end
+        return false, error
+    else
+        return true
+    end
+end
 local function upTo(y)
     while position.y ~= y do
-        local ok, error = moveUp()
+        local ok, error = up1()
         if not ok then return false, error end
     end
     return true
