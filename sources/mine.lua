@@ -1,5 +1,5 @@
 
----@version: 0.1.4
+---@version: 0.1.5
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -270,7 +270,7 @@ rules[#rules+1] = {
     name = "mining request: move left",
     when = function ()
         local nx, ny, nz = Memoried.currentLeft()
-        return whenMove(Memoried.detectLeftInMemory(), moveAroundPriorityRatio, nx, ny, nz)
+        return whenMove(Memoried.detectLeftInMemory, moveAroundPriorityRatio, nx, ny, nz)
     end,
     action = function ()
         if not Memoried.turnLeft() then return end
