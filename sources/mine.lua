@@ -1,5 +1,5 @@
 
----@version: 0.1.2
+---@version: 0.1.4
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -236,14 +236,14 @@ rules[#rules+1] = {
 rules[#rules+1] = {
     name = "mining request: move down",
     when = function ()
-        return whenMove(Memoried.detectDown(), moveDownPriorityRatio, 0, -1, 0)
+        return whenMove(Memoried.detectDown, moveDownPriorityRatio, 0, -1, 0)
     end,
     action = mineDown1
 }
 rules[#rules+1] = {
     name = "mining request: move up",
     when = function ()
-        return whenMove(Memoried.detectUp(), moveUpPriorityRatio, 0, 1, 0)
+        return whenMove(Memoried.detectUp, moveUpPriorityRatio, 0, 1, 0)
     end,
     action = mineUp1
 }
@@ -251,7 +251,7 @@ rules[#rules+1] = {
     name = "mining request: move forward",
     when = function ()
         local nx, ny, nz = Memoried.currentForward()
-        return whenMove(Memoried.detect(), moveAroundPriorityRatio, nx, ny, nz)
+        return whenMove(Memoried.detect, moveAroundPriorityRatio, nx, ny, nz)
     end,
     action = mineForward1
 }
@@ -259,7 +259,7 @@ rules[#rules+1] = {
     name = "mining request: move right",
     when = function ()
         local nx, ny, nz = Memoried.currentRight()
-        return whenMove(Memoried.detectRightInMemory(), moveAroundPriorityRatio, nx, ny, nz)
+        return whenMove(Memoried.detectRightInMemory, moveAroundPriorityRatio, nx, ny, nz)
     end,
     action = function ()
         if not Memoried.turnRight() then return end
