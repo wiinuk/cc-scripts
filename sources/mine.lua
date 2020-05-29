@@ -1,62 +1,8 @@
 
----@version: 0.0.6
-
--- スクリプト開始時の座標をホームとする
-
---- ホームを (0, 0, 0) としたときの相対座標
-local position = { x = 0, y = 0, z = 0 }
-local memory = {
-    -- { dart = 10, sand = 3 }
-    blockToDigTryCount = {},
-    blockToDigSuccessCount = {},
-    -- { 0,0,0, 0,0,1, 0,1,1 }
-    moveHistory = {},
-}
-
-local function pushPosition()
-    local h = memory.moveHistory
-    h[#h+1] = position.x
-    h[#h+1] = position.y
-    h[#h+1] = position.z
-end
-
-local function moveDown()
-    local ok, error = turtle.down()
-    if ok then
-        position.y = position.y - 1
-        pushPosition()
-    end
-    return ok, error
-end
-local function moveUp()
-    local ok, error = turtle.up()
-    if ok then
-        position.y = position.y + 1
-        pushPosition()
-    end
-    return ok, error
-end
-
-local function digGeneric(inspect, dig)
-    local ok, info = inspect()
-    if not ok then return false, info end
-    local blockName = info.name
-
-    memory.blockToDigTryCount[blockName] = (memory.blockToDigTryCount[blockName] or 0) + 1
-    local ok, info = dig()
-
-    if not ok then return false, info end
-
-    memory.blockToDigSuccessCount[blockName] = (memory.blockToDigSuccessCount[blockName] or 0) + 1
-    return true
-end
-
-local function digDown()
-    return digGeneric(turtle.inspectDown, turtle.digDown)
-end
-local function digUp()
-    return digGeneric(turtle.inspectUp, turtle.digUp)
-end
+---@version: 0.1.1
+local Memoried = require "memoried"
+local ArgParser = require "arg-parser"
+local Box3 = require "box3"
 
 local function printError(...)
     local messages = {...}
@@ -64,6 +10,14 @@ local function printError(...)
         messages[i] = tostring(messages[i])
     end
     io.stderr:write(table.concat(messages, "\t").."\n")
+end
+
+---@return integer|nil slotNumber
+local function findEmptySlot()
+    for i = 16, 1, -1 do
+        if turtle.getItemCount(i) == 0 then return i end
+    end
+    return nil
 end
 
 local function mineMove1(move, detect, dig, suck, attack)
@@ -77,12 +31,7 @@ local function mineMove1(move, detect, dig, suck, attack)
         dig()
 
         -- 拾う
-        local ok, reason = suck()
-        if not ok then
-
-            -- 拾えなかった
-            printError("suck failed:", reason)
-        end
+        suck()
     end
 
     -- 掘ったら行けた?
@@ -112,9 +61,9 @@ local function mineMove1(move, detect, dig, suck, attack)
 end
 local function mineDown1()
     return mineMove1(
-        moveDown,
-        turtle.detectDown,
-        digDown,
+        Memoried.moveDown,
+        Memoried.detectDown,
+        Memoried.digDown,
         turtle.suckDown,
         turtle.attackDown
     )
@@ -122,129 +71,318 @@ end
 
 local function mineUp1()
     return mineMove1(
-        moveUp,
-        turtle.detectUp,
-        digUp,
+        Memoried.moveUp,
+        Memoried.detectUp,
+        Memoried.digUp,
         turtle.suckUp,
         turtle.attackUp
     )
 end
-local function selectMostCommonItemSlot()
-    local maxFitness = 0
-    local maxFitnessSlotNumber = nil
-    for i = 1, 16 do
-        local slotItem = turtle.getItemDetail()
-        -- スロットが空なら nil
-        -- ダメージがあるアイテムは除く
-        if slotItem and slotItem.damage == 0 then
 
-            -- local tryCount = memory.blockToDigTryCount[slotItem.name] or 0
-            local successCount = memory.blockToDigSuccessCount[slotItem.name] or 0
-            local fitness = successCount + slotItem.count
-            if maxFitness < fitness then
-                maxFitness = fitness
-                maxFitnessSlotNumber = i
-            end
-        end
-    end
-    if maxFitnessSlotNumber then
-        turtle.select(maxFitnessSlotNumber)
-        return true
-    else
-        return false, "all item slot is empty"
-    end
+local function mineForward1()
+    return mineMove1(
+        Memoried.moveForward,
+        Memoried.detectForward,
+        Memoried.digForward,
+        turtle.suck,
+        turtle.attack
+    )
 end
 
 ---@class MiningOptions
----@field public minY integer
+---@field public down integer
+---@field public forward integer
+---@field public right integer
 
----@param options MiningOptions
-local function downMining(options)
-    local function fillIfLava()
-        local ok, info = turtle.inspectDown()
-        if ok and info.name == "minecraft:lava" then
-            local ok, reason = selectMostCommonItemSlot()
-            if not ok then return false, reason end
+---@param request Request mining request
+---@param x number
+---@param y number
+---@param z number
+local function inMiningRequestRange(request, x, y, z)
+    ---@type Box3|nil
+    local range = request.range
+    if range then return Box3.vsPoint(range, x, y, z) end
+end
 
-            return turtle.placeDown()
-        end
-        return true
+---@type MiningOptions
+local function getDefaultMiningOptions()
+    return {
+        down = 10,
+        forward = 5,
+        right = 5,
+    }
+end
+
+--- 既定の要求の優先度
+local defaultRequestPriority = 0.5
+
+--- 太陽光が当たる場所を掘るときの優先度係数
+--- - 太陽光が当たるので MOB が湧かない
+-- local sunLightMiningPriorityRatio = 1.5
+
+--- 下を掘るときの優先度係数
+--- - 下のほうが良い鉱石が出る
+local downMiningPriorityRatio = 1.1
+local aroundMiningPriorityRatio = 1
+local upMiningPriorityRatio = 0.9
+
+local movePriorityRatio = 1
+local moveDownPriorityRatio = 1.1
+local moveAroundPriorityRatio = 1
+local moveUpPriorityRatio = 0.9
+
+---@class Rule
+---@field public name string
+---@field public when fun(): boolean|number
+---@field public action fun(): any
+
+---@param detect fun(): boolean
+---@param priorityRatio number
+---@param dx number
+---@param dy number
+---@param dz number
+local function whenMine(detect, priorityRatio, dx, dy, dz)
+    if not detect() then return false end
+
+    local x, y, z = Memoried.currentPosition()
+    local request = Memoried.getRequest "mining"
+    if not request then return false end
+    if not inMiningRequestRange(request, x + dx, y + dy, z + dz) then return false end
+
+    local priority = Memoried.memory.requestPriority or defaultRequestPriority
+    priority = priority * priorityRatio
+
+    -- if isSunLight(x, y, z) then
+    --     priority = priority * sunLightMiningPriorityRatio
+    -- end
+    return priority
+end
+
+---@param detect fun(): boolean
+---@param priorityRatio number
+---@param nx number
+---@param ny number
+---@param nz number
+local function whenMove(detect, priorityRatio, nx, ny, nz)
+    local level = turtle.getFuelLevel()
+    if level ~= "unlimited" and level <= 0 then return false end
+
+    if detect() then return false end
+
+    local request = Memoried.getRequest "mining"
+    if not request then return false end
+
+    local x, y, z = Memoried.currentPosition()
+    if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return false end
+
+    local limit = turtle.getFuelLimit()
+    local priority = Memoried.memory.requestPriority or defaultRequestPriority
+    priority = priority * movePriorityRatio * priorityRatio
+    if level ~= "unlimited" then priority = priority * math.min(1, 1.5 * (level / limit) + 0.5) end
+    return priority
+end
+
+---@type Rule[]
+local rules = {}
+rules[#rules+1] = {
+    name = "mining request: dig down",
+    when = function ()
+        return whenMine(Memoried.detectDown, downMiningPriorityRatio, 0, -1, 0)
+    end,
+    action = function ()
+        local ok, reason = Memoried.digDown()
+        if not ok then printError(reason) end
+    end,
+}
+rules[#rules+1] = {
+    name = "mining request: dig forward",
+    when = function ()
+        local nx, ny, nz = Memoried.currentForward()
+        return whenMine(Memoried.detect, aroundMiningPriorityRatio, nx, ny, nz)
+    end,
+    action = function ()
+        local ok, reason = Memoried.dig()
+        if not ok then printError(reason) end
+    end,
+}
+rules[#rules+1] = {
+    name = "mining request: dig up",
+    when = function ()
+        return whenMine(Memoried.detectUp, upMiningPriorityRatio, 0, 1, 0)
+    end,
+    action = function ()
+        local ok, reason = Memoried.digUp()
+        if not ok then printError(reason) end
+    end,
+}
+rules[#rules+1] = {
+    name = "mining request: dig right",
+    when = function ()
+        local nx, ny, nz = Memoried.currentRight()
+        return whenMine(Memoried.detectRightInMemory, aroundMiningPriorityRatio, nx, ny, nz)
+    end,
+    action = function ()
+        if not Memoried.turnRight() then return end
+        local ok, reason = Memoried.dig()
+        if not ok then printError(reason) end
     end
-
-    while -options.minY <= position.y do
-
-        -- 溶岩なら埋める
-        local ok, reason = fillIfLava()
+}
+rules[#rules+1] = {
+    name = "mining request: dig left",
+    when = function ()
+        local nx, ny, nz = Memoried.currentLeft()
+        return whenMine(Memoried.detectLeftInMemory, aroundMiningPriorityRatio, nx, ny, nz)
+    end,
+    action = function ()
+        if not Memoried.turnLight() then return end
+        local ok, reason = Memoried.dig()
+        if not ok then printError(reason) end
+    end
+}
+rules[#rules+1] = {
+    name = "mining request: move down",
+    when = function ()
+        return whenMove(Memoried.detectDown(), moveDownPriorityRatio, 0, -1, 0)
+    end,
+    action = mineDown1
+}
+rules[#rules+1] = {
+    name = "mining request: move up",
+    when = function ()
+        return whenMove(Memoried.detectUp(), moveUpPriorityRatio, 0, 1, 0)
+    end,
+    action = mineUp1
+}
+rules[#rules+1] = {
+    name = "mining request: move forward",
+    when = function ()
+        local nx, ny, nz = Memoried.currentForward()
+        return whenMove(Memoried.detect(), moveAroundPriorityRatio, nx, ny, nz)
+    end,
+    action = mineForward1
+}
+rules[#rules+1] = {
+    name = "mining request: move right",
+    when = function ()
+        local nx, ny, nz = Memoried.currentRight()
+        return whenMove(Memoried.detectRightInMemory(), moveAroundPriorityRatio, nx, ny, nz)
+    end,
+    action = function ()
+        if not Memoried.turnRight() then return end
+        mineForward1()
+    end
+}
+rules[#rules+1] = {
+    name = "mining request: move left",
+    when = function ()
+        local nx, ny, nz = Memoried.currentLeft()
+        return whenMove(Memoried.detectLeftInMemory(), moveAroundPriorityRatio, nx, ny, nz)
+    end,
+    action = function ()
+        if not Memoried.turnLeft() then return end
+        mineForward1()
+    end
+}
+rules[#rules+1] = {
+    name = "mining request: suck forward",
+    when = function ()
+        local emptySlot = findEmptySlot()
+        if emptySlot then
+            local oldSlot = turtle.getSelectedSlot()
+            turtle.select(emptySlot)
+            if turtle.suck(1) then
+                turtle.drop(turtle.getItemCount())
+                turtle.select(oldSlot)
+                return 1
+            else
+                return false
+            end
+        else
+            -- TODO: 空きが無いときもアイテムをスタックできる
+            return false
+        end
+    end,
+    action = function()
+        local ok, reason = turtle.suck()
         if not ok then
-            printError("fill lava failed: "..tostring(reason))
+            printError("suck", reason)
         end
+    end
+}
 
-        if not mineDown1() then return end
-        os.sleep(0)
+-- インベントリが満タンならチェストまで移動して入れる
+-- ホームに帰れなくなりそうなら帰るか燃料を探す
+-- turn などで map 情報 ( ブロック、チェスト ) を収集する
+-- move などで map 情報 ( ブロック、チェスト ) を収集する
+
+local function clearTable(table)
+    for k in pairs(table) do
+        table[k] = nil
     end
 end
+local function evaluateRules()
+    local maxPriorityRules = {}
 
-local function upTo(y)
-    while position.y ~= y do
-        local ok, error = mineUp1()
-        if not ok then return false, error end
+    while true do
+        local maxPriority = -99999999
+        for i = 1, #rules do
+            local rule = rules[i]
+            local priority = rule.when()
+            if priority then
+                if maxPriority <= priority then
+                    if maxPriority < priority then clearTable(maxPriorityRules) end
+                    maxPriorityRules[#maxPriorityRules+1] = rule
+                end
+                print(rule.name, "=>", priority)
+            end
+        end
+        if #maxPriorityRules == 0 then return true end
+
+        local rule = maxPriorityRules[math.random(1, #maxPriorityRules)]
+        clearTable(maxPriorityRules)
+
+        print("run", rule.name, maxPriority)
+        rule.action()
     end
-    return true
-end
-
----@param options MiningOptions
-local function mining(options)
-    local startY = position.y
-
-    print("down mining...")
-    downMining(options)
-
-    print("up to "..tostring(startY).."...")
-    upTo(startY)
-
-    print("y: "..tostring(position.y))
 end
 
 ---@param arguments string[]
 ---@param options MiningOptions
 local function parseMiningOptions(options, arguments)
-    local i = 1
-    while i <= #arguments do
-        local arg = arguments[i]
+    while 0 < #arguments do
         if
-            string.lower(arg) == string.lower("--down") or
-            string.lower(arg) == "-d"
+            ArgParser.parseNamedOption(arguments, "down", "d", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "forward", "f", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "right", "r", options, tonumber)
         then
-            i = i + 1
-            if i <= #arguments then
-                -- TODO: check format
-                options.minY = tonumber(arguments[i])
-                i = i + 1
-            else
-                return error("requires <down>")
-            end
         else
-            return error("unrecognized argument"..arg)
+            return error("unrecognized argument: "..arguments[1])
         end
     end
     return true
 end
+
 local function miningCommand(...)
-    ---@type MiningOptions
-    local options = {
-        minY = 10
-    }
     print("# mining")
+    local options = getDefaultMiningOptions()
     parseMiningOptions(options, {...})
     print("options: ")
-    print("- minY", options.minY)
+    print("- down", options.down)
+    print("- forward", options.forward)
+    print("- right", options.right)
     print("")
-    mining(options)
-end
 
--- turtle.detectDown
--- turtle.inspectDown
--- turtle.attack
+    local x, y, z = Memoried.currentPosition()
+    local box = Box3.newFromPoint(x, y, z)
+    Box3.expandByPoint(box, x + options.right, y - options.down, z + options.right)
+
+    Memoried.addRequest({
+        name = "mining",
+        options = options,
+        range = box
+    })
+    evaluateRules()
+end
 
 local commands = {
     mining = miningCommand
