@@ -98,7 +98,7 @@ local function getKey()
     local ok, config = readJson(fs.combine(commandName, "config.json"))
     return
         (ok and config and config.key) or
-        "7a0af464c95b616af0e664c5de8a185f41644591"
+        "b349b8e425c4a19a8696ae87c9623e799746d66b"
 end
 
 local function newHeaders()
@@ -141,7 +141,7 @@ end
 ---@param branch string
 local function downloadGithub(ownerAndRepo, branch, path)
     local headers = newHeaders()
-    if branch ~= nil or branch ~= "" then
+    if branch ~= nil and branch ~= "" then
         headers.ref = branch
     end
     local ok, response = downloadJson("https://api.github.com/repos/"..ownerAndRepo.."/contents/"..path, headers)
