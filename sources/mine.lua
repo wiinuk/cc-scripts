@@ -1,5 +1,5 @@
 
----@version: 0.1.9
+---@version: 0.1.10
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -116,7 +116,7 @@ local defaultRequestPriority = 0.5
 
 --- 下を掘るときの優先度係数
 --- - 下のほうが良い鉱石が出る
-local minePriorityRatio = 1.1
+local minePriorityRatio = 1.5
 local downMiningPriorityRatio = 1.1
 local aroundMiningPriorityRatio = 1
 local upMiningPriorityRatio = 0.9
@@ -290,6 +290,7 @@ rules[#rules+1] = {
                 turtle.select(oldSlot)
                 return 1
             else
+                turtle.select(oldSlot)
                 return false
             end
         else
