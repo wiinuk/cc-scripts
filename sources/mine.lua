@@ -1,5 +1,5 @@
 
----@version: 0.1.5
+---@version: 0.1.6
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -75,9 +75,9 @@ end
 
 local function mineForward1()
     return mineMove1(
-        Memoried.moveForward,
-        Memoried.detectForward,
-        Memoried.digForward,
+        Memoried.move,
+        Memoried.detect,
+        Memoried.dig,
         turtle.suck,
         turtle.attack
     )
@@ -321,6 +321,7 @@ local function evaluateRules()
                 if maxPriority <= priority then
                     if maxPriority < priority then Ex.clearTable(maxPriorityRules) end
                     maxPriorityRules[#maxPriorityRules+1] = rule
+                    maxPriority = priority
                 end
                 print(rule.name, "=>", priority)
             end
