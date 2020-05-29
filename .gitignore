@@ -3,3 +3,5 @@
 .ionide/
 paket-files/
 private/
+
+.fake
