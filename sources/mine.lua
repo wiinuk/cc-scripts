@@ -1,5 +1,5 @@
 
----@version: 0.2.0
+---@version: 0.2.1
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -166,13 +166,30 @@ local function whenMine(priority, request, direction)
     end
 end
 
-local function whenSuckSimple(priority, suck, drop)
+---@return table|nil itemDetail
+---@return string reason
+local function inspectItem(suck, drop)
+    local emptySlot = findEmptySlot()
+    if not emptySlot then return nil, "empty slot not found" end
+    local oldSlot = turtle.getSelectedSlot()
+    turtle.select(emptySlot)
+    local item = nil
     if suck(1) then
+        item = turtle.getItemDetail(turtle.getSelectedSlot())
         drop(turtle.getItemCount())
-        if not priority then priority = 0 end
-        return priority + 1
+    end
+    turtle.select(oldSlot)
+    return item
+end
+
+local function whenSuckSimple(priority, suck, drop)
+    local item, reason = inspectItem(suck, drop)
+    if item then return (priority or 0) + 1
+    elseif reason == "empty slot not found" then
+        -- TODO:
+        return false
     else
-        return priority
+        return false
     end
 end
 
@@ -252,22 +269,15 @@ rules[#rules+1] = {
     end
 }
 rules[#rules+1] = {
-    name = "mining request: suck forward",
+    name = "mining request: suck",
     when = function ()
-        local emptySlot = findEmptySlot()
-        if emptySlot then
-            local oldSlot = turtle.getSelectedSlot()
-            turtle.select(emptySlot)
-            local priority = false
-            priority = whenSuckSimple(priority, turtle.suck, turtle.drop)
-            priority = whenSuckSimple(priority, turtle.suckDown, turtle.dropDown)
-            priority = whenSuckSimple(priority, turtle.suckUp, turtle.dropUp)
-            turtle.select(oldSlot)
-            return priority
-        else
-            -- TODO: 空きが無いときもアイテムをスタックできる
-            return false
-        end
+        if not Memoried.hasRequest("mining") then return false end
+
+        local priority = false
+        priority = whenSuckSimple(priority, turtle.suck, turtle.drop)
+        priority = whenSuckSimple(priority, turtle.suckDown, turtle.dropDown)
+        priority = whenSuckSimple(priority, turtle.suckUp, turtle.dropUp)
+        return priority
     end,
     action = function()
         turtle.suck()
@@ -277,9 +287,8 @@ rules[#rules+1] = {
 }
 
 -- インベントリが満タンならチェストまで移動して入れる
--- ホームに帰れなくなりそうなら帰るか燃料を探す
--- turn などで map 情報 ( ブロック、チェスト ) を収集する
--- move などで map 情報 ( ブロック、チェスト ) を収集する
+-- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
+-- turn や move などで map 情報 ( ブロック、チェスト ) を収集する ( 低優先度 )
 
 local function evaluateRules()
     local maxPriorityRules = {}
