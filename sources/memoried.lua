@@ -205,8 +205,8 @@ local function turnRight()
     end
     return ok, reason
 end
-local function turnLight()
-    local ok, reason = turtle.turnLight()
+local function turnLeft()
+    local ok, reason = turtle.turnLeft()
     if ok then
         local x, z = Vec2.rotate(0.5 * math.pi, facing[1], facing[3])
         facing[1] = math.modf(x)
@@ -296,7 +296,7 @@ return {
     getRequest = getRequest,
 
     turnRight = turnRight,
-    turnLight = turnLight,
+    turnLeft = turnLeft,
 
     moveDown = moveDown,
     moveUp = moveUp,
