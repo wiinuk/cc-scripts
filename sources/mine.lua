@@ -1,5 +1,5 @@
 
----@version: 0.2.1
+---@version: 0.2.2
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -229,9 +229,9 @@ rules[#rules+1] = {
         x = Memoried.memory.lastFindX or x
         y = Memoried.memory.lastFindY or y
         z = Memoried.memory.lastFindZ or z
-        for dx in -1, 1 do
-            for dy in -1, 1 do
-                for dz in -1, 1 do
+        for dx = -1, 1 do
+            for dy = -1, 1 do
+                for dz = -1, 1 do
                     local x, y, z = x + dx, y + dy, z + dz
                     if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
                         Memoried.memory.lastFindX = x
