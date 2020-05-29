@@ -1,16 +1,10 @@
 
----@version: 0.1.1
+---@version: 0.1.2
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
+local Ex = require "extensions"
 
-local function printError(...)
-    local messages = {...}
-    for i = 1, #messages do
-        messages[i] = tostring(messages[i])
-    end
-    io.stderr:write(table.concat(messages, "\t").."\n")
-end
 
 ---@return integer|nil slotNumber
 local function findEmptySlot()
@@ -56,7 +50,7 @@ local function mineMove1(move, detect, dig, suck, attack)
     if ok then return true end
 
     -- 失敗
-    printError("move failed: ", reason)
+    Ex.printError("move failed: ", reason)
     return false
 end
 local function mineDown1()
@@ -191,7 +185,7 @@ rules[#rules+1] = {
     end,
     action = function ()
         local ok, reason = Memoried.digDown()
-        if not ok then printError(reason) end
+        if not ok then Ex.printError(reason) end
     end,
 }
 rules[#rules+1] = {
@@ -202,7 +196,7 @@ rules[#rules+1] = {
     end,
     action = function ()
         local ok, reason = Memoried.dig()
-        if not ok then printError(reason) end
+        if not ok then Ex.printError(reason) end
     end,
 }
 rules[#rules+1] = {
@@ -212,7 +206,7 @@ rules[#rules+1] = {
     end,
     action = function ()
         local ok, reason = Memoried.digUp()
-        if not ok then printError(reason) end
+        if not ok then Ex.printError(reason) end
     end,
 }
 rules[#rules+1] = {
@@ -224,7 +218,7 @@ rules[#rules+1] = {
     action = function ()
         if not Memoried.turnRight() then return end
         local ok, reason = Memoried.dig()
-        if not ok then printError(reason) end
+        if not ok then Ex.printError(reason) end
     end
 }
 rules[#rules+1] = {
@@ -236,7 +230,7 @@ rules[#rules+1] = {
     action = function ()
         if not Memoried.turnLight() then return end
         local ok, reason = Memoried.dig()
-        if not ok then printError(reason) end
+        if not ok then Ex.printError(reason) end
     end
 }
 rules[#rules+1] = {
@@ -305,7 +299,7 @@ rules[#rules+1] = {
     action = function()
         local ok, reason = turtle.suck()
         if not ok then
-            printError("suck", reason)
+            Ex.printError("suck", reason)
         end
     end
 }
@@ -315,11 +309,6 @@ rules[#rules+1] = {
 -- turn などで map 情報 ( ブロック、チェスト ) を収集する
 -- move などで map 情報 ( ブロック、チェスト ) を収集する
 
-local function clearTable(table)
-    for k in pairs(table) do
-        table[k] = nil
-    end
-end
 local function evaluateRules()
     local maxPriorityRules = {}
 
@@ -330,7 +319,7 @@ local function evaluateRules()
             local priority = rule.when()
             if priority then
                 if maxPriority <= priority then
-                    if maxPriority < priority then clearTable(maxPriorityRules) end
+                    if maxPriority < priority then Ex.clearTable(maxPriorityRules) end
                     maxPriorityRules[#maxPriorityRules+1] = rule
                 end
                 print(rule.name, "=>", priority)
@@ -339,7 +328,7 @@ local function evaluateRules()
         if #maxPriorityRules == 0 then return true end
 
         local rule = maxPriorityRules[math.random(1, #maxPriorityRules)]
-        clearTable(maxPriorityRules)
+        Ex.clearTable(maxPriorityRules)
 
         print("run", rule.name, maxPriority)
         rule.action()
