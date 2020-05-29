@@ -1,10 +1,17 @@
 
----@version: 0.1.10
+---@version: 0.2.0
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 
+
+local Forward = Memoried.Forward
+local Left = Memoried.Left
+local Back = Memoried.Back
+local Right = Memoried.Right
+local Down = Memoried.Down
+local Up = Memoried.Up
 
 ---@return integer|nil slotNumber
 local function findEmptySlot()
@@ -14,73 +21,79 @@ local function findEmptySlot()
     return nil
 end
 
-local function mineMove1(move, detect, dig, suck, attack)
-    if move() then return true end
+---@param globalAngleY number radian
+---@return DirectionOperations
+local function globalAngleYToDirectionOperation(globalAngleY)
+    local localAngleY = Memoried.toLocalAngleY(globalAngleY)
+    local direction = math.modf((localAngleY / (math.pi * 0.5)) + 1)
+    return Memoried.getOperation(direction)
+end
+
+local function mineMove1(getOperation, getOperationArgument)
+
+    if getOperation(getOperationArgument).move() then return true end
     -- 行けなかった
 
     -- ブロックがあるなら掘る
-    if detect() then
+    if getOperation(getOperationArgument).detect() then
 
         -- 掘る
-        dig()
+        getOperation(getOperationArgument).dig()
 
         -- 拾う
-        suck()
+        getOperation(getOperationArgument).suck()
     end
 
     -- 掘ったら行けた?
-    if move() then return true end
+    if getOperation(getOperationArgument).move() then return true end
 
-    if not detect() then
-        if move() then return true end
+    if not getOperation(getOperationArgument).detect() then
+        if getOperation(getOperationArgument).move() then return true end
         -- エンティティがいる?
         -- 待機
         os.sleep(1)
     end
 
     -- エンティティがいる?
-    while not detect() do
-        if move() then return true end
+    while not getOperation(getOperationArgument).detect() do
+        if getOperation(getOperationArgument).move() then return true end
         -- 攻撃
-        attack()
+        getOperation(getOperationArgument).attack()
     end
 
     -- 移動
-    local ok, reason = move()
+    local ok, reason = getOperation(getOperationArgument).move()
     if ok then return true end
 
     -- 失敗
-    Ex.printError("move failed: ", reason)
-    return false
-end
-local function mineDown1()
-    return mineMove1(
-        Memoried.moveDown,
-        Memoried.detectDown,
-        Memoried.digDown,
-        turtle.suckDown,
-        turtle.attackDown
-    )
+    return false, reason
 end
 
-local function mineUp1()
-    return mineMove1(
-        Memoried.moveUp,
-        Memoried.detectUp,
-        Memoried.digUp,
-        turtle.suckUp,
-        turtle.attackUp
-    )
-end
+local function mineTo(maxRetryCount, targetX, targetY, targetZ)
+    local maxRetryCount = math.max(0, maxRetryCount)
+    local retryCount = 0
+    local lastReason = nil
 
-local function mineForward1()
-    return mineMove1(
-        Memoried.move,
-        Memoried.detect,
-        Memoried.dig,
-        turtle.suck,
-        turtle.attack
-    )
+    while true do
+        if maxRetryCount < retryCount then return false, lastReason end
+
+        local currentX, currentY, currentZ = Memoried.currentPosition()
+        if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
+
+        local ok, reason = false, nil
+        if targetX < currentX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 0.5)
+        elseif currentX < targetX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 1.5)
+        elseif targetZ < currentZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi)
+        elseif currentZ < targetZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, 0)
+
+        elseif currentY < targetY then ok, reason = mineMove1(Memoried.getOperation, Up)
+        elseif targetY < currentY then ok, reason = mineMove1(Memoried.getOperation, Down)
+        end
+        if not ok then
+            retryCount = retryCount + 1
+            lastReason = reason
+        end
+    end
 end
 
 ---@class MiningOptions
@@ -117,165 +130,125 @@ local defaultRequestPriority = 0.5
 --- 下を掘るときの優先度係数
 --- - 下のほうが良い鉱石が出る
 local minePriorityRatio = 1.5
-local downMiningPriorityRatio = 1.1
-local aroundMiningPriorityRatio = 1
-local upMiningPriorityRatio = 0.9
+local miningPriorityRatios = {
+    [Forward] = 1,
+    [Left] = 1,
+    [Back] = 1,
+    [Right] = 1,
 
-local movePriorityRatio = 1
-local moveDownPriorityRatio = 1.1
-local moveAroundPriorityRatio = 1
-local moveUpPriorityRatio = 0.9
+    [Down] = 1.1,
+    [Up] = 0.9,
+}
+
+---@param priority number
+---@param request Request
+---@param direction integer
+local function whenMine(priority, request, direction)
+    ---@type DirectionOperations
+    local d = Memoried.getOperation(direction)
+
+    if not d.detect() then return priority end
+
+    local x, y, z = Memoried.currentPosition()
+    local nx, ny, nz = d.currentNormal()
+    if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return priority end
+
+    local p = Memoried.memory.requestPriority or defaultRequestPriority
+    p = p * minePriorityRatio * miningPriorityRatios[direction]
+
+    -- if isSunLight(x, y, z) then
+    --     p = p * sunLightMiningPriorityRatio
+    -- end
+
+    if priority
+    then return priority + p, direction
+    else return p, direction
+    end
+end
+
+local function whenSuckSimple(priority, suck, drop)
+    if suck(1) then
+        drop(turtle.getItemCount())
+        if not priority then priority = 0 end
+        return priority + 1
+    else
+        return priority
+    end
+end
 
 ---@class Rule
 ---@field public name string
----@field public when fun(): boolean|number
----@field public action fun(): any
-
----@param detect fun(): boolean
----@param priorityRatio number
----@param dx number
----@param dy number
----@param dz number
-local function whenMine(detect, priorityRatio, dx, dy, dz)
-    if not detect() then return false end
-
-    local x, y, z = Memoried.currentPosition()
-    local request = Memoried.getRequest "mining"
-    if not request then return false end
-    if not inMiningRequestRange(request, x + dx, y + dy, z + dz) then return false end
-
-    local priority = Memoried.memory.requestPriority or defaultRequestPriority
-    priority = priority * minePriorityRatio * priorityRatio
-
-    -- if isSunLight(x, y, z) then
-    --     priority = priority * sunLightMiningPriorityRatio
-    -- end
-    return priority
-end
-
----@param detect fun(): boolean
----@param priorityRatio number
----@param nx number
----@param ny number
----@param nz number
-local function whenMove(detect, priorityRatio, nx, ny, nz)
-    local level = turtle.getFuelLevel()
-    if level ~= "unlimited" and level <= 0 then return false end
-
-    if detect() then return false end
-
-    local request = Memoried.getRequest "mining"
-    if not request then return false end
-
-    local x, y, z = Memoried.currentPosition()
-    if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return false end
-
-    local limit = turtle.getFuelLimit()
-    local priority = Memoried.memory.requestPriority or defaultRequestPriority
-    priority = priority * movePriorityRatio * priorityRatio
-    if level ~= "unlimited" then priority = priority * math.min(1, 1.5 * (level / limit) + 0.5) end
-    return priority
-end
+---@field public when fun(): boolean|number, any
+---@field public action fun(a: any): any
 
 ---@type Rule[]
 local rules = {}
 rules[#rules+1] = {
-    name = "mining request: dig down",
+    name = "mining: dig around",
     when = function ()
-        return whenMine(Memoried.detectDown, downMiningPriorityRatio, 0, -1, 0)
+        local request = Memoried.getRequest "mining"
+        if not request then return false end
+
+        local priority = false
+        for i = 6, 1, -1 do priority = whenMine(priority, request, i) end
+        return priority
     end,
-    action = function ()
-        local ok, reason = Memoried.digDown()
+    action = function (direction)
+        local ok, reason = Memoried.getOperation(direction).dig()
         if not ok then Ex.printError(reason) end
     end,
 }
 rules[#rules+1] = {
-    name = "mining request: dig forward",
+    name = "mining: move to block",
     when = function ()
-        local nx, ny, nz = Memoried.currentForward()
-        return whenMine(Memoried.detect, aroundMiningPriorityRatio, nx, ny, nz)
+        local request = Memoried.getRequest "mining"
+        if not request then return false end
+
+        local range = request.range
+        if not range then return false end
+
+        -- 周りを探索
+        local x, y, z = Memoried.currentPosition()
+        x = Memoried.memory.lastFindX or x
+        y = Memoried.memory.lastFindY or y
+        z = Memoried.memory.lastFindZ or z
+        for dx in -1, 1 do
+            for dy in -1, 1 do
+                for dz in -1, 1 do
+                    local x, y, z = x + dx, y + dy, z + dz
+                    if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
+                        Memoried.memory.lastFindX = x
+                        Memoried.memory.lastFindY = y
+                        Memoried.memory.lastFindZ = z
+                        return 0.5
+                    end
+                end
+            end
+        end
+
+        -- ランダムに探索
+        local maxSearchCount = 20
+        for _ = 1, maxSearchCount do
+            local x = math.random(range.minX, range.maxX)
+            local y = math.random(range.minY, range.maxY)
+            local z = math.random(range.minZ, range.maxZ)
+            if Memoried.canDigInMemory(x, y, z) then
+                Memoried.memory.lastFindX = x
+                Memoried.memory.lastFindY = y
+                Memoried.memory.lastFindZ = z
+                return 0.5
+            end
+        end
+        return false
     end,
     action = function ()
-        local ok, reason = Memoried.dig()
+        local ok, reason = mineTo(
+            20,
+            Memoried.memory.lastFindX,
+            Memoried.memory.lastFindY,
+            Memoried.memory.lastFindZ
+        )
         if not ok then Ex.printError(reason) end
-    end,
-}
-rules[#rules+1] = {
-    name = "mining request: dig up",
-    when = function ()
-        return whenMine(Memoried.detectUp, upMiningPriorityRatio, 0, 1, 0)
-    end,
-    action = function ()
-        local ok, reason = Memoried.digUp()
-        if not ok then Ex.printError(reason) end
-    end,
-}
-rules[#rules+1] = {
-    name = "mining request: dig right",
-    when = function ()
-        local nx, ny, nz = Memoried.currentRight()
-        return whenMine(Memoried.detectRightInMemory, aroundMiningPriorityRatio, nx, ny, nz)
-    end,
-    action = function ()
-        if not Memoried.turnRight() then return end
-        local ok, reason = Memoried.dig()
-        if not ok then Ex.printError(reason) end
-    end
-}
-rules[#rules+1] = {
-    name = "mining request: dig left",
-    when = function ()
-        local nx, ny, nz = Memoried.currentLeft()
-        return whenMine(Memoried.detectLeftInMemory, aroundMiningPriorityRatio, nx, ny, nz)
-    end,
-    action = function ()
-        if not Memoried.turnLeft() then return end
-        local ok, reason = Memoried.dig()
-        if not ok then Ex.printError(reason) end
-    end
-}
-rules[#rules+1] = {
-    name = "mining request: move down",
-    when = function ()
-        return whenMove(Memoried.detectDown, moveDownPriorityRatio, 0, -1, 0)
-    end,
-    action = mineDown1
-}
-rules[#rules+1] = {
-    name = "mining request: move up",
-    when = function ()
-        return whenMove(Memoried.detectUp, moveUpPriorityRatio, 0, 1, 0)
-    end,
-    action = mineUp1
-}
-rules[#rules+1] = {
-    name = "mining request: move forward",
-    when = function ()
-        local nx, ny, nz = Memoried.currentForward()
-        return whenMove(Memoried.detect, moveAroundPriorityRatio, nx, ny, nz)
-    end,
-    action = mineForward1
-}
-rules[#rules+1] = {
-    name = "mining request: move right",
-    when = function ()
-        local nx, ny, nz = Memoried.currentRight()
-        return whenMove(Memoried.detectRightInMemory, moveAroundPriorityRatio, nx, ny, nz)
-    end,
-    action = function ()
-        if not Memoried.turnRight() then return end
-        mineForward1()
-    end
-}
-rules[#rules+1] = {
-    name = "mining request: move left",
-    when = function ()
-        local nx, ny, nz = Memoried.currentLeft()
-        return whenMove(Memoried.detectLeftInMemory, moveAroundPriorityRatio, nx, ny, nz)
-    end,
-    action = function ()
-        if not Memoried.turnLeft() then return end
-        mineForward1()
     end
 }
 rules[#rules+1] = {
@@ -285,24 +258,21 @@ rules[#rules+1] = {
         if emptySlot then
             local oldSlot = turtle.getSelectedSlot()
             turtle.select(emptySlot)
-            if turtle.suck(1) then
-                turtle.drop(turtle.getItemCount())
-                turtle.select(oldSlot)
-                return 1
-            else
-                turtle.select(oldSlot)
-                return false
-            end
+            local priority = false
+            priority = whenSuckSimple(priority, turtle.suck, turtle.drop)
+            priority = whenSuckSimple(priority, turtle.suckDown, turtle.dropDown)
+            priority = whenSuckSimple(priority, turtle.suckUp, turtle.dropUp)
+            turtle.select(oldSlot)
+            return priority
         else
             -- TODO: 空きが無いときもアイテムをスタックできる
             return false
         end
     end,
     action = function()
-        local ok, reason = turtle.suck()
-        if not ok then
-            Ex.printError("suck", reason)
-        end
+        turtle.suck()
+        turtle.suckDown()
+        turtle.suckUp()
     end
 }
 
@@ -313,16 +283,21 @@ rules[#rules+1] = {
 
 local function evaluateRules()
     local maxPriorityRules = {}
+    local maxPriorityResults = {}
 
     while true do
         local maxPriority = -99999999
         for i = 1, #rules do
             local rule = rules[i]
-            local priority = rule.when()
+            local priority, result = rule.when()
             if priority then
                 if maxPriority <= priority then
-                    if maxPriority < priority then Ex.clearTable(maxPriorityRules) end
+                    if maxPriority < priority then
+                        Ex.clearTable(maxPriorityRules)
+                        Ex.clearTable(maxPriorityResults)
+                    end
                     maxPriorityRules[#maxPriorityRules+1] = rule
+                    maxPriorityResults[#maxPriorityResults+1] = result
                     maxPriority = priority
                 end
                 print(rule.name, "@"..tostring(priority))
@@ -330,11 +305,14 @@ local function evaluateRules()
         end
         if #maxPriorityRules == 0 then return true end
 
-        local rule = maxPriorityRules[math.random(1, #maxPriorityRules)]
+        local index = math.random(1, #maxPriorityRules)
+        local rule = maxPriorityRules[index]
+        local result = maxPriorityResults[index]
         Ex.clearTable(maxPriorityRules)
+        Ex.clearTable(maxPriorityResults)
 
         print(">", "'"..rule.name.."'", "@"..tostring(maxPriority))
-        rule.action()
+        rule.action(result)
     end
 end
 

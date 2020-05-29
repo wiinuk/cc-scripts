@@ -4,8 +4,12 @@ local Vec2 = require "vec2"
 
 --- ホームを (x: 0, y: 0, z: 0) としたときの相対座標
 local position = { 0, 0, 0 }
---- {x, y, z}
-local facing = { 0, 0, 1 }
+--- 0,1,2,3
+--- - 顔が `0, 0, 1` を向いているなら `0`
+--- - 顔が `-1, 0, 0` を向いているなら `1`
+--- - 顔が `0, 0, -1` を向いているなら `2`
+--- - 顔が `1, 0, 0` を向いているなら `3`
+local angleY = 0
 
 ---@class Request
 ---@field public name string
@@ -56,14 +60,18 @@ local function addRequest(request)
     return true
 end
 
+--- -9999 … 9999
 ---@param x number
 ---@param y number
 ---@param z number
 local function locationKey(x, y, z)
-    x = math.modf(x)
-    y = math.modf(y)
-    z = math.modf(z)
-    return x + y * 0xFF + z * 0xFFFF
+    x = math.modf(x) * 10
+    if x < 0 then x = -1 * x + 1 end
+    y = math.modf(y) * 10
+    if y < 0 then y = -1 * y + 1 end
+    z = math.modf(z) * 10
+    if z < 0 then z = -1 * z + 1 end
+    return x * 10000000000 + y * 100000 + z
 end
 
 ---@class InspectResult
@@ -100,7 +108,7 @@ local function getOrMakeLocation(x, y, z)
 end
 
 ---@param l Location
-local function setToAir(l)
+local function setAir(l)
     l.move = true
     l.inspect = nil
     l.detect = false
@@ -115,33 +123,67 @@ end
 local function currentY()
     return position[2]
 end
---- Returns the face orientation
+
+---@param x number
+---@param y number
+---@param z number
+local function applyRotationTruncate(x, y, z)
+    local x, z = Vec2.rotate(angleY * 0.5 * math.pi, x, z)
+    return math.modf(x), y, math.modf(z)
+end
+--- 顔の方向を表す長さ 1 のベクトルを返す。
+--- 最初の顔の方向は `0, 0, 1`
+--- ```lua
+--- x, y, z = currentForward()
+--- assert(x == 0 and y == 0 and z == 1)
+--- turnRight()
+--- x, y, z = currentForward()
+--- assert(x == 1 and y == 0 and z == 0)
+--- turnRight()
+--- x, y, z = currentForward()
+--- assert(x == 0 and y == 0 and z == -1)
+--- ```
 ---@return integer x
 ---@return integer y
 ---@return integer z
 local function currentForward()
-    return facing[1], facing[2], facing[3]
+    return applyRotationTruncate(0, 0, 1)
 end
---- Returns the left direction of the face
----@return integer x
----@return integer y
----@return integer z
-local function currentLeft()
-    local x, z = Vec2.rotate(0.5 * math.pi, facing[1], facing[3])
-    local x = math.modf(x)
-    local z = math.modf(z)
-    return x, facing[2], z
-end
---- Returns the right direction of the face
+--- 顔の右の方向を表す長さ 1 のベクトルを返す
 ---@return integer x
 ---@return integer y
 ---@return integer z
 local function currentRight()
-    local x, z = Vec2.rotate(-0.5 * math.pi, facing[1], facing[3])
-    local x = math.modf(x)
-    local z = math.modf(z)
-    return x, facing[2], z
+    return applyRotationTruncate(1, 0, 0)
 end
+--- 顔の左の方向を表す長さ 1 のベクトルを返す
+---@return integer x
+---@return integer y
+---@return integer z
+local function currentLeft()
+    return applyRotationTruncate(-1, 0, 1)
+end
+--- 顔の後ろの方向を表す長さ 1 のベクトルを返す
+---@return integer x
+---@return integer y
+---@return integer z
+local function currentBack()
+    return applyRotationTruncate(0, 0, -1)
+end
+
+--- 世界のY軸上の角度[ラジアン] をタートルから見た角度に変換する
+---
+--- 角度
+---   - `0, 0, 1` の角度が `0`
+---   - `-1, 0, 0` の角度が `(1/2)*π`
+---   - `0, 0, -1` の角度が `π`
+---   - `1, 0, 0` の角度が `(3/2)*π`
+---@param globalAngleY number ラジアン
+---@return integer localAngleY
+local function toLocalAngleY(globalAngleY)
+    return (globalAngleY - angleY * (math.pi * 0.5)) % (math.pi * 2)
+end
+
 local function pushPosition()
     local h = memory.moveHistory
     h[#h+1] = position[1]
@@ -164,7 +206,8 @@ end
 ---@return boolean detected
 local function detect()
     local ok = turtle.detect()
-    getOrMakeLocation(position[1] + facing[1], position[2] + facing[2], position[3] + facing[3]).detect = ok
+    local x, y, z = currentForward()
+    getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z).detect = ok
     return ok
 end
 ---@param move fun(): boolean
@@ -193,25 +236,20 @@ local function moveUp()
     return moveGeneric(turtle.up, 0, 1, 0)
 end
 local function move()
-    return moveGeneric(turtle.forward, facing[1], facing[2], facing[3])
+    local x, y, z = currentForward()
+    return moveGeneric(turtle.forward, x, y, z)
 end
 
+---@return boolean success
+---@return any reason
 local function turnRight()
     local ok, reason = turtle.turnRight()
-    if ok then
-        local x, z = Vec2.rotate(-0.5 * math.pi, facing[1], facing[3])
-        facing[1] = math.modf(x)
-        facing[3] = math.modf(z)
-    end
+    if ok then angleY = (angleY - 1) % 4 end
     return ok, reason
 end
 local function turnLeft()
     local ok, reason = turtle.turnLeft()
-    if ok then
-        local x, z = Vec2.rotate(0.5 * math.pi, facing[1], facing[3])
-        facing[1] = math.modf(x)
-        facing[3] = math.modf(z)
-    end
+    if ok then angleY = (angleY + 1) % 4 end
     return ok, reason
 end
 
@@ -230,7 +268,7 @@ local function digGeneric(inspect, dig, nx, ny, nz)
     local x, y, z = position[1], position[2], position[3]
 
     -- 空気になった
-    setToAir(getOrMakeLocation(x + nx, y + ny, z + nz))
+    setAir(getOrMakeLocation(x + nx, y + ny, z + nz))
 
     return true
 end
@@ -242,7 +280,8 @@ local function digUp()
     return digGeneric(turtle.inspectUp, turtle.digUp, 0, 1, 0)
 end
 local function dig()
-    return digGeneric(turtle.inspect, turtle.dig, facing[1], facing[2], facing[3])
+    local x, y, z = currentForward()
+    return digGeneric(turtle.inspect, turtle.dig, x, y, z)
 end
 
 ---@param x number
@@ -281,6 +320,123 @@ local function detectLeftInMemory()
     local nx, ny, nz = currentLeft()
     return detectInMemory(x + nx, y + ny, z + nz)
 end
+local function detectBackInMemory()
+    local x, y, z = currentPosition()
+    local nx, ny, nz = currentBack()
+    return detectInMemory(x + nx, y + ny, z + nz)
+end
+
+---@param x number
+---@param y number
+---@param z number
+local function canDigInMemory(x, y, z)
+    -- 記憶上のマップを検索する
+    local location = getLocation(x, y, z)
+    if location then
+        -- 動けたことがあるならブロックはない
+        if location.move then return false end
+        -- 当たらなかったことがあるならブロックはない
+        if location.detect == false then return false end
+
+        local inspect = location.inspect
+        if inspect then
+            -- 同じブロックを掘ったことがあるか
+            local digSuccessCount = memory.blockToDigSuccessCount[inspect.name]
+            if digSuccessCount and 0 < digSuccessCount then return true end
+        end
+
+        return false
+    end
+    return false
+end
+
+local Forward = 1
+local Left = 2
+local Back = 3
+local Right = 4
+local Down = 5
+local Up = 6
+
+---@class DirectionOperations
+---@field public name string
+---@field public detect fun(): boolean
+---@field public currentNormal fun(): integer, integer, integer
+---@field public dig fun(): boolean, any
+---@field public move fun(): boolean, any
+---@field public suck fun(amount: number): boolean, any
+
+local function makeTurnAndDo(turn, op)
+    return function(...)
+        local ok, reason = turn()
+        if not ok then return ok, reason end
+        return op(...)
+    end
+end
+
+local function turnRight2()
+    local ok, reason = turnRight()
+    if not ok then return ok, reason end
+    local ok, reason = turnRight()
+    if not ok then return ok, reason end
+    return true
+end
+
+---@type DirectionOperations[]
+local directionOperations = {
+    [Forward] = {
+        name = "forward",
+        detect = detect,
+        currentNormal = currentForward,
+        dig = dig,
+        move = move,
+        suck = turtle.suck,
+    },
+    [Left] = {
+        name = "left",
+        detect = detectLeftInMemory,
+        currentNormal = currentLeft,
+        dig = makeTurnAndDo(turnLeft, dig),
+        move = makeTurnAndDo(turnLeft, move),
+        suck = makeTurnAndDo(turnLeft, turtle.suck),
+    },
+    [Back] = {
+        name = "back",
+        detect = detectBackInMemory,
+        currentNormal = currentBack,
+        dig = makeTurnAndDo(turnRight2, dig),
+        move = makeTurnAndDo(turnRight2, move),
+        suck = makeTurnAndDo(turnRight2, turtle.suck),
+    },
+    [Right] = {
+        name = "right",
+        detect = detectRightInMemory,
+        currentNormal = currentRight,
+        dig = makeTurnAndDo(turnRight, dig),
+        move = makeTurnAndDo(turnRight, move),
+        suck = makeTurnAndDo(turnRight, turtle.suck),
+    },
+    [Down] = {
+        name = "down",
+        detect = detectDown,
+        currentNormal = function () return 0, -1, 0 end,
+        dig = digDown,
+        move = moveDown,
+        suck = turtle.suckDown,
+    },
+    [Up] = {
+        name = "up",
+        detect = detectUp,
+        currentNormal = function () return 0, 1, 0 end,
+        dig = digUp,
+        move = moveUp,
+        suck = turtle.suckUp,
+    },
+}
+---@param direction integer 1|2|3|4|5|6
+---@return DirectionOperations
+local function getOperation(direction)
+    return directionOperations[direction]
+end
 
 return {
     memory = memory,
@@ -290,6 +446,8 @@ return {
     currentForward = currentForward,
     currentRight = currentRight,
     currentLeft = currentLeft,
+    currentBack = currentBack,
+    toLocalAngleY = toLocalAngleY,
 
     addRequest = addRequest,
     hasRequest = hasRequest,
@@ -312,4 +470,16 @@ return {
 
     detectRightInMemory = detectRightInMemory,
     detectLeftInMemory = detectLeftInMemory,
+    detectBackInMemory = detectBackInMemory,
+
+    canDigInMemory = canDigInMemory,
+
+    Forward = Forward,
+    Left = Left,
+    Back = Back,
+    Right = Right,
+    Down = Down,
+    Up = Up,
+
+    getOperation = getOperation,
 }
