@@ -1,5 +1,5 @@
 
----@version: 0.1.7
+---@version: 0.1.8
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -228,7 +228,7 @@ rules[#rules+1] = {
         return whenMine(Memoried.detectLeftInMemory, aroundMiningPriorityRatio, nx, ny, nz)
     end,
     action = function ()
-        if not Memoried.turnLight() then return end
+        if not Memoried.turnLeft() then return end
         local ok, reason = Memoried.dig()
         if not ok then Ex.printError(reason) end
     end
