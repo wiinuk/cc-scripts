@@ -1,5 +1,5 @@
 
----@version: 0.1.8
+---@version: 0.1.9
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -116,6 +116,7 @@ local defaultRequestPriority = 0.5
 
 --- 下を掘るときの優先度係数
 --- - 下のほうが良い鉱石が出る
+local minePriorityRatio = 1.1
 local downMiningPriorityRatio = 1.1
 local aroundMiningPriorityRatio = 1
 local upMiningPriorityRatio = 0.9
@@ -144,7 +145,7 @@ local function whenMine(detect, priorityRatio, dx, dy, dz)
     if not inMiningRequestRange(request, x + dx, y + dy, z + dz) then return false end
 
     local priority = Memoried.memory.requestPriority or defaultRequestPriority
-    priority = priority * priorityRatio
+    priority = priority * minePriorityRatio * priorityRatio
 
     -- if isSunLight(x, y, z) then
     --     priority = priority * sunLightMiningPriorityRatio
@@ -323,7 +324,7 @@ local function evaluateRules()
                     maxPriorityRules[#maxPriorityRules+1] = rule
                     maxPriority = priority
                 end
-                print(rule.name, "=>", priority)
+                print(rule.name, "@"..tostring(priority))
             end
         end
         if #maxPriorityRules == 0 then return true end
@@ -331,7 +332,7 @@ local function evaluateRules()
         local rule = maxPriorityRules[math.random(1, #maxPriorityRules)]
         Ex.clearTable(maxPriorityRules)
 
-        print("run", rule.name, maxPriority)
+        print(">", "'"..rule.name.."'", "@"..tostring(maxPriority))
         rule.action()
     end
 end
