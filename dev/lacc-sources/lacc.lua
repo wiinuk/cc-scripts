@@ -94,6 +94,19 @@ local function downloadToFile(address, path)
     return true
 end
 
+local function getKey()
+    local ok, config = readJson(fs.combine(commandName, "config.json"))
+    return
+        (ok and config and config.key) or
+        "7a0af464c95b616af0e664c5de8a185f41644591"
+end
+
+local function newHeaders()
+    return {
+        Authorization = "token "..getKey()
+    }
+end
+
 ---@param rootPath string
 ---@param response table
 local function downloadGithubContentFiles(rootPath, response)
@@ -107,7 +120,7 @@ local function downloadGithubContentFiles(rootPath, response)
         return true
 
     elseif response.type == "dir" then
-        local ok, response = downloadJson(response.url)
+        local ok, response = downloadJson(response.url, newHeaders())
         if not ok then return false, response end
         return downloadGithubContentFiles(rootPath, response)
 
@@ -127,9 +140,8 @@ end
 ---@param path string
 ---@param branch string
 local function downloadGithub(ownerAndRepo, branch, path)
-    local headers = nil
+    local headers = newHeaders()
     if branch ~= nil or branch ~= "" then
-        headers = {}
         headers.ref = branch
     end
     local ok, response = downloadJson("https://api.github.com/repos/"..ownerAndRepo.."/contents/"..path, headers)
