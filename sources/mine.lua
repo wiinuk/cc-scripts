@@ -1,5 +1,5 @@
 
----@version: 0.2.2
+---@version: 0.2.3
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -160,10 +160,7 @@ local function whenMine(priority, request, direction)
     --     p = p * sunLightMiningPriorityRatio
     -- end
 
-    if priority
-    then return priority + p, direction
-    else return p, direction
-    end
+    return (priority or 0) + p, p
 end
 
 ---@return table|nil itemDetail
@@ -207,8 +204,13 @@ rules[#rules+1] = {
         if not request then return false end
 
         local priority = false
-        for i = 6, 1, -1 do priority = whenMine(priority, request, i) end
-        return priority
+        local direction = nil
+        for d = 6, 1, -1 do
+            local nextPriority, p = whenMine(priority, request, d)
+            if p then direction = d end
+            priority = nextPriority
+        end
+        return priority, direction
     end,
     action = function (direction)
         local ok, reason = Memoried.getOperation(direction).dig()
