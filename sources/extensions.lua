@@ -13,10 +13,8 @@ local function clearTable(table)
     end
 end
 
-local function noop() end
 
 return {
     printError = printError,
     clearTable = clearTable,
-    noop = noop,
 }
