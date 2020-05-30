@@ -4,10 +4,18 @@ local commandName = "lacc"
 -- remote setup mode
 -- usage: `pastebin run W13jSN37 remote-setup`
 if #args == 1 and string.lower(args[1]) == "remote-setup" then
-    fs.delete(shell.resolve(commandName))
-    shell.run("pastebin", "get", "6ARHfeVq", fs.combine(commandName, "json.lua"))
-    shell.run("pastebin", "get", "W13jSN37", fs.combine(commandName, commandName..".lua"))
-    return
+    local function pastebin(map)
+        for id, name in pairs(map) do
+            local path = fs.combine(commandName, name..".lua")
+            local fullPath = shell.resolve(path)
+            if fs.exists(fullPath) then fs.delete(fullPath) end
+            shell.run("pastebin", "get", id, path)
+        end
+    end
+    return pastebin {
+        ["6ARHfeVq"] = "json",
+        ["W13jSN37"] = commandName,
+    }
 end
 
 local Json = require 'json'
@@ -72,8 +80,8 @@ end
 ---@param headers table|nil
 ---@overload fun(address: string): string|nil, string|nil
 local function downloadString(address, headers)
-    local r = http.get(address, headers)
-    if not r then return nil, "http get failed: '"..address.."'" end
+    local r, reason = http.get(address, headers)
+    if not r then return nil, "http get failed: '"..address.."', "..tostring(reason) end
     local contents = r:readAll()
     r:close()
     return contents
@@ -94,17 +102,26 @@ local function downloadToFile(address, path)
     return true
 end
 
-local function getKey()
-    local ok, config = readJson(fs.combine(commandName, "config.json"))
-    return
-        (ok and config and config.key) or
-        "b349b8e425c4a19a8696ae87c9623e799746d66b"
-end
-
 local function newHeaders()
-    return {
-        Authorization = "token "..getKey()
+    local ok, config = readJson(fs.combine(commandName, "config.json"))
+    local key = (ok and config.key) or "2cf30cda5df23e85eb463e6a3ae5e44f567fef8b"
+    local table = {
+        ["Cache-Control"] = "max-age=0",
+        DNT = "1",
+        ["Sec-Fetch-Dest"] = "document",
+        ["Sec-Fetch-Mode"] = "navigate",
+        ["Sec-Fetch-Site"] = "cross-site",
+        ["Sec-Fetch-User"] = "true",
+        ["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.61 Safari/537.36",
+        Authorization = "token "..key,
     }
+    if ok and config.headers then
+        for k, v in pairs(config.headers) do
+            if v == nil then table[k] = nil
+            else table[k] = tostring(v) end
+        end
+    end
+    return table
 end
 
 ---@param rootPath string
