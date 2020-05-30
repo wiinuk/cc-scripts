@@ -1,5 +1,5 @@
 
----@version: 0.2.3
+---@version: 0.2.4
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -29,13 +29,13 @@ local function globalAngleYToDirectionOperation(globalAngleY)
     return Memoried.getOperation(direction)
 end
 
-local function mineMove1(getOperation, getOperationArgument)
+local function mineMove1(getOperation, getOperationArgument, disableDig, disableAttack)
 
     if getOperation(getOperationArgument).move() then return true end
     -- 行けなかった
 
     -- ブロックがあるなら掘る
-    if getOperation(getOperationArgument).detect() then
+    if not disableDig and getOperation(getOperationArgument).detect() then
 
         -- 掘る
         getOperation(getOperationArgument).dig()
@@ -47,18 +47,20 @@ local function mineMove1(getOperation, getOperationArgument)
     -- 掘ったら行けた?
     if getOperation(getOperationArgument).move() then return true end
 
+    -- エンティティがいる?
     if not getOperation(getOperationArgument).detect() then
-        if getOperation(getOperationArgument).move() then return true end
-        -- エンティティがいる?
         -- 待機
         os.sleep(1)
+        if getOperation(getOperationArgument).move() then return true end
     end
 
-    -- エンティティがいる?
-    while not getOperation(getOperationArgument).detect() do
-        if getOperation(getOperationArgument).move() then return true end
-        -- 攻撃
-        getOperation(getOperationArgument).attack()
+    if not disableAttack then
+        -- エンティティがいる?
+        while not getOperation(getOperationArgument).detect() do
+            if getOperation(getOperationArgument).move() then return true end
+            -- 攻撃
+            getOperation(getOperationArgument).attack()
+        end
     end
 
     -- 移動
@@ -69,7 +71,7 @@ local function mineMove1(getOperation, getOperationArgument)
     return false, reason
 end
 
-local function mineTo(maxRetryCount, targetX, targetY, targetZ)
+local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disableAttack)
     local maxRetryCount = math.max(0, maxRetryCount)
     local retryCount = 0
     local lastReason = nil
@@ -81,13 +83,13 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ)
         if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
 
         local ok, reason = false, nil
-        if targetX < currentX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 0.5)
-        elseif currentX < targetX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 1.5)
-        elseif targetZ < currentZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi)
-        elseif currentZ < targetZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, 0)
+        if targetX < currentX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 0.5, disableDig, disableAttack)
+        elseif currentX < targetX then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi * 1.5, disableDig, disableAttack)
+        elseif targetZ < currentZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, math.pi, disableDig, disableAttack)
+        elseif currentZ < targetZ then ok, reason = mineMove1(globalAngleYToDirectionOperation, 0, disableDig, disableAttack)
 
-        elseif currentY < targetY then ok, reason = mineMove1(Memoried.getOperation, Up)
-        elseif targetY < currentY then ok, reason = mineMove1(Memoried.getOperation, Down)
+        elseif currentY < targetY then ok, reason = mineMove1(Memoried.getOperation, Up, disableDig, disableAttack)
+        elseif targetY < currentY then ok, reason = mineMove1(Memoried.getOperation, Down, disableDig, disableAttack)
         end
         if not ok then
             retryCount = retryCount + 1
@@ -139,6 +141,7 @@ local miningPriorityRatios = {
     [Down] = 1.1,
     [Up] = 0.9,
 }
+local collectMapInfoPriority = 0.1
 
 ---@param priority number
 ---@param request Request
@@ -287,10 +290,91 @@ rules[#rules+1] = {
         turtle.suckUp()
     end
 }
+rules[#rules+1] = {
+    name = "mining: collect map",
+    when = function ()
+        local request = Memoried.getRequest("mining")
+        if not request then return false end
+
+        local range = request.range
+        if not range then return false end
+
+        -- 周りを探索
+        local x, y, z = Memoried.currentPosition()
+        x = Memoried.memory.lastCollectMapX or x
+        y = Memoried.memory.lastCollectMapY or y
+        z = Memoried.memory.lastCollectMapZ or z
+        for dx = -1, 1 do
+            for dy = -1, 1 do
+                for dz = -1, 1 do
+                    local x, y, z = x + dx, y + dy, z + dz
+                    if Box3.vsPoint(range, x, y, z) then
+                        local location = Memoried.location(x, y, z)
+                        if not location or location.detect == nil or location.inspect == nil then
+                            Memoried.memory.lastCollectMapY = x
+                            Memoried.memory.lastCollectMapY = y
+                            Memoried.memory.lastCollectMapY = z
+                            return collectMapInfoPriority
+                        end
+                    end
+                end
+            end
+        end
+
+        -- ランダムに探索
+        local maxSearchCount = 20
+        for _ = 1, maxSearchCount do
+            local x = math.random(range.minX, range.maxX)
+            local y = math.random(range.minY, range.maxY)
+            local z = math.random(range.minZ, range.maxZ)
+            local location = Memoried.location(x, y, z)
+            if not location or location.detect == nil or location.inspect == nil then
+                Memoried.memory.lastCollectMapY = x
+                Memoried.memory.lastCollectMapY = y
+                Memoried.memory.lastCollectMapY = z
+                return collectMapInfoPriority
+            end
+        end
+        return false
+
+    end,
+    action = function()
+        local ok, reason = mineTo(
+            20,
+            Memoried.memory.lastCollectMapY,
+            Memoried.memory.lastCollectMapY,
+            Memoried.memory.lastCollectMapY,
+            true,
+            false
+        )
+        if not ok then Ex.printError(reason) end
+    end
+}
+rules[#rules+1] = {
+    name = "collect around map",
+    when = function ()
+        local cx, cy, cz = Memoried.currentPosition()
+        for d = 1, 6 do
+            local op = Memoried.getOperation(d)
+            local nx, ny, nz = op.currentNormal()
+            local x, y, z = cx + nx, cy + ny, cz + nz
+
+            local location = Memoried.location(x, y, z)
+            if not location then return collectMapInfoPriority, d end
+            if location.detect == nil then return collectMapInfoPriority, d end
+            if location.inspect == nil then return collectMapInfoPriority, d end
+        end
+        return false
+    end,
+    action = function (d)
+        local gd = Memoried.toGlobalDirection(d)
+        Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
+        Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
+    end,
+}
 
 -- インベントリが満タンならチェストまで移動して入れる
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
--- turn や move などで map 情報 ( ブロック、チェスト ) を収集する ( 低優先度 )
 
 local function evaluateRules()
     local maxPriorityRules = {}

@@ -77,11 +77,11 @@ end
 ---@class InspectResult
 ---@field public name string
 ---@field public metadata integer
----@field public state table
+---@field public state table|nil
 
 ---@class Location
 ---@field public detect boolean|nil
----@field public inspect InspectResult|nil
+---@field public inspect InspectResult|boolean|nil
 ---@field public move boolean|nil
 
 ---@param x number
@@ -110,7 +110,7 @@ end
 ---@param l Location
 local function setAir(l)
     l.move = true
-    l.inspect = nil
+    l.inspect = false
     l.detect = false
 end
 
@@ -184,6 +184,22 @@ local function toLocalAngleY(globalAngleY)
     return (globalAngleY - angleY * (math.pi * 0.5)) % (math.pi * 2)
 end
 
+---@param localDirection integer
+local function toGlobalDirection(localDirection)
+    if 1 <= localDirection and localDirection <= 4 then
+        return (localDirection + angleY) % 4 + 1
+    end
+    return localDirection
+end
+
+---@param globalDirection integer
+local function toLocalDirection(globalDirection)
+    if 1 <= globalDirection and globalDirection <= 4 then
+        return (globalDirection - angleY) % 4 + 1
+    end
+    return globalDirection
+end
+
 local function pushPosition()
     local h = memory.moveHistory
     h[#h+1] = position[1]
@@ -210,6 +226,29 @@ local function detect()
     getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z).detect = ok
     return ok
 end
+local function inspectDown()
+    local ok, data = turtle.inspectDown()
+    local l = getOrMakeLocation(position[1], position[2] - 1, position[3])
+    if ok then l.inspect = data
+    else l.inspect = false end
+    return ok, data
+end
+local function inspectUp()
+    local ok, data = turtle.inspectUp()
+    local l = getOrMakeLocation(position[1], position[2] + 1, position[3])
+    if ok then l.inspect = data
+    else l.inspect = false end
+    return ok, data
+end
+local function inspect()
+    local ok, data = turtle.inspect()
+    local x, y, z = currentForward()
+    local l = getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z)
+    if ok then l.inspect = data
+    else l.inspect = false end
+    return ok, data
+end
+
 ---@param move fun(): boolean
 ---@param nx number
 ---@param ny number
@@ -274,14 +313,14 @@ local function digGeneric(inspect, dig, nx, ny, nz)
 end
 
 local function digDown()
-    return digGeneric(turtle.inspectDown, turtle.digDown, 0, -1, 0)
+    return digGeneric(inspectDown, turtle.digDown, 0, -1, 0)
 end
 local function digUp()
-    return digGeneric(turtle.inspectUp, turtle.digUp, 0, 1, 0)
+    return digGeneric(inspectUp, turtle.digUp, 0, 1, 0)
 end
 local function dig()
     local x, y, z = currentForward()
-    return digGeneric(turtle.inspect, turtle.dig, x, y, z)
+    return digGeneric(inspect, turtle.dig, x, y, z)
 end
 
 ---@param x number
@@ -350,21 +389,6 @@ local function canDigInMemory(x, y, z)
     return false
 end
 
-local Forward = 1
-local Left = 2
-local Back = 3
-local Right = 4
-local Down = 5
-local Up = 6
-
----@class DirectionOperations
----@field public name string
----@field public detect fun(): boolean
----@field public currentNormal fun(): integer, integer, integer
----@field public dig fun(): boolean, any
----@field public move fun(): boolean, any
----@field public suck fun(amount: number): boolean, any
-
 local function makeTurnAndDo(turn, op)
     return function(...)
         local ok, reason = turn()
@@ -380,6 +404,21 @@ local function turnRight2()
     if not ok then return ok, reason end
     return true
 end
+
+local Forward = 1
+local Left = 2
+local Back = 3
+local Right = 4
+local Down = 5
+local Up = 6
+
+---@class DirectionOperations
+---@field public name string
+---@field public detect fun(): boolean
+---@field public currentNormal fun(): integer, integer, integer
+---@field public dig fun(): boolean, any
+---@field public move fun(): boolean, any
+---@field public suck fun(amount: number): boolean, any
 
 ---@type DirectionOperations[]
 local directionOperations = {
@@ -447,7 +486,10 @@ return {
     currentRight = currentRight,
     currentLeft = currentLeft,
     currentBack = currentBack,
+
     toLocalAngleY = toLocalAngleY,
+    toGlobalDirection = toGlobalDirection,
+    toLocalDirection = toLocalDirection,
 
     addRequest = addRequest,
     hasRequest = hasRequest,
