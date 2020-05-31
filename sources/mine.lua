@@ -349,8 +349,8 @@ rules[#rules+1] = {
             Memoried.memory.lastCollectMapY,
             Memoried.memory.lastCollectMapY,
             Memoried.memory.lastCollectMapY,
-            true,
-            false
+            false,
+            true
         )
         if not ok then Ex.printError(reason) end
     end
