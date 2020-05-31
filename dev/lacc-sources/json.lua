@@ -594,7 +594,7 @@ local function writeValue(self, v, level)
                 writeString(self, "}")
             end
         else
-            error = "invalid type: "..t..", value: "..tostring(v)
+            self.error = "invalid type: "..t..", value: "..tostring(v)
             return false
         end
     end
