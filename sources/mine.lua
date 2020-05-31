@@ -368,6 +368,8 @@ rules[#rules+1] = {
     end,
     action = function (d)
         print("[CAM]", "direction:", d)
+        if not d then return end
+
         local gd = Memoried.toGlobalDirection(d)
         Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
         Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
@@ -407,7 +409,7 @@ local function evaluateRules()
         Ex.clearTable(maxPriorityRules)
         Ex.clearTable(maxPriorityResults)
 
-        print(">", "'"..rule.name.."'", "@"..tostring(maxPriority))
+        print("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
         rule.action(result)
     end
 end
