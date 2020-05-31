@@ -415,11 +415,11 @@ local function evaluateRules()
         rule.action(result)
 
         if math.random(1, 10) <= 1 then
-            local ok, result = Json.stringify(Memoried.memory)
-            if ok then
+            local json, error = Json.stringify(Memoried.memory)
+            if json then
                 local f = io.open("memory.json", "w+")
                 if f then
-                    f:write(result)
+                    f:write(json)
                     f:close()
                 end
             end
