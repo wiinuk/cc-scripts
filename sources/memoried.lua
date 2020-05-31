@@ -510,6 +510,8 @@ return {
     digUp = digUp,
     dig = dig,
 
+    getLocation = getLocation,
+
     detectRightInMemory = detectRightInMemory,
     detectLeftInMemory = detectLeftInMemory,
     detectBackInMemory = detectBackInMemory,

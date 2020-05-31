@@ -1,5 +1,5 @@
 
----@version: 0.2.4
+---@version: 0.2.5
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -309,7 +309,7 @@ rules[#rules+1] = {
                 for dz = -1, 1 do
                     local x, y, z = x + dx, y + dy, z + dz
                     if Box3.vsPoint(range, x, y, z) then
-                        local location = Memoried.location(x, y, z)
+                        local location = Memoried.getLocation(x, y, z)
                         if not location or location.detect == nil or location.inspect == nil then
                             Memoried.memory.lastCollectMapY = x
                             Memoried.memory.lastCollectMapY = y
@@ -327,7 +327,7 @@ rules[#rules+1] = {
             local x = math.random(range.minX, range.maxX)
             local y = math.random(range.minY, range.maxY)
             local z = math.random(range.minZ, range.maxZ)
-            local location = Memoried.location(x, y, z)
+            local location = Memoried.getLocation(x, y, z)
             if not location or location.detect == nil or location.inspect == nil then
                 Memoried.memory.lastCollectMapY = x
                 Memoried.memory.lastCollectMapY = y
@@ -359,7 +359,7 @@ rules[#rules+1] = {
             local nx, ny, nz = op.currentNormal()
             local x, y, z = cx + nx, cy + ny, cz + nz
 
-            local location = Memoried.location(x, y, z)
+            local location = Memoried.getLocation(x, y, z)
             if not location then return collectMapInfoPriority, d end
             if location.detect == nil then return collectMapInfoPriority, d end
             if location.inspect == nil then return collectMapInfoPriority, d end
