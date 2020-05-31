@@ -353,25 +353,18 @@ rules[#rules+1] = {
 rules[#rules+1] = {
     name = "collect around map",
     when = function()
-        local function f()
-            local cx, cy, cz = Memoried.currentPosition()
-            for d = 1, 6 do
-                local op = Memoried.getOperation(d)
-                local nx, ny, nz = op.currentNormal()
-                local x, y, z = cx + nx, cy + ny, cz + nz
+        local cx, cy, cz = Memoried.currentPosition()
+        for d = 1, 6 do
+            local op = Memoried.getOperation(d)
+            local nx, ny, nz = op.currentNormal()
+            local x, y, z = cx + nx, cy + ny, cz + nz
 
-                local location = Memoried.getLocation(x, y, z)
-                if not location then return collectMapInfoPriority, d end
-                if location.detect == nil then return collectMapInfoPriority, d end
-                if location.inspect == nil then return collectMapInfoPriority, d end
-            end
-            return false
+            local location = Memoried.getLocation(x, y, z)
+            if not location then return collectMapInfoPriority, d end
+            if location.detect == nil then return collectMapInfoPriority, d end
+            if location.inspect == nil then return collectMapInfoPriority, d end
         end
-        local r = {f()}
-        for i, v in ipairs(r) do
-            print("i:", i, "*", "v:", v)
-        end
-        return unpack(r)
+        return false
     end,
     action = function (d)
         print("[CAM]", "direction:", d)
@@ -411,6 +404,14 @@ local function evaluateRules()
         end
         if #maxPriorityRules == 0 then return true end
 
+        print("rules: ", #maxPriorityRules)
+        for i = 1, #maxPriorityRules do
+            print("", maxPriorityRules[i].name)
+        end
+        print("results: ", #maxPriorityResults)
+        for i = 1, #maxPriorityResults do
+            print("", maxPriorityResults[i])
+        end
         local index = math.random(1, #maxPriorityRules)
         local rule = maxPriorityRules[index]
         local result = maxPriorityResults[index]
