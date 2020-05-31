@@ -1,3 +1,6 @@
+package.path = package.path..";../dev/lacc-sources/?.lua"
+package.path = package.path..";../sources/?.lua"
+
 local Json = require "json"
 local Assert = require "assert"
 local pretty = require "pretty"

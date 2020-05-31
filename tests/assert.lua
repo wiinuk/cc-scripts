@@ -1,3 +1,5 @@
+package.path = package.path..";../sources/?.lua"
+
 local pretty = require "pretty"
 
 local function tablePath(path, key)
@@ -78,18 +80,23 @@ local function failure(message, level)
 end
 
 --- `assert(deepEquals(nan, nan))`
+--- `assert(deepEquals({x=1,y=2}, {x=1,y=2}))`
 ---@generic T
 ---@param a T
 ---@param b T
-local function deepEquals(a, b)
+---@param message string|nil
+local function deepEquals(a, b, message)
     local ok, path, diffA, diffB = deepDiff(a, b, "", {}, {})
     if not ok then
         local location = ""
         if path ~= "" then
             location = ", at: `"..path.."`, a: "..pretty(diffA)..", b: "..pretty(diffB)
         end
-
-        failure("deepEquals("..pretty(a)..", "..pretty(b)..")"..location, 2)
+        if message
+        then message = "'"..message.."', "
+        else message = ""
+        end
+        failure(message.."deepEquals("..pretty(a)..", "..pretty(b)..")"..location, 2)
     end
 end
 
@@ -98,9 +105,14 @@ end
 ---@generic T
 ---@param a T
 ---@param b T
-local function equals(a, b)
+---@param message string|nil
+local function equals(a, b, message)
     if not (a == b) then
-        failure(pretty(a).." == "..pretty(b), 2)
+        if message
+        then message = "'"..message.."', "
+        else message = ""
+        end
+        failure(message..pretty(a).." == "..pretty(b), 2)
     end
 end
 
