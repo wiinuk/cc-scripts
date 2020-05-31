@@ -33,6 +33,9 @@ local levels = {"O","E","W","I","D"}
 -- local logPath = "logs/mine.log"
 -- local logFile = nil
 local function initLogFile(self)
+    if fs.exists(self.logPath) then
+        fs.delete(self.logPath)
+    end
     self.logFile = io.open(self.logPath, "w+") or true
 end
 local function writeLog(self, level, ...)
