@@ -146,7 +146,7 @@ local miningPriorityRatios = {
     [Down] = 1.1,
     [Up] = 0.9,
 }
-local collectMapInfoPriority = 0.1
+local collectMapInfoPriority = 100 -- 0.1
 
 ---@param priority number
 ---@param request Request
@@ -366,15 +366,23 @@ rules[#rules+1] = {
 
             local location = Memoried.getLocation(x, y, z)
             if not location then return collectMapInfoPriority, d end
-            if location.detect == nil then return collectMapInfoPriority, d end
-            if location.inspect == nil then return collectMapInfoPriority, d end
+            if location.detect == nil then
+                print("find", d)
+                return collectMapInfoPriority, d end
+            if location.inspect == nil then
+                print("find", d)
+                return collectMapInfoPriority, d end
         end
         return false
     end,
     action = function (d)
         local gd = Memoried.toGlobalDirection(d)
-        Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
-        Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
+        local ld = Memoried.toLocalDirection(gd)
+        print("direction[1]", ld)
+        Memoried.getOperation(ld).detect()
+        local ld = Memoried.toLocalDirection(gd)
+        print("direction[2]", ld)
+        Memoried.getOperation(ld).inspect()
     end,
 }
 -- rules[#rules+1] = {
@@ -413,7 +421,7 @@ local function evaluateRules()
                     maxPriorityResults[maxPriorityRuleCount] = result
                     maxPriority = priority
                 end
-                print("  -", "'"..rule.name.."'", "@"..tostring(priority))
+                -- print("  -", "'"..rule.name.."'", "@"..tostring(priority))
             end
         end
         if maxPriorityRuleCount == 0 then return true end
