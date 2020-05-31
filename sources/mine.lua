@@ -383,6 +383,7 @@ rules[#rules+1] = {
         local ld = Memoried.toLocalDirection(gd)
         print("direction[2]", ld)
         Memoried.getOperation(ld).inspect()
+        os.sleep(3)
     end,
 }
 -- rules[#rules+1] = {
