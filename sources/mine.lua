@@ -30,6 +30,10 @@ local function globalAngleYToDirectionOperation(globalAngleY)
     return Memoried.getOperation(direction)
 end
 
+---@param getOperation fun(x: any): DirectionOperations
+---@param getOperationArgument any
+---@param disableDig boolean|nil
+---@param disableAttack boolean|nil
 local function mineMove1(getOperation, getOperationArgument, disableDig, disableAttack)
 
     if getOperation(getOperationArgument).move() then return true end
