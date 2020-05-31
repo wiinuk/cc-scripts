@@ -22,7 +22,7 @@ local memory = {
     moveHistory = {},
     -- { { name = "mining", options = ... }, { name = "attack" } }
     requests = {},
-    -- {0 = ..., 1 = ...}
+    -- { "0,0,0" = ..., "0,0,-1" = ... }
     map = {},
 }
 ---@param name string
@@ -492,6 +492,8 @@ local directionOperations = {
 local function getOperation(direction)
     return directionOperations[direction]
 end
+
+setAir(getOrMakeLocation(currentPosition()))
 
 return {
     memory = memory,

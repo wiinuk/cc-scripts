@@ -3,6 +3,7 @@
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
+local Vec2 = require "vec2"
 local Ex = require "extensions"
 local Json = require "json"
 local Logger = require "logger"
@@ -31,6 +32,20 @@ local function globalAngleYToDirectionOperation(globalAngleY)
     local localAngleY = Memoried.toLocalAngleY(globalAngleY)
     local direction = math.modf((localAngleY / (math.pi * 0.5)) + 1)
     return Memoried.getOperation(direction)
+end
+
+local normals = {
+    0,0,1,
+    -1,0,0,
+    0,0,-1,
+    1,0,0,
+    0,-1,0,
+    0,1,0,
+}
+---@param direction integer Direction
+local function directionToNormal(direction)
+    local i = direction * 3
+    return normals[i - 2], normals[i - 1], normals[i]
 end
 
 ---@param getOperation fun(x: any): DirectionOperations
@@ -150,6 +165,7 @@ local miningPriorityRatios = {
     [Up] = 0.9,
 }
 local collectMapInfoPriority = 0.1
+local miningCollectMapInfoPriorityRatio = 1.2
 
 ---@param priority number
 ---@param request Request
@@ -298,6 +314,32 @@ rules[#rules+1] = {
         turtle.suckUp()
     end
 }
+
+---@param tx integer 対象の世界座標x
+---@param ty integer 対象の世界座標y
+---@param tz integer 対象の世界座標z
+---@return integer|nil globalDirection `mx, my, mz` から見た、`tx, ty, tz` の世界方向
+---@return integer mx 対象のそばの、移動できるブロックの世界座標x
+---@return integer my 対象のそばの、移動できるブロックの世界座標y
+---@return integer mz 対象のそばの、移動できるブロックの世界座標z
+local function findNearMovablePositionIfNoMap(tx, ty, tz)
+    local location = Memoried.getLocation(tx, ty, tz)
+    if not location or location.detect == nil or location.inspect == nil then
+        -- 探査していない情報がある
+
+        for globalDirection = 1, 6 do
+            local nx, ny, nz = directionToNormal(globalDirection)
+            local mx, my, mz = tx - nx, ty - ny, tz - nz
+            local moveToLocation = Memoried.getLocation(mx, my, mz)
+            if moveToLocation and moveToLocation.move == true then
+                -- そのブロックの周りに、行けるブロックがある
+
+                return globalDirection, mx, my, mz
+            end
+        end
+    end
+    return
+end
 rules[#rules+1] = {
     name = "mining: collect map",
     when = function ()
@@ -308,21 +350,25 @@ rules[#rules+1] = {
         if not range then return false end
 
         -- 周りを探索
-        local x, y, z = Memoried.currentPosition()
-        x = Memoried.memory.lastCollectMapX or x
-        y = Memoried.memory.lastCollectMapY or y
-        z = Memoried.memory.lastCollectMapZ or z
+        local cx, cy, cz = Memoried.currentPosition()
         for dx = -1, 1 do
             for dy = -1, 1 do
                 for dz = -1, 1 do
-                    local x, y, z = x + dx, y + dy, z + dz
-                    if Box3.vsPoint(range, x, y, z) then
-                        local location = Memoried.getLocation(x, y, z)
-                        if not location or location.detect == nil or location.inspect == nil then
-                            Memoried.memory.lastCollectMapX = x
-                            Memoried.memory.lastCollectMapY = y
-                            Memoried.memory.lastCollectMapZ = z
-                            return collectMapInfoPriority
+                    local tx, ty, tz = cx + dx, cy + dy, cz + dz
+                    if Box3.vsPoint(range, tx, ty, tz) then
+                        -- 採掘範囲内で
+
+                        local direction, mx, my, mz = findNearMovablePositionIfNoMap(tx, ty, tz)
+                        if direction then
+                            -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
+
+                            Memoried.memory.lastCollectMapDirection = direction
+                            Memoried.memory.lastCollectMapX = mx
+                            Memoried.memory.lastCollectMapY = my
+                            Memoried.memory.lastCollectMapZ = mz
+
+                            Logger.logDebug("no map: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                            return collectMapInfoPriority * miningCollectMapInfoPriorityRatio
                         end
                     end
                 end
@@ -332,71 +378,64 @@ rules[#rules+1] = {
         -- ランダムに探索
         local maxSearchCount = 20
         for _ = 1, maxSearchCount do
-            local x = math.random(range.minX, range.maxX)
-            local y = math.random(range.minY, range.maxY)
-            local z = math.random(range.minZ, range.maxZ)
-            local location = Memoried.getLocation(x, y, z)
-            if not location or location.detect == nil or location.inspect == nil then
-                Memoried.memory.lastCollectMapX = x
-                Memoried.memory.lastCollectMapY = y
-                Memoried.memory.lastCollectMapZ = z
-                return collectMapInfoPriority
+            local tx = math.random(range.minX, range.maxX)
+            local ty = math.random(range.minY, range.maxY)
+            local tz = math.random(range.minZ, range.maxZ)
+            -- 採掘範囲内で
+
+            local direction, mx, my, mz = findNearMovablePositionIfNoMap(tx, ty, tz)
+            if direction then
+                -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
+
+                Memoried.memory.lastCollectMapDirection = direction
+                Memoried.memory.lastCollectMapX = mx
+                Memoried.memory.lastCollectMapY = my
+                Memoried.memory.lastCollectMapZ = mz
+
+                Logger.logDebug("no map: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                return collectMapInfoPriority * miningCollectMapInfoPriorityRatio
             end
         end
         return false
-
     end,
     action = function()
-        local ok, reason = mineTo(
-            20,
+        local gd, mx, my, mz =
+            Memoried.memory.lastCollectMapDirection,
             Memoried.memory.lastCollectMapX,
             Memoried.memory.lastCollectMapY,
-            Memoried.memory.lastCollectMapZ,
-            false,
-            true
-        )
+            Memoried.memory.lastCollectMapZ
+
+        -- 攻撃しないで移動
+        local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
+
+        Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
+        Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
     end
 }
 rules[#rules+1] = {
     name = "collect around map",
     when = function()
         local cx, cy, cz = Memoried.currentPosition()
-        for d = 1, 6 do
-            local op = Memoried.getOperation(d)
-            local nx, ny, nz = op.currentNormal()
+        for globalDirection = 1, 6 do
+            local nx, ny, nz = directionToNormal(globalDirection)
             local x, y, z = cx + nx, cy + ny, cz + nz
 
             local location = Memoried.getLocation(x, y, z)
-            if not location then return collectMapInfoPriority, d end
+            if not location then return collectMapInfoPriority, globalDirection end
             if location.detect == nil then
-                return collectMapInfoPriority, d end
+                return collectMapInfoPriority, globalDirection end
             if location.inspect == nil then
-                return collectMapInfoPriority, d end
+                return collectMapInfoPriority, globalDirection end
         end
         return false
     end,
-    action = function (d)
-        local gd = Memoried.toGlobalDirection(d)
+    action = function (gd)
         local ld = Memoried.toLocalDirection(gd)
         Memoried.getOperation(ld).detect()
         local ld = Memoried.toLocalDirection(gd)
         Memoried.getOperation(ld).inspect()
-        os.sleep(3)
     end,
-}
-rules[#rules+1] = {
-    name = "walk",
-    when = function ()
-        if math.random(1, 100) <= 1
-        then return 0.001
-        else return false
-        end
-    end,
-    action = function ()
-        local x, y, z = Memoried.currentPosition()
-        mineTo(20, x + math.random(-3, 3), y, z + math.random(-3, 3))
-    end
 }
 
 -- つるはしを装着する
