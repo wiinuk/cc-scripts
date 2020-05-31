@@ -383,9 +383,9 @@ rules[#rules+1] = {
         return 100
     end,
     action = function ()
-        local function getOperation(x)
-            return Memoried.getOperation(x)
-        end
+        Memoried.move()
+
+        local getOperation = Memoried.getOperation
         local getOperationArgument = Forward
         local disableDig = nil
         local disableAttack = nil
