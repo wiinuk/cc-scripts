@@ -4,6 +4,7 @@ local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
+local Json = require "json"
 
 
 local Forward = Memoried.Forward
@@ -398,7 +399,7 @@ local function evaluateRules()
                     maxPriorityResults[maxPriorityRuleCount] = result
                     maxPriority = priority
                 end
-                print("-", rule.name, "@"..tostring(priority))
+                print("  -", "'"..rule.name.."'", "@"..tostring(priority))
             end
         end
         if maxPriorityRuleCount == 0 then return true end
@@ -412,6 +413,17 @@ local function evaluateRules()
 
         print("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
         rule.action(result)
+
+        if math.random(1, 10) <= 1 then
+            local ok, result = Json.stringify(Memoried.memory)
+            if ok then
+                local f = io.open("memory.json", "w+")
+                if f then
+                    f:write(result)
+                    f:close()
+                end
+            end
+        end
     end
 end
 
