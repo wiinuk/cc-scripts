@@ -97,8 +97,8 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
         elseif targetY < currentY then ok, reason = mineMove1(Memoried.getOperation, Down, disableDig, disableAttack)
         end
         if not ok then
-            retryCount = retryCount + 1
             lastReason = reason
+            retryCount = retryCount + 1
         end
     end
 end
@@ -383,13 +383,13 @@ rules[#rules+1] = {
         return 100
     end,
     action = function ()
-        local x, y, z = Memoried.currentPosition()
-        mineTo(20,
-            x + math.random(-3, 3),
-            y,
-            z + math.random(-3, 3)
-        )
-        os.sleep(3)
+        mineMove1(globalAngleYToDirectionOperation, math.pi * 0.5)
+        -- local x, y, z = Memoried.currentPosition()
+        -- mineTo(20,
+        --     x + math.random(-3, 3),
+        --     y,
+        --     z + math.random(-3, 3)
+        -- )
     end
 }
 
