@@ -373,6 +373,21 @@ rules[#rules+1] = {
         Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
     end,
 }
+rules[#rules+1] = {
+    name = "walk",
+    when = function ()
+        return 100
+    end,
+    action = function ()
+        local x, y, z = Memoried.currentPosition()
+        mineTo(20,
+            x + math.random(-3, 3),
+            y,
+            z + math.random(-3, 3)
+        )
+        os.sleep(3)
+    end
+}
 
 -- インベントリが満タンならチェストまで移動して入れる
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
