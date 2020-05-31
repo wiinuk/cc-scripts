@@ -183,7 +183,7 @@ end
 ---@param localDirection integer
 local function toGlobalDirection(localDirection)
     if 1 <= localDirection and localDirection <= 4 then
-        return (localDirection + angleY) % 4 + 1
+        return (localDirection + angleY - 1) % 4 + 1
     end
     return localDirection
 end
@@ -191,7 +191,7 @@ end
 ---@param globalDirection integer
 local function toLocalDirection(globalDirection)
     if 1 <= globalDirection and globalDirection <= 4 then
-        return (globalDirection - angleY) % 4 + 1
+        return (globalDirection - angleY - 1) % 4 + 1
     end
     return globalDirection
 end
