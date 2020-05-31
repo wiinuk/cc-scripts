@@ -403,7 +403,7 @@ local function evaluateRules()
                     end
                     maxPriorityRules[#maxPriorityRules+1] = rule
                     maxPriorityResults[#maxPriorityResults+1] = result
-                    print("add", rule.name, maxPriorityResults)
+                    print("add", "'"..rule.name.."'", ",", result)
                     maxPriority = priority
                 end
                 print("!", rule.name, "@"..tostring(priority))
