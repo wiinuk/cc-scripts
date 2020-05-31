@@ -6,6 +6,7 @@ framework: netcore3.1, netstandard2.0, netstandard2.1, net462
 nuget AngleSharp
 nuget AngleSharp.Css
 nuget FParsec
+nuget FsCheck
 nuget RestSharp
 nuget Utf8Json
 nuget Utf8Json.FSharpExtensions
