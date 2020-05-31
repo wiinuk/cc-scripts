@@ -123,7 +123,9 @@ end
 ---@param z number
 local function applyRotationTruncate(x, y, z)
     local x, z = Vec2.rotate(angleY * 0.5 * math.pi, x, z)
-    return math.modf(x), y, math.modf(z)
+    local x = math.modf(x)
+    local z = math.modf(z)
+    return x, y, z
 end
 --- 顔の方向を表す長さ 1 のベクトルを返す。
 --- 最初の顔の方向は `0, 0, 1`
