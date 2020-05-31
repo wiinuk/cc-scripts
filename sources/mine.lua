@@ -1,5 +1,5 @@
 
----@version: 0.2.5
+---@version: 0.2.6
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -367,6 +367,7 @@ rules[#rules+1] = {
         return false
     end,
     action = function (d)
+        print("[CAM]", "direction:", d)
         local gd = Memoried.toGlobalDirection(d)
         Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
         Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
