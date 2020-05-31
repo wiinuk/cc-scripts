@@ -383,13 +383,51 @@ rules[#rules+1] = {
         return 100
     end,
     action = function ()
-        mineMove1(globalAngleYToDirectionOperation, math.pi * 0.5)
-        -- local x, y, z = Memoried.currentPosition()
-        -- mineTo(20,
-        --     x + math.random(-3, 3),
-        --     y,
-        --     z + math.random(-3, 3)
-        -- )
+        local function getOperation(_)
+            return Memoried.getOperation(Forward)
+        end
+        local getOperationArgument = 0
+        local disableDig = nil
+        local disableAttack = nil
+
+        if getOperation(getOperationArgument).move() then return true end
+        -- 行けなかった
+
+        -- ブロックがあるなら掘る
+        if not disableDig and getOperation(getOperationArgument).detect() then
+
+            -- 掘る
+            getOperation(getOperationArgument).dig()
+
+            -- 拾う
+            getOperation(getOperationArgument).suck()
+        end
+
+        -- 掘ったら行けた?
+        if getOperation(getOperationArgument).move() then return true end
+
+        -- エンティティがいる?
+        if not getOperation(getOperationArgument).detect() then
+            -- 待機
+            os.sleep(1)
+            if getOperation(getOperationArgument).move() then return true end
+        end
+
+        if not disableAttack then
+            -- エンティティがいる?
+            while not getOperation(getOperationArgument).detect() do
+                if getOperation(getOperationArgument).move() then return true end
+                -- 攻撃
+                getOperation(getOperationArgument).attack()
+            end
+        end
+
+        -- 移動
+        local ok, reason = getOperation(getOperationArgument).move()
+        if ok then return true end
+
+        -- 失敗
+        return false, reason
     end
 }
 
