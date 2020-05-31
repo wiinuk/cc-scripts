@@ -398,7 +398,8 @@ local function evaluateRules()
                     maxPriorityResults[#maxPriorityResults+1] = result
                     maxPriority = priority
                 end
-                print(rule.name, "@"..tostring(priority))
+                print(rule.name, "=>", result)
+                print("!", rule.name, "@"..tostring(priority))
             end
         end
         if #maxPriorityRules == 0 then return true end
