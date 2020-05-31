@@ -352,19 +352,26 @@ rules[#rules+1] = {
 }
 rules[#rules+1] = {
     name = "collect around map",
-    when = function ()
-        local cx, cy, cz = Memoried.currentPosition()
-        for d = 1, 6 do
-            local op = Memoried.getOperation(d)
-            local nx, ny, nz = op.currentNormal()
-            local x, y, z = cx + nx, cy + ny, cz + nz
+    when = function()
+        local function f()
+            local cx, cy, cz = Memoried.currentPosition()
+            for d = 1, 6 do
+                local op = Memoried.getOperation(d)
+                local nx, ny, nz = op.currentNormal()
+                local x, y, z = cx + nx, cy + ny, cz + nz
 
-            local location = Memoried.getLocation(x, y, z)
-            if not location then return collectMapInfoPriority, d end
-            if location.detect == nil then return collectMapInfoPriority, d end
-            if location.inspect == nil then return collectMapInfoPriority, d end
+                local location = Memoried.getLocation(x, y, z)
+                if not location then return collectMapInfoPriority, d end
+                if location.detect == nil then return collectMapInfoPriority, d end
+                if location.inspect == nil then return collectMapInfoPriority, d end
+            end
+            return false
         end
-        return false
+        local r = {f()}
+        for i, v in ipairs(r) do
+            print("i:", i, "v:", v)
+        end
+        return unpack(r)
     end,
     action = function (d)
         print("[CAM]", "direction:", d)
@@ -398,7 +405,6 @@ local function evaluateRules()
                     maxPriorityResults[#maxPriorityResults+1] = result
                     maxPriority = priority
                 end
-                print(rule.name, "=>", result)
                 print("!", rule.name, "@"..tostring(priority))
             end
         end
