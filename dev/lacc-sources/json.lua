@@ -581,7 +581,7 @@ local function writeValue(self, v, level)
                 for tk, tv in pairs(v) do
                     if 1 < i then
                         writeString(self, ",")
-                        writeSpaceOrNewLine(self)
+                        writeSpaceOrNewLine(self, level)
                     end
                     writeStringLiteral(self, tostring(tk))
                     writeString(self, ":")
