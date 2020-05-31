@@ -419,6 +419,7 @@ local Up = 6
 ---@field public dig fun(): boolean, any
 ---@field public move fun(): boolean, any
 ---@field public suck fun(amount: number): boolean, any
+---@field public inspect fun(): boolean, table
 
 ---@type DirectionOperations[]
 local directionOperations = {
@@ -429,6 +430,7 @@ local directionOperations = {
         dig = dig,
         move = move,
         suck = turtle.suck,
+        inspect = inspect,
     },
     [Left] = {
         name = "left",
@@ -437,6 +439,7 @@ local directionOperations = {
         dig = makeTurnAndDo(turnLeft, dig),
         move = makeTurnAndDo(turnLeft, move),
         suck = makeTurnAndDo(turnLeft, turtle.suck),
+        inspect = makeTurnAndDo(turnLeft, inspect),
     },
     [Back] = {
         name = "back",
@@ -445,6 +448,7 @@ local directionOperations = {
         dig = makeTurnAndDo(turnRight2, dig),
         move = makeTurnAndDo(turnRight2, move),
         suck = makeTurnAndDo(turnRight2, turtle.suck),
+        inspect = makeTurnAndDo(turnRight2, inspect),
     },
     [Right] = {
         name = "right",
@@ -453,6 +457,7 @@ local directionOperations = {
         dig = makeTurnAndDo(turnRight, dig),
         move = makeTurnAndDo(turnRight, move),
         suck = makeTurnAndDo(turnRight, turtle.suck),
+        inspect = makeTurnAndDo(turnRight, inspect),
     },
     [Down] = {
         name = "down",
@@ -461,6 +466,7 @@ local directionOperations = {
         dig = digDown,
         move = moveDown,
         suck = turtle.suckDown,
+        inspect = inspectDown,
     },
     [Up] = {
         name = "up",
@@ -469,6 +475,7 @@ local directionOperations = {
         dig = digUp,
         move = moveUp,
         suck = turtle.suckUp,
+        inspect = inspectUp,
     },
 }
 ---@param direction integer 1|2|3|4|5|6
