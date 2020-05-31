@@ -5,6 +5,7 @@ local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Json = require "json"
+local Logger = require "logger"
 
 
 local Forward = Memoried.Forward
@@ -13,6 +14,8 @@ local Back = Memoried.Back
 local Right = Memoried.Right
 local Down = Memoried.Down
 local Up = Memoried.Up
+
+Logger.addListener(Logger.fileWriterListener("/logs/mine.log"))
 
 ---@return integer|nil slotNumber
 local function findEmptySlot()
@@ -222,7 +225,7 @@ rules[#rules+1] = {
     end,
     action = function (direction)
         local ok, reason = Memoried.getOperation(direction).dig()
-        if not ok then Ex.printError(reason) end
+        if not ok then Logger.logError(reason) end
     end,
 }
 rules[#rules+1] = {
@@ -275,7 +278,7 @@ rules[#rules+1] = {
             Memoried.memory.lastFindY,
             Memoried.memory.lastFindZ
         )
-        if not ok then Ex.printError(reason) end
+        if not ok then Logger.logError(reason) end
     end
 }
 rules[#rules+1] = {
@@ -352,7 +355,7 @@ rules[#rules+1] = {
             false,
             true
         )
-        if not ok then Ex.printError(reason) end
+        if not ok then Logger.logError(reason) end
     end
 }
 rules[#rules+1] = {
@@ -422,7 +425,7 @@ local function evaluateRules()
                     maxPriorityResults[maxPriorityRuleCount] = result
                     maxPriority = priority
                 end
-                -- print("  -", "'"..rule.name.."'", "@"..tostring(priority))
+                -- Logger.log("  -", "'"..rule.name.."'", "@"..tostring(priority))
             end
         end
         if maxPriorityRuleCount == 0 then return true end
@@ -434,7 +437,7 @@ local function evaluateRules()
         Ex.clearTable(maxPriorityResults)
         maxPriorityRuleCount = 0
 
-        print("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
+        Logger.log("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
         rule.action(result)
 
         if math.random(1, 10) <= 1 then
@@ -471,14 +474,14 @@ local function parseMiningOptions(options, arguments)
 end
 
 local function miningCommand(...)
-    print("# mining")
+    Logger.log("# mining")
     local options = getDefaultMiningOptions()
     parseMiningOptions(options, {...})
-    print("options: ")
-    print("- down", options.down)
-    print("- forward", options.forward)
-    print("- right", options.right)
-    print("")
+    Logger.log("options: ")
+    Logger.log("- down", options.down)
+    Logger.log("- forward", options.forward)
+    Logger.log("- right", options.right)
+    Logger.log("")
 
     local x, y, z = Memoried.currentPosition()
     local box = Box3.newFromPoint(x, y, z)
