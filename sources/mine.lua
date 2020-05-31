@@ -316,9 +316,9 @@ rules[#rules+1] = {
                     if Box3.vsPoint(range, x, y, z) then
                         local location = Memoried.getLocation(x, y, z)
                         if not location or location.detect == nil or location.inspect == nil then
-                            Memoried.memory.lastCollectMapY = x
+                            Memoried.memory.lastCollectMapX = x
                             Memoried.memory.lastCollectMapY = y
-                            Memoried.memory.lastCollectMapY = z
+                            Memoried.memory.lastCollectMapZ = z
                             return collectMapInfoPriority
                         end
                     end
@@ -334,9 +334,9 @@ rules[#rules+1] = {
             local z = math.random(range.minZ, range.maxZ)
             local location = Memoried.getLocation(x, y, z)
             if not location or location.detect == nil or location.inspect == nil then
-                Memoried.memory.lastCollectMapY = x
+                Memoried.memory.lastCollectMapX = x
                 Memoried.memory.lastCollectMapY = y
-                Memoried.memory.lastCollectMapY = z
+                Memoried.memory.lastCollectMapZ = z
                 return collectMapInfoPriority
             end
         end
@@ -346,9 +346,9 @@ rules[#rules+1] = {
     action = function()
         local ok, reason = mineTo(
             20,
+            Memoried.memory.lastCollectMapX,
             Memoried.memory.lastCollectMapY,
-            Memoried.memory.lastCollectMapY,
-            Memoried.memory.lastCollectMapY,
+            Memoried.memory.lastCollectMapZ,
             false,
             true
         )
