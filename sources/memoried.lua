@@ -65,13 +65,7 @@ end
 ---@param y number
 ---@param z number
 local function locationKey(x, y, z)
-    x = math.modf(x) * 10
-    if x < 0 then x = -1 * x + 1 end
-    y = math.modf(y) * 10
-    if y < 0 then y = -1 * y + 1 end
-    z = math.modf(z) * 10
-    if z < 0 then z = -1 * z + 1 end
-    return x * 10000000000 + y * 100000 + z
+    return tostring(x)..","..tostring(y)..","..tostring(z)
 end
 
 ---@class InspectResult
