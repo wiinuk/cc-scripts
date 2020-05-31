@@ -383,14 +383,16 @@ rules[#rules+1] = {
         return 100
     end,
     action = function ()
-        local function getOperation(_)
-            return Memoried.getOperation(Forward)
+        local function getOperation(x)
+            return Memoried.getOperation(x)
         end
-        local getOperationArgument = 0
+        local getOperationArgument = Forward
         local disableDig = nil
         local disableAttack = nil
 
+        print("[0]")
         if getOperation(getOperationArgument).move() then return true end
+        print("[1]", "move failure")
         -- 行けなかった
 
         -- ブロックがあるなら掘る
@@ -406,16 +408,20 @@ rules[#rules+1] = {
         -- 掘ったら行けた?
         if getOperation(getOperationArgument).move() then return true end
 
+        print("[2]", "move failure")
+
         -- エンティティがいる?
         if not getOperation(getOperationArgument).detect() then
+            print("[3]", "wait entity")
             -- 待機
-            os.sleep(1)
+            os.sleep(2)
             if getOperation(getOperationArgument).move() then return true end
         end
 
         if not disableAttack then
             -- エンティティがいる?
             while not getOperation(getOperationArgument).detect() do
+                print("[4]", "attack entity")
                 if getOperation(getOperationArgument).move() then return true end
                 -- 攻撃
                 getOperation(getOperationArgument).attack()
@@ -425,6 +431,7 @@ rules[#rules+1] = {
         -- 移動
         local ok, reason = getOperation(getOperationArgument).move()
         if ok then return true end
+        print("[5]", "move failure")
 
         -- 失敗
         return false, reason
