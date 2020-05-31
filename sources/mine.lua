@@ -146,7 +146,7 @@ local miningPriorityRatios = {
     [Down] = 1.1,
     [Up] = 0.9,
 }
-local collectMapInfoPriority = 100 -- 0.1
+local collectMapInfoPriority = 0.1
 
 ---@param priority number
 ---@param request Request
@@ -367,43 +367,36 @@ rules[#rules+1] = {
             local location = Memoried.getLocation(x, y, z)
             if not location then return collectMapInfoPriority, d end
             if location.detect == nil then
-                print("find", d)
                 return collectMapInfoPriority, d end
             if location.inspect == nil then
-                print("find", d)
                 return collectMapInfoPriority, d end
         end
         return false
     end,
     action = function (d)
-        local function roundtrip(d)
-            local g = Memoried.toGlobalDirection(d)
-            local l = Memoried.toLocalDirection(g)
-            print(d, "=>", g, "=>", l)
-        end
-        for i = 1, 6 do roundtrip(i) end
-
         local gd = Memoried.toGlobalDirection(d)
         local ld = Memoried.toLocalDirection(gd)
-        print("direction[1]", ld)
         Memoried.getOperation(ld).detect()
         local ld = Memoried.toLocalDirection(gd)
-        print("direction[2]", ld)
         Memoried.getOperation(ld).inspect()
         os.sleep(3)
     end,
 }
--- rules[#rules+1] = {
---     name = "walk",
---     when = function ()
---         return 100
---     end,
---     action = function ()
---         local x, y, z = Memoried.currentPosition()
---         mineTo(20, x + math.random(-3, 3), y, z + math.random(-3, 3))
---     end
--- }
+rules[#rules+1] = {
+    name = "walk",
+    when = function ()
+        if math.random(1, 100) <= 1
+        then return 0.001
+        else return false
+        end
+    end,
+    action = function ()
+        local x, y, z = Memoried.currentPosition()
+        mineTo(20, x + math.random(-3, 3), y, z + math.random(-3, 3))
+    end
+}
 
+-- つるはしを装着する
 -- インベントリが満タンならチェストまで移動して入れる
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
 
