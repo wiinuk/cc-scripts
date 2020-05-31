@@ -250,6 +250,12 @@ end
 ---@param ny number
 ---@param nz number
 local function moveGeneric(move, nx, ny, nz)
+    local level = turtle.getFuelLevel()
+    if level ~= "unlimited" and level <= 0 then
+        print "empty fuel"
+        return false
+    end
+
     local x, y, z = position[1], position[2], position[3]
     x, y, z = x + nx, y + ny, z + nz
     local ok, reason = move()
