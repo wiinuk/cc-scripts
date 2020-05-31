@@ -415,7 +415,11 @@ local function evaluateRules()
         rule.action(result)
 
         if math.random(1, 10) <= 1 then
-            local json, error = Json.stringify(Memoried.memory)
+            local json = Json.stringify(Memoried.memory, {
+                space = " ",
+                indent = " ",
+                maxWidth = 39,
+            })
             if json then
                 local f = io.open("memory.json", "w+")
                 if f then
