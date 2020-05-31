@@ -121,9 +121,9 @@ end
 ---@type MiningOptions
 local function getDefaultMiningOptions()
     return {
-        down = 10,
-        forward = 5,
-        right = 5,
+        down = 2,
+        forward = 3,
+        right = 4,
     }
 end
 
