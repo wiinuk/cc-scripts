@@ -383,58 +383,61 @@ rules[#rules+1] = {
         return 100
     end,
     action = function ()
-        Memoried.move()
+        turtle.forward()
+        turtle.forward()
+        turtle.forward()
+        -- Memoried.move()
 
-        local getOperation = Memoried.getOperation
-        local getOperationArgument = Forward
-        local disableDig = nil
-        local disableAttack = nil
+        -- local getOperation = Memoried.getOperation
+        -- local getOperationArgument = Forward
+        -- local disableDig = nil
+        -- local disableAttack = nil
 
-        print("[0]")
-        if getOperation(getOperationArgument).move() then return true end
-        print("[1]", "move failure")
-        -- 行けなかった
+        -- print("[0]")
+        -- if getOperation(getOperationArgument).move() then return true end
+        -- print("[1]", "move failure")
+        -- -- 行けなかった
 
-        -- ブロックがあるなら掘る
-        if not disableDig and getOperation(getOperationArgument).detect() then
+        -- -- ブロックがあるなら掘る
+        -- if not disableDig and getOperation(getOperationArgument).detect() then
 
-            -- 掘る
-            getOperation(getOperationArgument).dig()
+        --     -- 掘る
+        --     getOperation(getOperationArgument).dig()
 
-            -- 拾う
-            getOperation(getOperationArgument).suck()
-        end
+        --     -- 拾う
+        --     getOperation(getOperationArgument).suck()
+        -- end
 
-        -- 掘ったら行けた?
-        if getOperation(getOperationArgument).move() then return true end
+        -- -- 掘ったら行けた?
+        -- if getOperation(getOperationArgument).move() then return true end
 
-        print("[2]", "move failure")
+        -- print("[2]", "move failure")
 
-        -- エンティティがいる?
-        if not getOperation(getOperationArgument).detect() then
-            print("[3]", "wait entity")
-            -- 待機
-            os.sleep(2)
-            if getOperation(getOperationArgument).move() then return true end
-        end
+        -- -- エンティティがいる?
+        -- if not getOperation(getOperationArgument).detect() then
+        --     print("[3]", "wait entity")
+        --     -- 待機
+        --     os.sleep(2)
+        --     if getOperation(getOperationArgument).move() then return true end
+        -- end
 
-        if not disableAttack then
-            -- エンティティがいる?
-            while not getOperation(getOperationArgument).detect() do
-                print("[4]", "attack entity")
-                if getOperation(getOperationArgument).move() then return true end
-                -- 攻撃
-                getOperation(getOperationArgument).attack()
-            end
-        end
+        -- if not disableAttack then
+        --     -- エンティティがいる?
+        --     while not getOperation(getOperationArgument).detect() do
+        --         print("[4]", "attack entity")
+        --         if getOperation(getOperationArgument).move() then return true end
+        --         -- 攻撃
+        --         getOperation(getOperationArgument).attack()
+        --     end
+        -- end
 
-        -- 移動
-        local ok, reason = getOperation(getOperationArgument).move()
-        if ok then return true end
-        print("[5]", "move failure")
+        -- -- 移動
+        -- local ok, reason = getOperation(getOperationArgument).move()
+        -- if ok then return true end
+        -- print("[5]", "move failure")
 
-        -- 失敗
-        return false, reason
+        -- -- 失敗
+        -- return false, reason
     end
 }
 
