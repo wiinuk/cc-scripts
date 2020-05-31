@@ -367,9 +367,6 @@ rules[#rules+1] = {
         return false
     end,
     action = function (d)
-        print("[CAM]", "direction:", d)
-        if not d then return end
-
         local gd = Memoried.toGlobalDirection(d)
         Memoried.getOperation(Memoried.toLocalDirection(gd)).detect()
         Memoried.getOperation(Memoried.toLocalDirection(gd)).inspect()
@@ -380,6 +377,7 @@ rules[#rules+1] = {
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
 
 local function evaluateRules()
+    local maxPriorityRuleCount = 0
     local maxPriorityRules = {}
     local maxPriorityResults = {}
 
@@ -393,30 +391,24 @@ local function evaluateRules()
                     if maxPriority < priority then
                         Ex.clearTable(maxPriorityRules)
                         Ex.clearTable(maxPriorityResults)
+                        maxPriorityRuleCount = 0
                     end
-                    maxPriorityRules[#maxPriorityRules+1] = rule
-                    maxPriorityResults[#maxPriorityResults+1] = result
-                    print("add", "'"..rule.name.."'", ",", result)
+                    maxPriorityRuleCount = maxPriorityRuleCount+1
+                    maxPriorityRules[maxPriorityRuleCount] = rule
+                    maxPriorityResults[maxPriorityRuleCount] = result
                     maxPriority = priority
                 end
-                print("!", rule.name, "@"..tostring(priority))
+                print("-", rule.name, "@"..tostring(priority))
             end
         end
-        if #maxPriorityRules == 0 then return true end
+        if maxPriorityRuleCount == 0 then return true end
 
-        print("rules: ", #maxPriorityRules)
-        for i = 1, #maxPriorityRules do
-            print("", maxPriorityRules[i].name)
-        end
-        print("results: ", #maxPriorityResults)
-        for i = 1, #maxPriorityResults do
-            print("", maxPriorityResults[i])
-        end
-        local index = math.random(1, #maxPriorityRules)
+        local index = math.random(1, maxPriorityRuleCount)
         local rule = maxPriorityRules[index]
         local result = maxPriorityResults[index]
         Ex.clearTable(maxPriorityRules)
         Ex.clearTable(maxPriorityResults)
+        maxPriorityRuleCount = 0
 
         print("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
         rule.action(result)
