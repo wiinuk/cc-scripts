@@ -46,6 +46,7 @@ local function writeLog(self, level, ...)
     logFile:write(levels[level])
     logFile:write("\t")
     logFile:write(table.concat(args, "\t"))
+    logFile:write("\n")
     logFile:flush()
 end
 local function closeFile(self)
