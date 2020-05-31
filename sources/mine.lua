@@ -376,6 +376,13 @@ rules[#rules+1] = {
         return false
     end,
     action = function (d)
+        local function roundtrip(d)
+            local g = Memoried.toGlobalDirection(d)
+            local l = Memoried.toLocalDirection(g)
+            print(d, "=>", g, "=>", l)
+        end
+        for i = 1, 6 do roundtrip(i) end
+
         local gd = Memoried.toGlobalDirection(d)
         local ld = Memoried.toLocalDirection(gd)
         print("direction[1]", ld)
