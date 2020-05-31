@@ -105,7 +105,7 @@ local function downloadBlob(self, sha, path)
         not fs.isDir(localFullPath)
 
     if isLatest then
-        Core.log("latest '"..localFullPath.."'")
+        Core.log("latest '"..path.."'")
         return true
     end
 
