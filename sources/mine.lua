@@ -418,7 +418,7 @@ local function evaluateRules()
             local json = Json.stringify(Memoried.memory, {
                 space = " ",
                 indent = " ",
-                maxWidth = 39,
+                maxWidth = 0,
             })
             if json then
                 local f = io.open("memory.json", "w+")
