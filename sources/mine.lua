@@ -369,7 +369,7 @@ rules[#rules+1] = {
         end
         local r = {f()}
         for i, v in ipairs(r) do
-            print("i:", i, "v:", v)
+            print("i:", i, "*", "v:", v)
         end
         return unpack(r)
     end,
@@ -403,6 +403,7 @@ local function evaluateRules()
                     end
                     maxPriorityRules[#maxPriorityRules+1] = rule
                     maxPriorityResults[#maxPriorityResults+1] = result
+                    print("add", rule.name, maxPriorityResults)
                     maxPriority = priority
                 end
                 print("!", rule.name, "@"..tostring(priority))
