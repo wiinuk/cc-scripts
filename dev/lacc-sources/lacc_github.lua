@@ -247,7 +247,7 @@ local function add(arguments)
     local ok, error = Core.writeJson(Core.configPath, result)
     if not ok then io.stderr:write(error) end
 
-    local ok, reason = Core.downloadGithub(ownerAndRepo, branch, path)
+    local ok, reason = downloadGithub(ownerAndRepo, branch, path)
     if not ok then io.stderr:write(reason) end
     return
 end
