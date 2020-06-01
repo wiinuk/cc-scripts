@@ -358,7 +358,7 @@ rules[#rules+1] = {
             if p then direction = d end
             priority = nextPriority
         end
-        Logger.logDebug("[", self.name, "]", "direction", direction)
+        Logger.logDebug("["..self.name.."]", "direction", direction)
         return priority, direction
     end,
     action = function (self, direction)
@@ -436,7 +436,7 @@ rules[#rules+1] = {
 }
 rules[#rules+1] = {
     name = "mining: collect map",
-    when = function ()
+    when = function (self)
         local request = Memoried.getRequest("mining")
         if not request then return false end
 
@@ -456,7 +456,7 @@ rules[#rules+1] = {
                         if direction then
                             -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
 
-                            Logger.logDebug("missing: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                            Logger.logDebug("["..self.name.."]", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
                             return
                                 collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                                 direction,
@@ -479,7 +479,7 @@ rules[#rules+1] = {
             if direction then
                 -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
 
-                Logger.logDebug("missing: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                Logger.logDebug("["..self.name.."]", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
                 return
                     collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                     direction,
