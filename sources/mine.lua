@@ -644,9 +644,10 @@ rules[#rules+1] = {
     action = function (self)
         local request = Memoried.getRequest("mining")
         local range = request.range
-        local x = math.random(range.minX, range.maxX)
-        local y = math.random(range.minY, range.maxY)
-        local z = math.random(range.minZ, range.maxZ)
+        local cx, cy, cz = Memoried.currentPosition()
+        local x = Ex.clamp(cx, range.minX, range.maxX)
+        local y = Ex.clamp(cy, range.minY, range.maxY)
+        local z = Ex.clamp(cz, range.minZ, range.minZ)
 
         -- 掘らない
         local ok, reason = mineTo(10, x, y, z, true, false)
