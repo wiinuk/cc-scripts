@@ -361,9 +361,9 @@ rules[#rules+1] = {
         Logger.logDebug("[", self.name, "]", "direction", direction)
         return priority, direction
     end,
-    action = function (_, direction)
+    action = function (self, direction)
         local ok, reason = Memoried.getOperation(direction).dig()
-        if not ok then Logger.logError(reason) end
+        if not ok then Logger.logError(self.name, "error", reason, "direction", direction) end
     end,
 }
 rules[#rules+1] = {
