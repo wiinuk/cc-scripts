@@ -183,7 +183,7 @@ local function downloadGithub(ownerAndRepo, branch, path)
     local ok, reason = Core.writeJson(Core.lockPath, lock)
     if not ok then return ok, reason end
 
-    Core.log("update '"..Core.lockPath.."'")
+    Core.log("updated '"..Core.lockPath.."'")
     return true
 end
 
@@ -250,7 +250,7 @@ local function add(arguments)
     result[#result+1] = {"github", sign, path}
     local ok, error = Core.writeJson(Core.configPath, result)
     if not ok then io.stderr:write(error) end
-    Core.log("update '"..Core.configPath.."'")
+    Core.log("updated '"..Core.configPath.."'")
 
     local ok, reason = downloadGithub(ownerAndRepo, branch, path)
     if not ok then io.stderr:write(reason) end
