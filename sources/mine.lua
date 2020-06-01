@@ -502,6 +502,11 @@ rules[#rules+1] = {
 
         Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
         collectMissingMapAt(gd)
+
+        local x, y, z = Memoried.currentPosition()
+        local location = Memoried.getLocation(x, y, z)
+
+        Logger.log("["..self.name.."]", pretty(location))
     end
 }
 rules[#rules+1] = {
@@ -523,11 +528,6 @@ rules[#rules+1] = {
     action = function (self, gd)
         Logger.logDebug("["..self.name.."]", gd)
         collectMissingMapAt(gd)
-
-        local x, y, z = Memoried.currentPosition()
-        local location = Memoried.getLocation(x, y, z)
-
-        Logger.log("["..self.name.."]", pretty(location))
     end,
 }
 
