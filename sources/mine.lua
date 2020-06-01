@@ -232,6 +232,7 @@ local miningPriorityRatios = {
 local collectMapInfoPriority = 0.1
 local miningCollectMapInfoPriorityRatio = 1.2
 local equipToolPriorityRatio = 1.5
+local moveToRangePriorityRatio = 1
 
 ---@param priority number
 ---@param request Request
@@ -629,9 +630,31 @@ rules[#rules+1] = {
         return false
     end
 }
+rules[#rules+1] = {
+    name = "mining: move to range",
+    when = function ()
+        local request = Memoried.getRequest("mining")
+        if not request then return false end
 
--- 範囲まで移動する
--- 同種のアイテムをまとめて空きを作る
+        local x, y, z = Memoried.currentPosition()
+        if not inMiningRequestRange(request, x, y, z) then return false end
+
+        return defaultRequestPriority * moveToRangePriorityRatio
+    end,
+    action = function (self)
+        local request = Memoried.getRequest("mining")
+        local range = request.range
+        local x = math.random(range.minX, range.maxX)
+        local y = math.random(range.minY, range.maxY)
+        local z = math.random(range.minZ, range.maxZ)
+
+        -- 掘らない
+        local ok, reason = mineTo(10, x, y, z, true, false)
+
+        if not ok then Logger.logDebug("["..self.name.."]", reason) end
+    end
+}
+
 -- インベントリが満タンならチェストまで移動して入れる
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
 
