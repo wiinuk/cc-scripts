@@ -302,6 +302,7 @@ local function isMapMissing(location)
     if location.detect == nil then return true end
     if location.inspect == nil then return true end
     if location.drops == nil then return true end
+    return false
 end
 
 --- 指定された世界方向のマップ情報を取得する
@@ -502,11 +503,6 @@ rules[#rules+1] = {
 
         Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
         collectMissingMapAt(gd)
-
-        local x, y, z = Memoried.currentPosition()
-        local location = Memoried.getLocation(x, y, z)
-
-        Logger.log("["..self.name.."]", pretty(location))
     end
 }
 rules[#rules+1] = {
