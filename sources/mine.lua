@@ -5,6 +5,7 @@ local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
+local pretty = require "pretty"
 
 
 local Forward = Memoried.Forward
@@ -498,6 +499,11 @@ rules[#rules+1] = {
 
         Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
         collectMissingMapAt(gd)
+
+        local x, y, z = Memoried.currentPosition()
+        local nx, ny, nz = directionToNormal(Memoried.toLocalDirection(gd))
+        local location = Memoried.getLocation(x + nx, y + ny, z + nz)
+        Logger.logDebug(pretty(location))
     end
 }
 rules[#rules+1] = {
