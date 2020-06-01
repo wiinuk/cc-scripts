@@ -212,15 +212,6 @@ local function inMiningRequestRange(request, x, y, z)
     if range then return Box3.vsPoint(range, x, y, z) end
 end
 
----@type MiningOptions
-local function getDefaultMiningOptions()
-    return {
-        down = 2,
-        forward = 3,
-        right = 4,
-    }
-end
-
 --- 既定の要求の優先度
 local defaultRequestPriority = 0.5
 
@@ -741,6 +732,16 @@ local function evaluateRules()
     end
 end
 
+---@type MiningOptions
+local function getDefaultMiningOptions()
+    return {
+        down = 2,
+        forward = 3,
+        right = 4,
+        ["offset-y"] = -1,
+    }
+end
+
 ---@param arguments string[]
 ---@param options MiningOptions
 local function parseMiningOptions(options, arguments)
@@ -748,7 +749,13 @@ local function parseMiningOptions(options, arguments)
         if
             ArgParser.parseNamedOption(arguments, "down", "d", options, tonumber) or
             ArgParser.parseNamedOption(arguments, "forward", "f", options, tonumber) or
-            ArgParser.parseNamedOption(arguments, "right", "r", options, tonumber)
+            ArgParser.parseNamedOption(arguments, "right", "r", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "up", "u", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "back", "b", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "left", "l", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "offset-x", "x", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "offset-y", "y", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "offset-z", "z", options, tonumber)
         then
         else
             return error("unrecognized argument: "..arguments[1])
@@ -762,14 +769,35 @@ local function miningCommand(...)
     local options = getDefaultMiningOptions()
     parseMiningOptions(options, {...})
     Logger.log("options: ")
-    Logger.log("- down", options.down)
-    Logger.log("- forward", options.forward)
-    Logger.log("- right", options.right)
+
+    local offsetX, offsetY, offsetZ =
+        options["offset-x"], options["offset-y"], options["offset-z"]
+    local forward, left, back, right, down, up =
+        options.forward, options.left, options.back, options.right, options.down, options.up
+
+    if offsetX then Logger.log("- offset-x", offsetX) end
+    if offsetY then Logger.log("- offset-y", offsetY) end
+    if offsetZ then Logger.log("- offset-z", offsetZ) end
+    if down then Logger.log("- down", down) end
+    if up then Logger.log("- up", up) end
+    if forward then Logger.log("- forward", forward) end
+    if back then Logger.log("- back", back) end
+    if right then Logger.log("- right", right) end
+    if left then Logger.log("- left", left) end
     Logger.log("")
 
     local x, y, z = Memoried.currentPosition()
+    if offsetX then x = x + offsetX end
+    if offsetY then y = y + offsetY end
+    if offsetZ then z = z + offsetZ end
+
     local box = Box3.newFromPoint(x, y, z)
-    Box3.expandByPoint(box, x + options.right, y - options.down, z + options.right)
+    if right then Box3.expandByPoint(box, x + right, y, z) end
+    if left then Box3.expandByPoint(box, x - left, y, z) end
+    if up then Box3.expandByPoint(box, x, y + up, z) end
+    if down then Box3.expandByPoint(box, x, y - down, z) end
+    if forward then Box3.expandByPoint(box, x, y, z + forward) end
+    if back then Box3.expandByPoint(box, x, y, z - back) end
 
     Memoried.addRequest({
         name = "mining",
