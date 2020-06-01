@@ -76,7 +76,7 @@ local function entityShaAtPath(ownerAndRepo, treeSha, path)
     local ok, entity = findChildEntity(result, name)
     if not ok then return ok, entity end
 
-    Core.log("find", "'"..name.."'", treeSha)
+    Core.logDebug("find", "'"..name.."'", treeSha)
 
     if path then
         if entity.type ~= "tree" then
@@ -126,7 +126,7 @@ local function downloadEntity(self, type, sha, path)
         local ok, result = tree(self.ownerAndRepo, sha)
         if not ok then return ok, result end
 
-        Core.log("extract", "'"..path.."'", sha)
+        Core.logDebug("extract", "'"..path.."'", sha)
         for _, entity in ipairs(result.tree) do
             local ok, r = downloadEntity(self, entity.type, entity.sha, fs.combine(path, entity.path))
             if not ok then return ok, r end
@@ -180,7 +180,11 @@ local function downloadGithub(ownerAndRepo, branch, path)
     if not ok then return ok, reason end
 
     lock.github[ownerAndRepo].files = c.pathToSha
-    return Core.writeJson(Core.lockPath, lock)
+    local ok, reason = Core.writeJson(Core.lockPath, lock)
+    if not ok then return ok, reason end
+
+    Core.log("update '"..Core.lockPath.."'")
+    return true
 end
 
 local function showGithubAddUsage()
@@ -246,6 +250,7 @@ local function add(arguments)
     result[#result+1] = {"github", sign, path}
     local ok, error = Core.writeJson(Core.configPath, result)
     if not ok then io.stderr:write(error) end
+    Core.log("update '"..Core.configPath.."'")
 
     local ok, reason = downloadGithub(ownerAndRepo, branch, path)
     if not ok then io.stderr:write(reason) end
