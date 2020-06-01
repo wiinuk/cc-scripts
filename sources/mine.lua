@@ -147,7 +147,7 @@ end
 
 local function dropManyAndLog(globalDirection, slotNumbers)
     local ok, reason = dropMany(globalDirection, slotNumbers)
-    if not ok then Logger.logDebug("drop many failure: ", reason) end
+    if not ok then Logger.logInfo("drop many failure: ", reason) end
 end
 
 local function suckIf(isNeedItem, globalDirection, maxRetryCount)
@@ -462,8 +462,6 @@ rules[#rules+1] = {
                         local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
                         if direction then
                             -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
-
-                            Logger.logDebug("["..self.name.."]", tx, ty, tz, "to:", mx, my, mz, "dir:", direction)
                             return
                                 collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                                 direction,
@@ -485,8 +483,6 @@ rules[#rules+1] = {
             local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
             if direction then
                 -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
-
-                Logger.logDebug("["..self.name.."]", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
                 return
                     collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                     direction,
@@ -507,7 +503,7 @@ rules[#rules+1] = {
 }
 rules[#rules+1] = {
     name = "collect around map",
-    when = function(self)
+    when = function()
         local cx, cy, cz = Memoried.currentPosition()
         for globalDirection = 1, 6 do
             local nx, ny, nz = directionToNormal(globalDirection)
@@ -515,7 +511,6 @@ rules[#rules+1] = {
 
             local location = Memoried.getLocation(x, y, z)
             if isMapMissing(location) then
-                Logger.logDebug("["..self.name.."]", "direction:", globalDirection)
                 return collectMapInfoPriority, globalDirection
             end
         end
@@ -697,7 +692,7 @@ local function evaluateRules()
 
                 return priority
             end
-            Logger.logDebug("-", "'"..rule.name.."'", "@"..tostring(priority))
+            Logger.logInfo("-", "'"..rule.name.."'", "@"..tostring(priority))
         end
         return maxPriority
     end
