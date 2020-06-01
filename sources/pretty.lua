@@ -35,8 +35,11 @@ local function write(value, buffer, visitedTables)
             end
         end
         buffer[#buffer+1] = " }"
+    elseif t == "string" then
+        -- TODO:
+        buffer[#buffer+1] = '"'..value..'"'
     else
-        buffer[#buffer+1] = value
+        buffer[#buffer+1] = tostring(value)
     end
 end
 
