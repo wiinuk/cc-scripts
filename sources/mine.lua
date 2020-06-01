@@ -457,7 +457,7 @@ rules[#rules+1] = {
                         if direction then
                             -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
 
-                            Logger.logDebug("["..self.name.."]", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                            Logger.logDebug("["..self.name.."]", tx, ty, tz, "to:", mx, my, mz, "dir:", direction)
                             return
                                 collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                                 direction,
@@ -489,12 +489,13 @@ rules[#rules+1] = {
         end
         return false
     end,
-    action = function(_, gd, mx, my, mz)
+    action = function(self, gd, mx, my, mz)
 
         -- 攻撃しないで移動
         local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
 
+        Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
         collectMissingMapAt(gd)
     end
 }
