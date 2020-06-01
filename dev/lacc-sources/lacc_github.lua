@@ -92,6 +92,7 @@ end
 ---@field public ownerAndRepo string
 ---@field public pathToSha table
 ---@field public localRootDir string
+---@field public modifyCount integer
 
 ---@param self GithubEntityClient
 ---@param sha string
@@ -116,6 +117,7 @@ local function downloadBlob(self, sha, path)
     if not ok then return false, reason end
 
     self.pathToSha[path] = sha
+    self.modifyCount = self.modifyCount + 1
     Core.log(baseDomain.."/repos/"..self.ownerAndRepo.."/git/blobs/"..path.." =>", "'"..localFullPath.."'")
     return true
 end
@@ -151,7 +153,7 @@ local function downloadGithub(ownerAndRepo, branch, path)
         if not ok then return ok, result end
         branch = result.default_branch
     end
-    Core.log("cloning", "github", ownerAndRepo, branch, "'"..path.."'")
+    Core.log("checking", "github", ownerAndRepo, branch, "'"..path.."'")
     local ok, head = head(ownerAndRepo, branch)
     if not ok then return ok, head end
 
@@ -172,12 +174,14 @@ local function downloadGithub(ownerAndRepo, branch, path)
 
     ---@type GithubEntityClient
     local c = {
+        modifyCount = 0,
         ownerAndRepo = ownerAndRepo,
         pathToSha = lock.github[ownerAndRepo].files,
         localRootDir = fs.combine(Core.packageRootPath, ownerAndRepo),
     }
     local ok, reason = downloadEntity(c, type, sha, path)
     if not ok then return ok, reason end
+    if c.modifyCount == 0 then Core.log("latest") return true end
 
     lock.github[ownerAndRepo].files = c.pathToSha
     local ok, reason = Core.writeJson(Core.lockPath, lock)
