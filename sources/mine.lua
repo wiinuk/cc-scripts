@@ -5,7 +5,6 @@ local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
-local pretty = require "pretty"
 
 
 local Forward = Memoried.Forward
@@ -443,7 +442,7 @@ rules[#rules+1] = {
 }
 rules[#rules+1] = {
     name = "mining: collect map",
-    when = function (self)
+    when = function ()
         local request = Memoried.getRequest("mining")
         if not request then return false end
 
