@@ -363,7 +363,7 @@ rules[#rules+1] = {
     end,
     action = function (self, direction)
         local ok, reason = Memoried.getOperation(direction).dig()
-        if not ok then Logger.logError(self.name, "error", reason, "direction", direction) end
+        if not ok then Logger.logError(self.name, "error", reason, "direction", tostring(direction)) end
     end,
 }
 rules[#rules+1] = {
