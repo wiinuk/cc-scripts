@@ -100,8 +100,8 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
         if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
 
         local ok, reason = false, nil
-        if targetX < currentX then ok, reason = mineMove1(Right, disableDig, disableAttack)
-        elseif currentX < targetX then ok, reason = mineMove1(Left, disableDig, disableAttack)
+        if targetX < currentX then ok, reason = mineMove1(Left, disableDig, disableAttack)
+        elseif currentX < targetX then ok, reason = mineMove1(Right, disableDig, disableAttack)
         elseif targetZ < currentZ then ok, reason = mineMove1(Back, disableDig, disableAttack)
         elseif currentZ < targetZ then ok, reason = mineMove1(Forward, disableDig, disableAttack)
 
