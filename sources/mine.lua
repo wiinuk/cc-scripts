@@ -494,18 +494,18 @@ rules[#rules+1] = {
         return false
     end,
     action = function(self, gd, mx, my, mz)
+        Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
 
         -- 攻撃しないで移動
         local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
 
-        Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
         collectMissingMapAt(gd)
 
         local x, y, z = Memoried.currentPosition()
         local nx, ny, nz = directionToNormal(Memoried.toLocalDirection(gd))
         local location = Memoried.getLocation(x + nx, y + ny, z + nz)
-        Logger.logDebug(pretty(location))
+        Logger.logDebug("["..self.name.."]", pretty(location))
     end
 }
 rules[#rules+1] = {

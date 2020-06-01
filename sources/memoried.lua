@@ -1,7 +1,5 @@
 local Vec2 = require "vec2"
 local Ex = require "extensions"
-local Logger = require "logger"
-local pretty = require "pretty"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -485,8 +483,6 @@ local function suckGeneric(suck, count, currentNormal)
         local drops = location.drops or {}
         Ex.clearArray(drops)
         location.drops = drops
-
-        Logger.logDebug("Memoried.suckGeneric", x, y, z, pretty(location))
     end
     return ok, reason
 end
