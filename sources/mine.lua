@@ -5,6 +5,7 @@ local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
+local pretty = require "pretty"
 
 
 local Forward = Memoried.Forward
@@ -239,7 +240,7 @@ local miningPriorityRatios = {
 }
 local collectMapInfoPriority = 0.1
 local miningCollectMapInfoPriorityRatio = 1.2
-local equipToolPriorityRatio = 0.1
+local equipToolPriorityRatio = 1.5
 
 ---@param priority number
 ---@param request Request
@@ -300,7 +301,7 @@ local function isMapMissing(location)
     if not location then return true end
     if location.detect == nil then return true end
     if location.inspect == nil then return true end
-    -- if location.drops == nil then return true end
+    if location.drops == nil then return true end
 end
 
 --- 指定された世界方向のマップ情報を取得する
@@ -522,6 +523,11 @@ rules[#rules+1] = {
     action = function (self, gd)
         Logger.logDebug("["..self.name.."]", gd)
         collectMissingMapAt(gd)
+
+        local x, y, z = Memoried.currentPosition()
+        local location = Memoried.getLocation(x, y, z)
+
+        Logger.log("["..self.name.."]", pretty(location))
     end,
 }
 
