@@ -1,4 +1,5 @@
 local Vec2 = require "vec2"
+local Ex = require "extensions"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -455,6 +456,35 @@ local Up = 6
 ---@field public attack fun(): boolean
 ---@field public equip fun(): boolean
 
+local function anyItemSpace()
+    for i = 1, 16 do
+        if turtle.getItemSpace(i) ~= 0 then return true end
+    end
+    return false
+end
+
+local function suckGeneric(suck, count)
+    local ok, reason = suck(count)
+
+    if not ok and count ~= 0 and anyItemSpace() then
+        -- 1 個以上のアイテムを拾おうとしていて、
+        -- スロットの空きがあるのに拾えなかったなら、アイテムは無いはず
+
+        local x, y, z = currentPosition()
+        local location = getOrMakeLocation(x, y, z)
+
+        -- drop していない場合と区別するため、空の配列を代入する
+        local drops = location.drops or {}
+        Ex.clearArray(drops)
+        location.drops = drops
+    end
+    return ok, reason
+end
+
+local function suck(count)
+    return suckGeneric(turtle.suck, count)
+end
+
 local function dropGeneric(drop, count)
     local x, y, z = currentPosition()
     local itemDetail = turtle.getItemDetail()
@@ -491,7 +521,7 @@ local directionOperations = {
         currentNormal = currentForward,
         dig = dig,
         move = move,
-        suck = turtle.suck,
+        suck = suck,
         drop = drop,
         inspect = inspect,
         attack = turtle.attack,
@@ -503,7 +533,7 @@ local directionOperations = {
         currentNormal = currentLeft,
         dig = makeTurnAndDo(turnLeft, dig),
         move = makeTurnAndDo(turnLeft, move),
-        suck = makeTurnAndDo(turnLeft, turtle.suck),
+        suck = makeTurnAndDo(turnLeft, suck),
         drop = makeTurnAndDo(turnLeft, drop),
         inspect = makeTurnAndDo(turnLeft, inspect),
         attack = makeTurnAndDo(turnLeft, turtle.attack),
@@ -515,7 +545,7 @@ local directionOperations = {
         currentNormal = currentBack,
         dig = makeTurnAndDo(turnRight2, dig),
         move = makeTurnAndDo(turnRight2, move),
-        suck = makeTurnAndDo(turnRight2, turtle.suck),
+        suck = makeTurnAndDo(turnRight2, suck),
         drop = makeTurnAndDo(turnRight2, drop),
         inspect = makeTurnAndDo(turnRight2, inspect),
         attack = makeTurnAndDo(turnRight2, turtle.attack),
@@ -527,7 +557,7 @@ local directionOperations = {
         currentNormal = currentRight,
         dig = makeTurnAndDo(turnRight, dig),
         move = makeTurnAndDo(turnRight, move),
-        suck = makeTurnAndDo(turnRight, turtle.suck),
+        suck = makeTurnAndDo(turnRight, suck),
         drop = makeTurnAndDo(turnRight, drop),
         inspect = makeTurnAndDo(turnRight, inspect),
         attack = makeTurnAndDo(turnRight, turtle.attack),
@@ -539,7 +569,7 @@ local directionOperations = {
         currentNormal = function () return 0, -1, 0 end,
         dig = digDown,
         move = moveDown,
-        suck = turtle.suckDown,
+        suck = function (count) return suckGeneric(turtle.suckDown, count) end,
         drop = function (count) return dropGeneric(turtle.dropDown, count) end,
         inspect = inspectDown,
         attack = turtle.attackDown,
@@ -551,7 +581,7 @@ local directionOperations = {
         currentNormal = function () return 0, 1, 0 end,
         dig = digUp,
         move = moveUp,
-        suck = turtle.suckUp,
+        suck = function (count) return suckGeneric(turtle.suckUp, count) end,
         drop = function (count) return dropGeneric(turtle.dropUp, count) end,
         inspect = inspectUp,
         attack = turtle.attackUp,
