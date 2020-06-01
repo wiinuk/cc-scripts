@@ -177,6 +177,8 @@ end
 local function currentBack()
     return applyRotationTruncate(0, 0, -1)
 end
+local function currentUp() return 0, 1, 0 end
+local function currentDown() return 0, -1, 0 end
 
 --- 世界のY軸上の角度[ラジアン] をタートルから見た角度に変換する
 ---
@@ -463,7 +465,7 @@ local function anyItemSpace()
     return false
 end
 
-local function suckGeneric(suck, count)
+local function suckGeneric(suck, count, currentNormal)
     local ok, reason = suck(count)
 
     if not ok and count ~= 0 and anyItemSpace() then
@@ -471,7 +473,8 @@ local function suckGeneric(suck, count)
         -- スロットの空きがあるのに拾えなかったなら、アイテムは無いはず
 
         local x, y, z = currentPosition()
-        local location = getOrMakeLocation(x, y, z)
+        local nx, ny, nz = currentNormal()
+        local location = getOrMakeLocation(x + nx, y + ny, z + nz)
 
         -- drop していない場合と区別するため、空の配列を代入する
         local drops = location.drops or {}
@@ -482,11 +485,16 @@ local function suckGeneric(suck, count)
 end
 
 local function suck(count)
-    return suckGeneric(turtle.suck, count)
+    return suckGeneric(turtle.suck, count, currentForward)
 end
 
-local function dropGeneric(drop, count)
+local function dropGeneric(drop, count, currentNormal)
     local x, y, z = currentPosition()
+    local nx, ny, nz = currentNormal()
+    x = x + nx
+    y = y + ny
+    z = z + nz
+
     local itemDetail = turtle.getItemDetail()
     local ok, reason = drop(count)
     local location = getOrMakeLocation(x, y, z)
@@ -510,7 +518,7 @@ local function dropGeneric(drop, count)
 end
 
 local function drop(count)
-    return dropGeneric(turtle.drop, count)
+    return dropGeneric(turtle.drop, count, currentForward)
 end
 
 ---@type DirectionOperations[]
@@ -569,8 +577,8 @@ local directionOperations = {
         currentNormal = function () return 0, -1, 0 end,
         dig = digDown,
         move = moveDown,
-        suck = function (count) return suckGeneric(turtle.suckDown, count) end,
-        drop = function (count) return dropGeneric(turtle.dropDown, count) end,
+        suck = function (count) return suckGeneric(turtle.suckDown, count, currentDown) end,
+        drop = function (count) return dropGeneric(turtle.dropDown, count, currentDown) end,
         inspect = inspectDown,
         attack = turtle.attackDown,
         equip = equipFailure,
@@ -578,11 +586,11 @@ local directionOperations = {
     [Up] = {
         name = "up",
         detect = detectUp,
-        currentNormal = function () return 0, 1, 0 end,
+        currentNormal = currentUp,
         dig = digUp,
         move = moveUp,
-        suck = function (count) return suckGeneric(turtle.suckUp, count) end,
-        drop = function (count) return dropGeneric(turtle.dropUp, count) end,
+        suck = function (count) return suckGeneric(turtle.suckUp, count, currentUp) end,
+        drop = function (count) return dropGeneric(turtle.dropUp, count, currentUp) end,
         inspect = inspectUp,
         attack = turtle.attackUp,
         equip = equipFailure,
