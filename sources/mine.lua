@@ -300,7 +300,7 @@ local function isMapMissing(location)
     if not location then return true end
     if location.detect == nil then return true end
     if location.inspect == nil then return true end
-    if location.drops == nil then return true end
+    -- if location.drops == nil then return true end
 end
 
 --- 指定された世界方向のマップ情報を取得する
