@@ -21,9 +21,14 @@ end
 
 local function noop() end
 
+local function clamp(x, minBound, maxBound)
+    return math.max(minBound, math.min(maxBound, x))
+end
+
 return {
     printError = printError,
     clearTable = clearTable,
     clearArray = clearArray,
     noop = noop,
+    clamp = clamp,
 }
