@@ -30,7 +30,7 @@ local function write(value, buffer, visitedTables)
                     buffer[#buffer+1] = '"]'
                 end
                 buffer[#buffer+1] = " = "
-                write(v)
+                write(v, buffer, visitedTables)
                 buffer[#buffer+1] = ", "
             end
         end
