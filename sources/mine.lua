@@ -338,9 +338,14 @@ local function findNearMovablePositionIfMissingMap(tx, ty, tz)
     local location = Memoried.getLocation(tx, ty, tz)
     if isMapMissing(location) then
         -- 探査していない情報がある
+        Logger.logDebug("findMissingMap", tx, ty, tz, pretty(location))
 
         local d, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-        if d then return d, mx, my, mz end
+        if d then
+            Logger.logDebug("findMovable", mx, my, mz, d)
+
+            return d, mx, my, mz
+        end
     end
     return
 end
@@ -460,6 +465,7 @@ rules[#rules+1] = {
                     local tx, ty, tz = cx + dx, cy + dy, cz + dz
                     if Box3.vsPoint(range, tx, ty, tz) then
                         -- 採掘範囲内で
+                        Logger.logDebug("in range", tx, ty, tz)
 
                         local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
                         if direction then
