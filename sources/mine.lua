@@ -637,7 +637,7 @@ rules[#rules+1] = {
         if not request then return false end
 
         local x, y, z = Memoried.currentPosition()
-        if not inMiningRequestRange(request, x, y, z) then return false end
+        if inMiningRequestRange(request, x, y, z) then return false end
 
         return defaultRequestPriority * moveToRangePriorityRatio
     end,
