@@ -27,6 +27,7 @@ local function logCore(level, ...)
 end
 local function log(...) logCore(Output, ...) end
 local function logError(...) logCore(Error, ...) end
+local function logInfo(...) logCore(Info, ...) end
 local function logDebug(...) logCore(Debug, ...) end
 
 local levels = {"O","E","W","I","D"}
@@ -94,6 +95,7 @@ return {
     logCore = logCore,
     log = log,
     logError = logError,
+    logInfo = logInfo,
     logDebug = logDebug,
 
     addListener = addListener,
