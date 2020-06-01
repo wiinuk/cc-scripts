@@ -432,7 +432,9 @@ rules[#rules+1] = {
         if not Memoried.hasRequest("mining") then return false end
 
         local priority = false
-        for gd = 1, 6 do priority = whenSuckAt(priority, gd) end
+        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Forward))
+        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Up))
+        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Down))
         return priority
     end,
     action = function()
