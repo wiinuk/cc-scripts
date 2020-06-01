@@ -1,5 +1,5 @@
 
----@version: 0.3.0
+---@version: 0.3.1
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -276,14 +276,12 @@ local function inspectItemAt(globalDirection)
     local emptySlot = findEmptySlot()
     if not emptySlot then return nil, "empty slot not found" end
 
-    local oldSlot = turtle.getSelectedSlot()
     turtle.select(emptySlot)
     local item = nil
     if Memoried.getOperationAt(globalDirection).suck() then
         item = turtle.getItemDetail()
         Memoried.getOperationAt(globalDirection).drop()
     end
-    turtle.select(oldSlot)
     return item
 end
 
@@ -456,9 +454,9 @@ rules[#rules+1] = {
 
         -- 周りを探索
         local cx, cy, cz = Memoried.currentPosition()
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                for dz = -1, 1 do
+        for dx = -2, 2 do
+            for dy = -2, 2 do
+                for dz = -2, 2 do
                     local tx, ty, tz = cx + dx, cy + dy, cz + dz
                     if Box3.vsPoint(range, tx, ty, tz) then
                         -- 採掘範囲内で
