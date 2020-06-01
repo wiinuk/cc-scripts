@@ -13,10 +13,17 @@ local function clearTable(table)
     end
 end
 
+local function clearArray(table)
+    for i = 0, #table do
+        table[i] = nil
+    end
+end
+
 local function noop() end
 
 return {
     printError = printError,
     clearTable = clearTable,
+    clearArray = clearArray,
     noop = noop,
 }
