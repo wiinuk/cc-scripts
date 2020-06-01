@@ -494,7 +494,8 @@ rules[#rules+1] = {
         return false
     end,
     action = function(self, gd, mx, my, mz)
-        Logger.logDebug("["..self.name.."]", mx, my, mz, "gd:", gd)
+        local x, y, z = Memoried.currentPosition()
+        Logger.logDebug("["..self.name.."]", x, y, z, " => ", mx, my, mz, "gd:", gd)
 
         -- 攻撃しないで移動
         local ok, reason = mineTo(20, mx, my, mz, false, true)
