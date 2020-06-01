@@ -327,7 +327,7 @@ end
 ---@return integer mx 対象のそばの、移動できるブロックの世界座標x
 ---@return integer my 対象のそばの、移動できるブロックの世界座標y
 ---@return integer mz 対象のそばの、移動できるブロックの世界座標z
-local function findNearMovablePositionIfNoMap(tx, ty, tz)
+local function findNearMovablePositionIfMissingMap(tx, ty, tz)
     local location = Memoried.getLocation(tx, ty, tz)
     if isMapMissing(location) then
         -- 探査していない情報がある
@@ -347,7 +347,7 @@ end
 local rules = {}
 rules[#rules+1] = {
     name = "mining: dig around",
-    when = function ()
+    when = function (self)
         local request = Memoried.getRequest "mining"
         if not request then return false end
 
@@ -358,6 +358,7 @@ rules[#rules+1] = {
             if p then direction = d end
             priority = nextPriority
         end
+        Logger.logDebug("[", self.name, "]", "direction", direction)
         return priority, direction
     end,
     action = function (_, direction)
@@ -451,11 +452,11 @@ rules[#rules+1] = {
                     if Box3.vsPoint(range, tx, ty, tz) then
                         -- 採掘範囲内で
 
-                        local direction, mx, my, mz = findNearMovablePositionIfNoMap(tx, ty, tz)
+                        local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
                         if direction then
                             -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
 
-                            Logger.logDebug("no map: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                            Logger.logDebug("missing: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
                             return
                                 collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                                 direction,
@@ -474,11 +475,11 @@ rules[#rules+1] = {
             local tz = math.random(range.minZ, range.maxZ)
             -- 採掘範囲内で
 
-            local direction, mx, my, mz = findNearMovablePositionIfNoMap(tx, ty, tz)
+            local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
             if direction then
                 -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
 
-                Logger.logDebug("no map: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
+                Logger.logDebug("missing: ", tx, ty, tz, ", move to:", mx, my, mz, "direction:", direction)
                 return
                     collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
                     direction,
