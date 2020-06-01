@@ -320,8 +320,8 @@ local function findNearMovablePosition(tx, ty, tz)
     for globalDirection = 1, 6 do
         local nx, ny, nz = directionToNormal(globalDirection)
         local mx, my, mz = tx - nx, ty - ny, tz - nz
-        local moveToLocation = Memoried.getLocation(mx, my, mz)
-        if moveToLocation and moveToLocation.move == true then
+        local location = Memoried.getLocation(mx, my, mz)
+        if location and (location.detect == false or location.move == true) then
             return globalDirection, mx, my, mz
         end
     end
