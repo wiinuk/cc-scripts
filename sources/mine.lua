@@ -5,7 +5,6 @@ local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
-local pretty = require "pretty"
 
 
 local Forward = Memoried.Forward
@@ -95,7 +94,6 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
         if maxRetryCount < retryCount then return false, lastReason end
 
         local currentX, currentY, currentZ = Memoried.currentPosition()
-        Logger.logDebug("[mineTo]", currentX, currentY, currentZ)
 
         if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
 
@@ -329,14 +327,8 @@ local function findNearMovablePositionIfMissingMap(tx, ty, tz)
     local location = Memoried.getLocation(tx, ty, tz)
     if isMapMissing(location) then
         -- 探査していない情報がある
-        Logger.logDebug("findMissingMap", tx, ty, tz, pretty(location))
-
         local d, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-        if d then
-            Logger.logDebug("findMovable", mx, my, mz, d)
-
-            return d, mx, my, mz
-        end
+        if d then return d, mx, my, mz end
     end
     return
 end
@@ -350,7 +342,7 @@ end
 local rules = {}
 rules[#rules+1] = {
     name = "mining: dig around",
-    when = function (self)
+    when = function ()
         local request = Memoried.getRequest "mining"
         if not request then return false end
 
@@ -361,7 +353,6 @@ rules[#rules+1] = {
             if p then direction = d end
             priority = nextPriority
         end
-        Logger.logDebug("["..self.name.."]", "direction", tostring(direction))
         return priority, direction
     end,
     action = function (self, direction)
@@ -456,8 +447,6 @@ rules[#rules+1] = {
                     local tx, ty, tz = cx + dx, cy + dy, cz + dz
                     if Box3.vsPoint(range, tx, ty, tz) then
                         -- 採掘範囲内で
-                        Logger.logDebug("in range", tx, ty, tz)
-
                         local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
                         if direction then
                             -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
@@ -490,20 +479,13 @@ rules[#rules+1] = {
         end
         return false
     end,
-    action = function(self, gd, mx, my, mz)
-        local x, y, z = Memoried.currentPosition()
-        Logger.logDebug("["..self.name.."]", x, y, z, " => ", mx, my, mz, "gd:", gd)
+    action = function(_, gd, mx, my, mz)
 
         -- 攻撃しないで移動
         local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
 
         collectMissingMapAt(gd)
-
-        local x, y, z = Memoried.currentPosition()
-        local nx, ny, nz = directionToNormal(Memoried.toLocalDirection(gd))
-        local location = Memoried.getLocation(x + nx, y + ny, z + nz)
-        Logger.logDebug("["..self.name.."]", pretty(location))
     end
 }
 rules[#rules+1] = {
@@ -521,8 +503,7 @@ rules[#rules+1] = {
         end
         return false
     end,
-    action = function (self, gd)
-        Logger.logDebug("["..self.name.."]", gd)
+    action = function (_, gd)
         collectMissingMapAt(gd)
     end,
 }
