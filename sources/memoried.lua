@@ -1,5 +1,7 @@
 local Vec2 = require "vec2"
 local Ex = require "extensions"
+local Logger = require "logger"
+local pretty = require "pretty"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -474,12 +476,17 @@ local function suckGeneric(suck, count, currentNormal)
 
         local x, y, z = currentPosition()
         local nx, ny, nz = currentNormal()
-        local location = getOrMakeLocation(x + nx, y + ny, z + nz)
+        x = x + nx
+        y = y + ny
+        z = z + nz
+        local location = getOrMakeLocation(x, y, z)
 
         -- drop していない場合と区別するため、空の配列を代入する
         local drops = location.drops or {}
         Ex.clearArray(drops)
         location.drops = drops
+
+        Logger.logDebug("Memoried.suckGeneric", x, y, z, pretty(location))
     end
     return ok, reason
 end
