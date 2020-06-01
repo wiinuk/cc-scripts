@@ -116,13 +116,15 @@ end
 --- できるだけ元のスロットの位置を維持する
 local function compactItems()
     for i = 1, 16 do
-        local ii = turtle.getItemDetail(i)
-        if ii then
-            for j = i + 1, 16 do
-                local ji = turtle.getItemDetail(j)
-                if ji and ii.name == ji.name then
-                    turtle.select(j)
-                    turtle.transferTo(i)
+        if 0 ~= turtle.getItemSpace(i) then
+            local ii = turtle.getItemDetail(i)
+            if ii then
+                for j = i + 1, 16 do
+                    local ji = turtle.getItemDetail(j)
+                    if ji and ii.name == ji.name then
+                        turtle.select(j)
+                        turtle.transferTo(i)
+                    end
                 end
             end
         end
