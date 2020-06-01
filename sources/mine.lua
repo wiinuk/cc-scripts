@@ -267,8 +267,10 @@ end
 ---@return table|nil itemDetail
 ---@return string reason
 local function inspectItemAt(globalDirection)
+    compactItems()
     local emptySlot = findEmptySlot()
     if not emptySlot then return nil, "empty slot not found" end
+
     local oldSlot = turtle.getSelectedSlot()
     turtle.select(emptySlot)
     local item = nil
