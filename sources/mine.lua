@@ -255,6 +255,7 @@ local function whenMine(priority, request, direction)
     local p = Memoried.memory.requestPriority or defaultRequestPriority
     p = p * minePriorityRatio * miningPriorityRatios[direction]
 
+    -- TODO:
     -- if isSunLight(x, y, z) then
     --     p = p * sunLightMiningPriorityRatio
     -- end
@@ -358,7 +359,7 @@ rules[#rules+1] = {
             if p then direction = d end
             priority = nextPriority
         end
-        Logger.logDebug("["..self.name.."]", "direction", direction)
+        Logger.logDebug("["..self.name.."]", "direction", tostring(direction))
         return priority, direction
     end,
     action = function (self, direction)
@@ -499,18 +500,22 @@ rules[#rules+1] = {
 }
 rules[#rules+1] = {
     name = "collect around map",
-    when = function()
+    when = function(self)
         local cx, cy, cz = Memoried.currentPosition()
         for globalDirection = 1, 6 do
             local nx, ny, nz = directionToNormal(globalDirection)
             local x, y, z = cx + nx, cy + ny, cz + nz
 
             local location = Memoried.getLocation(x, y, z)
-            if isMapMissing(location) then return collectMapInfoPriority, globalDirection end
+            if isMapMissing(location) then
+                Logger.logDebug("["..self.name.."]", "direction:", globalDirection)
+                return collectMapInfoPriority, globalDirection
+            end
         end
         return false
     end,
-    action = function (_, gd)
+    action = function (self, gd)
+        Logger.logDebug("["..self.name.."]", gd)
         collectMissingMapAt(gd)
     end,
 }
