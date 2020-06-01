@@ -95,6 +95,8 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
         if maxRetryCount < retryCount then return false, lastReason end
 
         local currentX, currentY, currentZ = Memoried.currentPosition()
+        Logger.logDebug("[mineTo]", currentX, currentY, currentZ)
+
         if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
 
         local ok, reason = false, nil
