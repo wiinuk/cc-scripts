@@ -14,16 +14,25 @@ local angleY = 0
 ---@class Request
 ---@field public name string
 
+---@class DropHistory
+---@field public position integer[]
+---@field public item ItemDetail
+
 local memory = {
     -- { dart = 10, sand = 3 }
     blockToDigTryCount = {},
     blockToDigSuccessCount = {},
     -- { 0,0,0, 0,0,1, 0,1,1 }
     moveHistory = {},
+    -- { { position = { 1, 2, 3 }, item = { ... } }, }
+    ---@type DropHistory[]
+    dropHistory = {},
     -- { { name = "mining", options = ... }, { name = "attack" } }
     requests = {},
     -- { "0,0,0" = ..., "0,0,-1" = ... }
     map = {},
+    -- { nil, "minecraft:diamond_pickaxe", ... }
+    equippedItemNames = {}
 }
 ---@param name string
 local function hasRequest(name)
@@ -77,6 +86,7 @@ end
 ---@field public detect boolean|nil
 ---@field public inspect InspectResult|boolean|nil
 ---@field public move boolean|nil
+---@field public drops ItemDetail[]|nil
 
 ---@param x number
 ---@param y number
@@ -391,6 +401,21 @@ local function canDigInMemory(x, y, z)
     return false
 end
 
+---@return string|nil
+local function equippedItemName(localDirection)
+    return memory.equippedItemNames[localDirection]
+end
+
+local function equipGeneric(equip, localDirection)
+    local item = turtle.getItemDetail()
+    local ok, reason = equip()
+    if ok then
+        memory.equippedItemNames[localDirection] =
+            (item and item.name) or nil
+    end
+    return ok, reason
+end
+
 local function makeTurnAndDo(turn, op)
     return function(...)
         local ok, reason = turn()
@@ -407,6 +432,10 @@ local function turnRight2()
     return true
 end
 
+local function equipFailure()
+    return false, "invalid direction"
+end
+
 local Forward = 1
 local Left = 2
 local Back = 3
@@ -421,8 +450,38 @@ local Up = 6
 ---@field public dig fun(): boolean, any
 ---@field public move fun(): boolean, any
 ---@field public suck fun(amount: number): boolean, any
+---@field public drop fun(count: integer): boolean
 ---@field public inspect fun(): boolean, table
 ---@field public attack fun(): boolean
+---@field public equip fun(): boolean
+
+local function dropGeneric(drop, count)
+    local x, y, z = currentPosition()
+    local itemDetail = turtle.getItemDetail()
+    local ok, reason = drop(count)
+    local location = getOrMakeLocation(x, y, z)
+
+    -- drop していない場合と区別するため、空の配列を代入する
+    local drops = location.drops
+    if not drops then drops = {} location.drops = drops end
+
+    -- 落としたはずのアイテムを記録
+    if ok and itemDetail then
+        drops[#drops+1] = itemDetail
+
+        local history = memory.dropHistory
+        history[#history+1] = {
+            position = { x, y, z },
+            item = itemDetail,
+        }
+    end
+
+    return ok, reason
+end
+
+local function drop(count)
+    return dropGeneric(turtle.drop, count)
+end
 
 ---@type DirectionOperations[]
 local directionOperations = {
@@ -433,8 +492,10 @@ local directionOperations = {
         dig = dig,
         move = move,
         suck = turtle.suck,
+        drop = drop,
         inspect = inspect,
         attack = turtle.attack,
+        equip = equipFailure,
     },
     [Left] = {
         name = "left",
@@ -443,8 +504,10 @@ local directionOperations = {
         dig = makeTurnAndDo(turnLeft, dig),
         move = makeTurnAndDo(turnLeft, move),
         suck = makeTurnAndDo(turnLeft, turtle.suck),
+        drop = makeTurnAndDo(turnLeft, drop),
         inspect = makeTurnAndDo(turnLeft, inspect),
         attack = makeTurnAndDo(turnLeft, turtle.attack),
+        equip = function () return equipGeneric(turtle.equipLeft, Left) end,
     },
     [Back] = {
         name = "back",
@@ -453,8 +516,10 @@ local directionOperations = {
         dig = makeTurnAndDo(turnRight2, dig),
         move = makeTurnAndDo(turnRight2, move),
         suck = makeTurnAndDo(turnRight2, turtle.suck),
+        drop = makeTurnAndDo(turnRight2, drop),
         inspect = makeTurnAndDo(turnRight2, inspect),
         attack = makeTurnAndDo(turnRight2, turtle.attack),
+        equip = equipFailure,
     },
     [Right] = {
         name = "right",
@@ -463,8 +528,10 @@ local directionOperations = {
         dig = makeTurnAndDo(turnRight, dig),
         move = makeTurnAndDo(turnRight, move),
         suck = makeTurnAndDo(turnRight, turtle.suck),
+        drop = makeTurnAndDo(turnRight, drop),
         inspect = makeTurnAndDo(turnRight, inspect),
         attack = makeTurnAndDo(turnRight, turtle.attack),
+        equip = function () return equipGeneric(turtle.equipRight, Right) end,
     },
     [Down] = {
         name = "down",
@@ -473,8 +540,10 @@ local directionOperations = {
         dig = digDown,
         move = moveDown,
         suck = turtle.suckDown,
+        drop = function (count) return dropGeneric(turtle.dropDown, count) end,
         inspect = inspectDown,
         attack = turtle.attackDown,
+        equip = equipFailure,
     },
     [Up] = {
         name = "up",
@@ -483,14 +552,21 @@ local directionOperations = {
         dig = digUp,
         move = moveUp,
         suck = turtle.suckUp,
+        drop = function (count) return dropGeneric(turtle.dropUp, count) end,
         inspect = inspectUp,
         attack = turtle.attackUp,
+        equip = equipFailure,
     },
 }
----@param direction integer 1|2|3|4|5|6
+---@param localDirection integer 1|2|3|4|5|6
 ---@return DirectionOperations
-local function getOperation(direction)
-    return directionOperations[direction]
+local function getOperation(localDirection)
+    return directionOperations[localDirection]
+end
+---@param globalDirection integer Direction
+---@return DirectionOperations
+local function getOperationAt(globalDirection)
+    return directionOperations[toLocalDirection(globalDirection)]
 end
 
 setAir(getOrMakeLocation(currentPosition()))
@@ -512,6 +588,8 @@ return {
     addRequest = addRequest,
     hasRequest = hasRequest,
     getRequest = getRequest,
+
+    equippedItemName = equippedItemName,
 
     turnRight = turnRight,
     turnLeft = turnLeft,
@@ -544,4 +622,5 @@ return {
     Up = Up,
 
     getOperation = getOperation,
+    getOperationAt = getOperationAt,
 }
