@@ -101,8 +101,6 @@ local function printListener(logLevel)
     }
 end
 
-addListener(printListener(Output))
-
 return {
     Output = Output,
     Error = Error,
