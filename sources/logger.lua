@@ -84,7 +84,7 @@ local function printLog(self, level, ...)
         elseif level == Info then
             printWithColor(colors.lightBlue)
         elseif level == Debug then
-            printWithColor(colors.lightGray)
+            printWithColor(colors.gray)
         else
             print(...)
         end
