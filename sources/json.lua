@@ -310,7 +310,7 @@ local function parseElements(self, beginChar, endChar, parse)
 end
 
 ---@param self Parser
----@param r table
+---@param r any[]
 local function parseItem(self, r)
     local ok, value = self:_parseValue()
     if ok then r[#r+1] = value end
@@ -323,7 +323,7 @@ local function parseArray(self)
 end
 
 ---@param self Parser
----@param r table
+---@param r table<string, any>
 local function parseKeyValue(self, r)
     local okK, key = parseStringLiteral(self)
     if okK then

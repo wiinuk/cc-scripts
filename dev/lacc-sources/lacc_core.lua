@@ -95,7 +95,7 @@ local function writeJson(path, value)
 end
 
 ---@param address string
----@param headers table|nil
+---@param headers table<string, string>|nil
 ---@overload fun(address: string): string|nil, string|nil
 local function downloadString(address, headers)
     local r, reason = http.get(address, headers)
@@ -104,7 +104,7 @@ local function downloadString(address, headers)
     r:close()
     return contents
 end
----@param headers table|nil
+---@param headers table<string, string>|nil
 ---@overload fun(address: string): boolean, any|string
 local function downloadJson(address, headers)
     local result, reason = downloadString(address, headers)
