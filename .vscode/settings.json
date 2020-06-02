@@ -20,5 +20,6 @@
     },
     "Lua.diagnostics.disable": [
         "redefined-local"
-    ]
+    ],
+    "Lua.workspace.useGitIgnore": false
 }
