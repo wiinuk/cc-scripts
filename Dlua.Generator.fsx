@@ -20,14 +20,6 @@ type ReturnType<'a,'b> = { name: 'a; comment: 'b }
 type Parameter<'``type'``,'name> = { type': '``type'``; name: 'name }
 type Parameters<'reqs,'opts,'varArg> = { reqs: 'reqs; opts: 'opts; varArg: 'varArg }
 type MethodSign<'a,'b,'c> = { this: 'a; name: 'b; ps: 'c }
-type Row<'description,'link,'minVersion,'kind,'returnSign,'methodSign> = {
-    description: 'description
-    link: 'link
-    minVersion: 'minVersion
-    kind: 'kind
-    returnSign: 'returnSign
-    methodSign: 'methodSign
-}
 
 let random = Random()
 let rec range() =
@@ -228,20 +220,32 @@ type Kind =
     | Crafty
     | Digging
 
-type RowInfo = {
-    return': string
-    methodSign: string
-    description: string
-    minVersion: string
-    linkParent: IHtmlTableCellElement
-    kind: Kind
+type FunctionExtension<'returnSign,'methodSign> = {
+    returnSign: 'returnSign
+    methodSign: 'methodSign
+}
+type FieldExtension<'fieldThis,'fieldName,'fieldType> = {
+    fieldName: 'fieldName
+    fieldThis: 'fieldThis
+    fieldType: 'fieldType
 }
 
-type Definition<'thisName,'trSelector,'summarySelector,'rowInfo,'convertText,'cacheDir> = {
+type MemberExtension<'function_,'field> =
+    | Function of 'function_
+    | Field of 'field
+
+type MemberInfo<'description,'link,'minVersion,'kind,'extension> = {
+    description: 'description
+    link: 'link
+    minVersion: 'minVersion
+    kind: 'kind
+    extension: 'extension
+}
+
+type Definition<'thisName,'summarySelector,'parseMembers,'convertText> = {
     thisName: 'thisName
-    trSelector: 'trSelector
     summarySelector: 'summarySelector
-    rowInfo: 'rowInfo
+    parseMembers: 'parseMembers
     convertText: 'convertText
 }
 
@@ -261,44 +265,70 @@ let anchorRefs =
     anchors
     >> Seq.map (fun a -> a.Href)
 
-let parseMembers settings definition (doc: IParentNode) = seq {
-    let rows = definition.trSelector doc
-    for r: IElement in rows do async {
-        let r = r :?> IHtmlTableRowElement
-        let!
-            {
-            return' = return'
-            methodSign = methodName
-            description = description
-            minVersion = minVersion
-            linkParent = link
-            kind = kind
-            } = definition.rowInfo settings r
+let parseMember f =
+    let {
+        description = description
+        minVersion = minVersion
+        link = link
+        kind = kind
+        extension = extension
+        } = f
 
-        let link = anchorRefs link |> Seq.tryHead
+    let link = anchorRefs link |> Seq.tryHead
 
-        let returnSign =
-            match return' with
-            | Match @"^([\w\d]+)\s+([\w\d]+)$" (Group 1 returnType & Group 2 returnName) ->
-                [[{ name = returnType; comment = Some returnName }]], false
 
-            | Parse Parsers.returnParameter (st, varReturn) -> flatten st, varReturn
-            | "" -> [], false
-            | _ -> failwithf "unknown return format: %A" return'
+    let extension =
+        match extension with
+        | Function { returnSign = return'; methodSign = methodName } ->
+            let returnSign =
+                match return' with
+                | Match @"^([\w\d]+)\s+([\w\d]+)$" (Group 1 returnType & Group 2 returnName) ->
+                    [[{ name = returnType; comment = Some returnName }]], false
 
-        let methodSign =
-            match methodName with
-            | Parse Parsers.methodSign s -> s
-            | _ -> failwithf "unknown methodName: %A" methodName
+                | Parse Parsers.returnParameter (st, varReturn) -> flatten st, varReturn
+                | "" -> [], false
+                | _ -> failwithf "unknown return format: %A" return'
 
-        return {
-            description = description
-            link = link
-            minVersion = minVersion
-            kind = kind
-            returnSign = returnSign
-            methodSign = methodSign
+            let methodSign =
+                match methodName with
+                | Parse Parsers.methodSign s -> s
+                | _ -> failwithf "unknown methodName: %A" methodName
+            Function {
+                returnSign = returnSign
+                methodSign = methodSign
+            }
+        | Field f -> Field f
+    {
+        description = description
+        link = link
+        minVersion = minVersion
+        kind = kind
+        extension = extension
+    }
+
+module Member =
+    let mapExtension f m =
+        {
+            extension = f m.extension
+            description = m.description
+            link = m.link
+            minVersion = m.minVersion
+            kind = m.kind
         }
+    let withExtension x = mapExtension <| fun _ -> x
+
+    let this = function
+        | { extension = Function f } -> f.methodSign.this
+        | { extension = Field f } -> f.fieldThis
+
+    let ofFunction m = mapExtension Function m
+    let ofField m = mapExtension Field m
+
+let parseMembers settings definition (doc: IParentNode) = async {
+    let! members = definition.parseMembers settings doc
+    return seq {
+        for m in members do
+            parseMember m
     }
 }
 
@@ -332,35 +362,13 @@ let makeAbsolute (baseDomain: Uri) address =
         else address
     else Uri(baseDomain, address)
 
-let writeMember w { baseDomain = baseDomain } { convertText = convertText } m = async {
+let writeFunction w f =
     let {
         methodSign = methodSign
         returnSign = returnSign, varReturn
-        description = description
-        minVersion = minVersion
-        kind = kind
-        } = m
+        } = f
+
     let sign = methodSign.ps
-
-    match m.link with
-    | None -> ()
-    | Some link ->
-        let link = makeAbsolute baseDomain link
-        fprintfn w "--- [■](%s)" <| string link
-
-    let! description = convertText <| formatDescription description
-    fprintfn w "--- %s" description
-
-    if minVersion <> "?" then
-        let! title = convertText "Min version"
-        fprintfn w "--- (%s: %s)" title minVersion
-
-    match kind with
-    | All -> ()
-    | AnyTool | Crafty | Digging as kind ->
-        let! only = convertText "Only"
-        fprintfn w "--- (%s: %A)" only kind
-
     for r in returnSign do
         let typeName = String.concat "|" <| seq {
             for { ReturnType.name = n } in r -> n
@@ -437,10 +445,49 @@ let writeMember w { baseDomain = baseDomain } { convertText = convertText } m = 
 
     fprintfn w "function %s.%s(%s) %send" methodSign.this methodSign.name methodParameters body
     fprintfn w ""
+
+let writeField w f =
+    let { fieldName = name; fieldThis = this; fieldType = fieldType } = f
+
+    fprintfn w "---@type %s" fieldType
+    fprintfn w "%s.%s = print()" this name
+
+let writeMember w { baseDomain = baseDomain } { convertText = convertText } m = async {
+    let {
+        description = description
+        minVersion = minVersion
+        kind = kind
+        link = link
+        extension = extension
+        } = m
+
+
+    match link with
+    | None -> ()
+    | Some link ->
+        let link = makeAbsolute baseDomain link
+        fprintfn w "--- [■](%s)" <| string link
+
+    let! description = convertText <| formatDescription description
+    fprintfn w "--- %s" description
+
+    if minVersion <> "?" then
+        let! title = convertText "Min version"
+        fprintfn w "--- (%s: %s)" title minVersion
+
+    match kind with
+    | All -> ()
+    | AnyTool | Crafty | Digging as kind ->
+        let! only = convertText "Only"
+        fprintfn w "--- (%s: %A)" only kind
+
+    match extension with
+    | Function f -> writeFunction w f
+    | Field f -> writeField w f
 }
 let writeLuaDeclarationSource w settings definition doc = async {
     let { baseDomain = baseDomain } = settings
-    let { trSelector = trSelector; rowInfo = rowInfo; convertText = convertText } = definition
+    let { convertText = convertText } = definition
 
     let summaries =
         definition.summarySelector(doc: IParentNode)
@@ -460,9 +507,9 @@ let writeLuaDeclarationSource w settings definition doc = async {
     
 
     let mutable thisNames = Set.empty
-    let! ms = parseMembers settings definition doc |> Async.Sequential
+    let! ms = parseMembers settings definition doc
     for m in ms do
-        let thisName = m.methodSign.this
+        let thisName = Member.this m
         if not <| Set.contains thisName thisNames then
             fprintfn w "%s = {}" thisName
             fprintfn w ""
@@ -546,6 +593,69 @@ let parseReturnFromDetailPage s r = async {
     match firstAnchorText with
     | Some t -> return t
     | _ -> return t
+}
+
+type TableParserConfig<'trSelector,'rowInfo> = {
+    trSelector: 'trSelector
+    rowInfo: 'rowInfo
+}
+let rowInfo _ r = async {
+    return {
+        description = cellText 2 r
+        minVersion = "?"
+        link = cell 0 r
+        kind = All
+        extension = Function {
+            returnSign = cellText 1 r
+            methodSign = cellText 0 r
+        }
+    }
+}
+let tableParserConfig() = {
+    trSelector = querySelectorAll "#mw-content-text > table:first-of-type > tbody > tr" >> Seq.skip 2
+    rowInfo = rowInfo
+}
+let parseMembersOfTable withConfig settings doc = async {
+    let config = withConfig <| tableParserConfig()
+    return! Async.Sequential <| seq {
+        for r: IElement in config.trSelector doc do
+            async {
+                return! r :?> IHtmlTableRowElement |> config.rowInfo settings
+            }
+    }
+}
+let colorFields doc = seq {
+    let rows =
+        doc
+        |> querySelectorAll "#mw-content-text > table.wikitable > tbody > tr"
+        |> Seq.skip 1
+
+    for r in rows do
+        let r = r :?> IHtmlTableRowElement
+        let sign = cell 0 r
+
+        let thisName, name =
+            match sign.TextContent with
+            | Match "(\w+)\.(\w+)" (Group 1 this & Group 2 name) -> this, name
+            | x -> failwithf "unknown field format: %A" x
+
+        let description =
+            sprintf "decimal: %s, hexadecimal: %s, paint: %s, web: %s"
+                (cellText 1 r)
+                (cellText 2 r)
+                (cellText 3 r)
+                (cellText 4 r)
+        {
+            description = description
+            kind = All
+            link = cell 0 r
+            minVersion = "?"
+            extension = Field {
+                fieldName = name
+                fieldThis = thisName
+                fieldType = "number"
+            }
+        }
 }
 let writeDeclarationFiles settings declares = async {
     for s, p in declares do

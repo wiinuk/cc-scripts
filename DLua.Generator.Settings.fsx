@@ -1,24 +1,14 @@
 
 #load "DLua.Generator.fsx"
+open AngleSharp.Dom
+open AngleSharp.Html.Dom
 open DLua.Generator
-open System
 
 
-let rowInfo _ r = async {
-    return {
-        return' = cellText 1 r
-        methodSign = cellText 0 r
-        description = cellText 2 r
-        minVersion = "?"
-        linkParent = cell 0 r
-        kind = All
-    }
-}
 let settings thisName = {
     thisName = thisName
     summarySelector = querySelectorAll "#mw-content-text > p:nth-child(1)" >> Seq.map id
-    trSelector = querySelectorAll "#mw-content-text > table:first-of-type > tbody > tr" >> Seq.skip 2
-    rowInfo = rowInfo
+    parseMembers = parseMembersOfTable id
     convertText = async.Return
 }
 
@@ -29,15 +19,20 @@ let source address = {
 
 let declares() = [
     { settings "turtle" with
-        trSelector = querySelectorAll "#mw-content-text > table:nth-child(5) > tbody > tr" >> Seq.skip 1
-        rowInfo = fun _ r -> async {
-            return {
-                return' = cellText 0 r
-                methodSign = cellText 1 r
-                description = cellText 2 r
-                minVersion = cellText 3 r
-                linkParent = cell 1 r
-                kind = styleToKind r
+        parseMembers = parseMembersOfTable <| fun c ->
+        { c with
+            trSelector = querySelectorAll "#mw-content-text > table:nth-child(5) > tbody > tr" >> Seq.skip 1
+            rowInfo = fun _ r -> async {
+                return {
+                    extension = Function {
+                        returnSign = cellText 0 r
+                        methodSign = cellText 1 r
+                    }
+                    description = cellText 2 r
+                    minVersion = cellText 3 r
+                    link = cell 1 r
+                    kind = styleToKind r
+                }
             }
         }
     },
@@ -46,7 +41,10 @@ let declares() = [
     settings "shell", source "wiki/Shell_(API)"
     { settings "http" with
         summarySelector = querySelectorAll "#mw-content-text > p" >> Seq.truncate 2
-        trSelector = querySelectorAll "#mw-content-text > table:nth-child(3) > tbody > tr" >> Seq.skip 2
+        parseMembers = parseMembersOfTable <| fun c ->
+        { c with
+            trSelector = querySelectorAll "#mw-content-text > table:nth-child(3) > tbody > tr" >> Seq.skip 2
+        }
     },
     source "wiki/HTTP_(API)"
 
@@ -58,20 +56,28 @@ let declares() = [
     settings "disk", source "wiki/Disk_(API)"
     settings "gps", source "wiki/Gps_(API)"
     { settings "peripheral" with
-        trSelector = querySelectorAll "#mw-content-text > table:nth-child(7) > tbody > tr" >> Seq.skip 2
+        parseMembers = parseMembersOfTable <| fun c ->
+        { c with
+            trSelector = querySelectorAll "#mw-content-text > table:nth-child(7) > tbody > tr" >> Seq.skip 2
+        }
     },
     source "wiki/Peripheral_(API)"
     settings "rednet", source "wiki/Rednet_(API)"
     { settings "redstone" with
-        rowInfo = fun s r -> async {
-        let! return' = parseReturnFromDetailPage s r
-        return {
-            return' = return'
-            methodSign = cellText 0 r
-            description = cellText 1 r
-            minVersion = "?"
-            linkParent = cell 0 r
-            kind = All
+        parseMembers = parseMembersOfTable <| fun c ->
+        { c with
+            rowInfo = fun s r -> async {
+            let! return' = parseReturnFromDetailPage s r
+            return {
+                extension = Function {
+                    returnSign = return'
+                    methodSign = cellText 0 r
+                }
+                description = cellText 1 r
+                minVersion = "?"
+                link = cell 0 r
+                kind = All
+            }
         }
     }
     },
