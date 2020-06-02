@@ -1,7 +1,5 @@
 
 #load "DLua.Generator.fsx"
-open AngleSharp.Dom
-open AngleSharp.Html.Dom
 open DLua.Generator
 
 
@@ -83,6 +81,18 @@ let declares() = [
     },
     source "wiki/Redstone_(API)"
     settings "settings", source "wiki/Settings_(API)"
+    { settings "colors" with
+        parseMembers = fun settings doc -> async {
+            let! functions = parseMembersOfTable id settings doc
+            return [|
+                yield! functions
+                yield! colorFields doc
+            |]
+        }
+    },
+    source "wiki/Colors_(API)"
+    settings "window",
+    source "wiki/Window_(API)"
 ]
 
 let writeAllDeclarationFiles convertText writeSettings declares =
