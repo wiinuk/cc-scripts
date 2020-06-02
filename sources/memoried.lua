@@ -307,6 +307,11 @@ local function turnLeft()
     return ok, reason
 end
 
+---@param inspect fun(): boolean, any
+---@param dig fun(): boolean, any
+---@param nx number
+---@param ny number
+---@param nz number
 local function digGeneric(inspect, dig, nx, ny, nz)
     local ok, info = inspect()
     if not ok then return false, info end
@@ -419,6 +424,8 @@ local function equipGeneric(equip, localDirection)
     return ok, reason
 end
 
+---@generic T
+---@param turn fun(): boolean, any
 local function makeTurnAndDo(turn, op)
     return function(...)
         local ok, reason = turn()
@@ -454,7 +461,7 @@ local Up = 6
 ---@field public move fun(): boolean, any
 ---@field public suck fun(amount: number): boolean, any
 ---@field public drop fun(count: integer): boolean
----@field public inspect fun(): boolean, table
+---@field public inspect fun(): boolean, InspectResult
 ---@field public attack fun(): boolean
 ---@field public equip fun(): boolean
 
@@ -599,7 +606,7 @@ local directionOperations = {
         equip = equipFailure,
     },
 }
----@param localDirection integer 1|2|3|4|5|6
+---@param localDirection integer
 ---@return DirectionOperations
 local function getOperation(localDirection)
     return directionOperations[localDirection]
