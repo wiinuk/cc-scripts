@@ -12,7 +12,8 @@
         "rednet",
         "reqs",
         "rgba",
-        "tbody"
+        "tbody",
+        "vararg"
     ],
     "Lua.runtime.version": "Lua 5.1",
     "files.exclude": {
