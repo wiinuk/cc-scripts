@@ -3,5 +3,6 @@
 .ionide/
 paket-files/
 private/
+/dev/type-definitions/
 
 .fake
