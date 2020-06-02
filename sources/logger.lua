@@ -5,51 +5,97 @@ local Ex = require "extensions"
 ---@field onMessage fun(self: LogListener, level: integer, message1: any, message2: any, messageN: any)
 ---@field dispose fun()
 
+---@class Logger
+---@field name string
+---@field logCore fun(level: integer, arg1: any, arg2: any, argN: any): nil
+---@field log fun(arg1: any, arg2: any, argN: any): nil
+---@field logError fun(arg1: any, arg2: any, argN: any): nil
+---@field logWarning fun(arg1: any, arg2: any, argN: any): nil
+---@field logInfo fun(arg1: any, arg2: any, argN: any): nil
+---@field logDebug fun(arg1: any, arg2: any, argN: any): nil
+---@field addListener fun(listener: LogListener): nil
+
 local Output = 1
 local Error = 2
 local Warning = 3
 local Info = 4
 local Debug = 5
 
-local defaultLogListeners = {}
-
----@param listener LogListener
-local function addListener(listener)
-    local id = #defaultLogListeners+1
-    defaultLogListeners[id] = listener
-    return id
-end
-
-local function logCore(level, ...)
-    for i = 1, #defaultLogListeners do
-        defaultLogListeners[i]:onMessage(level, ...)
+---@param name string|nil
+local function create(name)
+    ---@type Logger
+    local logger = {
+        name = name or "<anonymous>",
+        ---@type LogListener[]
+        _listeners = {}
+    }
+    ---@param listener LogListener
+    function logger.addListener(listener)
+        logger._listeners[#logger._listeners+1] = listener
     end
+    local function logCore(level, ...)
+        local ls = logger._listeners
+        for i = 1, #ls do ls[i]:onMessage(level, ...) end
+    end
+    logger.logCore = logCore
+
+    local Output = Output
+    local Error = Error
+    local Info = Info
+    local Debug = Debug
+    function logger.log(...) logCore(Output, ...) end
+    function logger.logError(...) logCore(Error, ...) end
+    function logger.logWarning(...) logCore(Warning, ...) end
+    function logger.logInfo(...) logCore(Info, ...) end
+    function logger.logDebug(...) logCore(Debug, ...) end
+
+    return logger
 end
-local function log(...) logCore(Output, ...) end
-local function logError(...) logCore(Error, ...) end
-local function logInfo(...) logCore(Info, ...) end
-local function logDebug(...) logCore(Debug, ...) end
+
+local default = create("<DEFAULT_LOGGER>")
+local function getDefaultLogger() return default end
+
+---@class Terminal
+---@field getTextColor fun(): number
+---@field setTextColor fun(color: number): nil
+---@field getLine any
+---@field write fun(text: string): nil
+
+---@class TerminalLogListener : LogListener
+---@field public logLevel integer
+---@field public terminal Terminal
+
+local function printVarArgTailWithSelf(self, write, arg1, ...)
+    write(self, "\t")
+    write(self, tostring(arg1))
+    if select('#', ...) == 0 then return end
+    printVarArgTailWithSelf(self, write, ...)
+end
+local function printVarArgHeadWithSelf(self, write, arg1, ...)
+    write(self, tostring(arg1))
+    if select('#', ...) == 0 then return end
+    printVarArgTailWithSelf(self, write, ...)
+end
+local function printVarArgsWithSelf(self, write, ...)
+    if select('#', ...) == 0 then return end
+    printVarArgHeadWithSelf(self, write, ...)
+end
 
 local levels = {"O","E","W","I","D"}
--- local logPath = "logs/mine.log"
--- local logFile = nil
 local function initLogFile(self)
-    if fs.exists(self.logPath) then
-        fs.delete(self.logPath)
+    if fs.exists(self._logPath) then
+        fs.delete(self._logPath)
     end
-    self.logFile = io.open(self.logPath, "w+") or true
+    self.logFile = io.open(self._logPath, "w+") or true
 end
 local function writeLog(self, level, ...)
-    if not self.logFile then initLogFile(self) end
-    local logFile = self.logFile
+    if not self._logFile then initLogFile(self) end
+    local logFile = self._logFile
     if logFile == true then return end
-
-    local args = {...}
-    for i = 1, #args do args[i] = tostring(args[i]) end
 
     logFile:write(levels[level])
     logFile:write("\t")
-    logFile:write(table.concat(args, "\t"))
+    printVarArgsWithSelf(logFile, logFile.write, ...)
     logFile:write("\n")
     logFile:flush()
 end
@@ -58,37 +104,30 @@ local function closeFile(self)
     self.dispose = Ex.noop
     self.onMessage = Ex.noop
 end
----@param logPath string
+---@param logFilePath string
 ---@return LogListener
-local function fileWriterListener(logPath)
+local function fileWriterListener(logFilePath)
     return {
-        logPath = logPath,
-        logFile = nil,
+        _logPath = logFilePath,
+        _logFile = nil,
         onMessage = writeLog,
         dispose = closeFile,
     }
 end
 
-local function printWithColor(textColor, ...)
-    local color = term.getTextColor()
-    term.setTextColor(textColor)
-    print(...)
-    term.setTextColor(color)
-end
 local function printLog(self, level, ...)
-    if level <= self.logLevel then
-        if level == Error then
-            printWithColor(colors.red)
-        elseif level == Warning then
-            printWithColor(colors.yellow)
-        elseif level == Info then
-            printWithColor(colors.lightBlue)
-        elseif level == Debug then
-            printWithColor(colors.gray)
-        else
-            print(...)
-        end
+    if level > self.logLevel then return end
+
+    local oldColor = term.getTextColor()
+    local color = oldColor
+    if level == Error then color = colors.red
+    elseif level == Warning then color = colors.yellow
+    elseif level == Info then color = colors.lightBlue
+    elseif level == Debug then color = colors.gray
     end
+    term.setTextColor(color)
+    print(...)
+    term.setTextColor(oldColor)
 end
 ---@param logLevel integer|nil
 ---@return LogListener
@@ -101,6 +140,54 @@ local function printListener(logLevel)
     }
 end
 
+---@param self TerminalLogListener
+---@param level integer
+local function writeTerminal(self, level, ...)
+    if level > self.logLevel then return end
+
+    local t = self.terminal
+    local oldColor = t.getTextColor()
+    local c = oldColor
+    if level == Error then c = colors.red
+    elseif level == Warning then c = colors.yellow
+    elseif level == Info then c = colors.lightBlue
+    elseif level == Debug then c = colors.gray
+    end
+
+    t.setTextColor(c)
+    local oldTerminal = term.redirect(t)
+    print(...)
+    term.redirect(oldTerminal)
+    t.setTextColor(oldColor)
+end
+
+---@param terminal Terminal
+---@param logLevel integer|nil
+---@return TerminalLogListener
+local function terminalListener(terminal, logLevel)
+    logLevel = logLevel or Error
+    return {
+        logLevel = logLevel,
+        terminal = terminal,
+        onMessage = writeTerminal,
+        dispose = Ex.noop,
+    }
+end
+
+local function writeLogger(self, level, ...)
+    self._logger.logCore(level, ...)
+end
+
+---@param logger Logger
+---@return LogListener
+local function loggerListener(logger)
+    return {
+        _logger = logger,
+        onMessage = writeLogger,
+        dispose = Ex.noop,
+    }
+end
+
 return {
     Output = Output,
     Error = Error,
@@ -108,14 +195,17 @@ return {
     Info = Info,
     Debug = Debug,
 
-    logCore = logCore,
-    log = log,
-    logError = logError,
-    logInfo = logInfo,
-    logDebug = logDebug,
+    logCore = default.logCore,
+    log = default.log,
+    logError = default.logError,
+    logInfo = default.logInfo,
+    logDebug = default.logDebug,
+    addListener = default.addListener,
+    getDefaultLogger = getDefaultLogger,
 
-    addListener = addListener,
-
+    create = create,
     printListener = printListener,
     fileWriterListener = fileWriterListener,
+    terminalListener = terminalListener,
+    loggerListener = loggerListener,
 }
