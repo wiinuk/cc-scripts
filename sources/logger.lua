@@ -69,8 +69,26 @@ local function fileWriterListener(logPath)
     }
 end
 
+local function printWithColor(textColor, ...)
+    local color = term.getTextColor()
+    term.setTextColor(textColor)
+    print(...)
+    term.setTextColor(color)
+end
 local function printLog(self, level, ...)
-    if level <= self.logLevel then print(...) end
+    if level <= self.logLevel then
+        if level == Error then
+            printWithColor(colors.red)
+        elseif level == Warning then
+            printWithColor(colors.yellow)
+        elseif level == Info then
+            printWithColor(colors.lightBlue)
+        elseif level == Debug then
+            printWithColor(colors.lightGray)
+        else
+            print(...)
+        end
+    end
 end
 ---@param logLevel integer|nil
 ---@return LogListener
