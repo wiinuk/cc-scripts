@@ -861,7 +861,7 @@ Rules.add {
                 checkX = checkX + 1
             end
         end
-        Logger.logDebug("tired at ", checkX, checkY, checkZ, "("..tostring(maxCheckCount).." checks)")
+        Logger.logDebug("tired at ", checkX, checkY, checkZ, "("..tostring(maxCheckCount).." checks)", pretty(range))
         return
     end
 }
@@ -923,7 +923,7 @@ Rules.add {
                 table.remove(history, i)
                 Logger.logInfo("remove torch history", tx, ty, tz)
             end
-            if manhattanDistance(x, y, z, tx, ty, tz) < 8 then return false end
+            if manhattanDistance(x, y, z, tx, ty, tz) < 4 then return false end
         end
 
         for gd = 1, 6 do
