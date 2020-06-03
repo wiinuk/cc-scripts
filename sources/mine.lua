@@ -239,18 +239,15 @@ local defaultDropChestPriority = 1
 
 ---@param priority number
 ---@param request Request
----@param direction integer
-local function whenMine(priority, request, direction)
-    ---@type DirectionOperations
-    local d = Memoried.getOperation(direction)
-
-    if not d.detect() then return priority end
+---@param globalDirection integer
+local function whenMine(priority, request, globalDirection)
+    if not Memoried.getOperationAt(globalDirection).detect() then return priority end
 
     local x, y, z = Memoried.currentPosition()
-    local nx, ny, nz = d.currentNormal()
+    local nx, ny, nz = directionToNormal(globalDirection)
     if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return priority end
 
-    local ok, info = d.inspect()
+    local ok, info = Memoried.getOperationAt(globalDirection).inspect()
     if ok then
         local name = info.name
 
@@ -262,7 +259,7 @@ local function whenMine(priority, request, direction)
     end
 
     local p = Memoried.memory.requestPriority or defaultRequestPriority
-    p = p * minePriorityRatio * miningPriorityRatios[direction]
+    p = p * minePriorityRatio * miningPriorityRatios[globalDirection]
 
     -- TODO:
     -- if isSunLight(x, y, z) then
@@ -356,17 +353,17 @@ Rules.add {
         if not request then return false end
 
         local priority = false
-        local direction = nil
-        for d = 6, 1, -1 do
-            local nextPriority, p = whenMine(priority, request, d)
-            if p then direction = d end
+        local globalDirection = nil
+        for gd = 6, 1, -1 do
+            local nextPriority, p = whenMine(priority, request, gd)
+            if p then globalDirection = gd end
             priority = nextPriority
         end
-        return priority, direction
+        return priority, globalDirection
     end,
-    action = function (self, direction)
-        local ok, reason = Memoried.getOperation(direction).dig()
-        if not ok then Logger.logError(self.name, "error", reason, "direction", tostring(direction)) end
+    action = function (self, globalDirection)
+        local ok, reason = Memoried.getOperationAt(globalDirection).dig()
+        if not ok then Logger.logError(self.name, "error", reason, "gd", tostring(globalDirection)) end
     end,
 }
 Rules.add {
