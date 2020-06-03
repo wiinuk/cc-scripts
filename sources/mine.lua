@@ -751,8 +751,10 @@ Rules.add {
 
         -- ドロップ
         for i = 1, 16 do
-            turtle.select(i)
-            Memoried.getOperationAt(d).drop()
+            if 0 < turtle.getItemCount(i) then
+                turtle.select(i)
+                Memoried.getOperationAt(d).drop()
+            end
         end
         Memoried.memory.previousDropClock = os.clock()
     end
