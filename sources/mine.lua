@@ -168,7 +168,9 @@ local function suckIf(isNeedItem, globalDirection, maxRetryCount)
             dropManyAndLog(globalDirection, temporarySlots)
             return false, "empty slot not found"
         end
-        turtle.select(slot)
+        if turtle.getSelectedSlot() ~= slot then
+            turtle.select(slot)
+        end
 
         -- アイテムを拾う
         local ok, reason = Memoried.getOperationAt(globalDirection).suck()
@@ -267,7 +269,9 @@ local function inspectItemAt(globalDirection)
     local emptySlot = findEmptySlot()
     if not emptySlot then return nil, "empty slot not found" end
 
-    turtle.select(emptySlot)
+    if turtle.getSelectedSlot() ~= emptySlot then
+        turtle.select(emptySlot)
+    end
     local item = nil
     if Memoried.getOperationAt(globalDirection).suck() then
         item = turtle.getItemDetail()
@@ -480,12 +484,18 @@ Rules.add {
         local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
 
+        Memoried.memory.lastCollectMapClock = os.clock()
         collectMissingMapAt(gd)
     end
 }
 Rules.add {
     name = "collect around map",
     when = function()
+        local lastCollectClock = Memoried.memory.lastCollectMapClock or 0
+        if lastCollectClock + 5 < os.clock() then
+            return collectMapInfoPriority
+        end
+
         local cx, cy, cz = Memoried.currentPosition()
         for globalDirection = 1, 6 do
             local nx, ny, nz = directionToNormal(globalDirection)
@@ -499,7 +509,9 @@ Rules.add {
         return false
     end,
     action = function (_, gd)
-        collectMissingMapAt(gd)
+        Memoried.memory.lastCollectMapClock = os.clock()
+        if gd then return collectMissingMapAt(gd) end
+        for i = 1, 6 do collectMissingMapAt(i) end
     end,
 }
 
