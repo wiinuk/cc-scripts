@@ -817,7 +817,7 @@ Rules.add {
                 request.checkX = checkX
                 request.checkY = checkY
                 request.checkZ = checkZ
-                Logger.logDebug("find mining point: ", checkX, checkY, checkZ)
+                Logger.logDebug("find mining point: ", checkX, checkY, checkZ, " in ", pretty(range))
                 local ok, reason = mineTo(20, checkX, checkY, checkZ, true, false)
                 if not ok then Logger.logError("["..self.name.."]", "mineTo failed", reason) end
                 return
