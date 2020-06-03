@@ -40,6 +40,25 @@ local function directionToNormal(direction)
     return normals[i - 2], normals[i - 1], normals[i]
 end
 
+local function globalDirectionToPosition(globalDirection)
+    local x, y, z = Memoried.currentPosition()
+    local nx, ny, nz = directionToNormal(globalDirection)
+    return x + nx, y + ny, z + nz
+end
+local function limitedDig(globalDirection)
+    local ok, info = Memoried.getOperationAt(globalDirection).inspect()
+    if not ok then return false, info end
+
+    local name = info.name
+    if
+        name == "minecraft:chest" or
+        name == "minecraft:torch"
+    then
+        return false, "important item"
+    end
+    return Memoried.getOperationAt(globalDirection).dig()
+end
+
 ---@param globalDirection integer
 ---@param disableDig boolean|nil
 ---@param disableAttack boolean|nil
@@ -52,7 +71,7 @@ local function mineMove1(globalDirection, disableDig, disableAttack)
     if not disableDig and Memoried.getOperationAt(globalDirection).detect() then
 
         -- 掘る
-        Memoried.getOperationAt(globalDirection).dig()
+        limitedDig(globalDirection)
 
         -- 拾う
         Memoried.getOperationAt(globalDirection).suck()
@@ -245,10 +264,7 @@ local defaultDropChestPriority = 1
 ---@param request Request
 ---@param globalDirection integer
 local function whenMine(priority, request, globalDirection)
-    local cx, cy, cz = Memoried.currentPosition()
-    local nx, ny, nz = directionToNormal(globalDirection)
-    local tx, ty, tz = cx + nx, cy + ny, cz + nz
-
+    local tx, ty, tz = globalDirectionToPosition(globalDirection)
     if not inMiningRequestRange(request, tx, ty, tz) then return priority end
     local location = Memoried.getLocation(tx, ty, tz)
     if not location or not location.detect then return priority end
@@ -368,7 +384,7 @@ Rules.add {
         return false
     end,
     action = function (self, globalDirection)
-        local ok, reason = Memoried.getOperationAt(globalDirection).dig()
+        local ok, reason = limitedDig(globalDirection)
         if not ok then Logger.logError(self.name, "error", reason, "gd", tostring(globalDirection)) end
     end,
 }
@@ -509,11 +525,8 @@ Rules.add {
             return collectMapInfoPriority
         end
 
-        local cx, cy, cz = Memoried.currentPosition()
         for globalDirection = 1, 6 do
-            local nx, ny, nz = directionToNormal(globalDirection)
-            local x, y, z = cx + nx, cy + ny, cz + nz
-
+            local x, y, z = globalDirectionToPosition(globalDirection)
             local location = Memoried.getLocation(x, y, z)
             if isMapMissing(location) then
                 return collectMapInfoPriority, globalDirection
