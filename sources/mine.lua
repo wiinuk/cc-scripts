@@ -250,6 +250,17 @@ local function whenMine(priority, request, direction)
     local nx, ny, nz = d.currentNormal()
     if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return priority end
 
+    local ok, info = d.inspect()
+    if ok then
+        local name = info.name
+
+        -- TODO: アイテム名をハードコードせずに判断したい
+        if
+            name == "minecraft:chest" or
+            name == "minecraft:torch"
+        then return priority end
+    end
+
     local p = Memoried.memory.requestPriority or defaultRequestPriority
     p = p * minePriorityRatio * miningPriorityRatios[direction]
 
@@ -279,7 +290,6 @@ local function inspectItemAt(globalDirection)
     end
     return item
 end
-
 
 local function whenSuckAt(priority, globalDirection)
     local item, reason = inspectItemAt(globalDirection)
