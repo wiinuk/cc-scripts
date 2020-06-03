@@ -346,99 +346,99 @@ local function findNearMovablePositionIfMissingMap(tx, ty, tz)
     return
 end
 
-Rules.add {
-    name = "mining: dig around",
-    when = function ()
-        local request = Memoried.getRequest "mining"
-        if not request then return false end
+-- Rules.add {
+--     name = "mining: dig around",
+--     when = function ()
+--         local request = Memoried.getRequest "mining"
+--         if not request then return false end
 
-        local priority = false
-        local globalDirection = nil
-        for gd = 1, 6 do
-            local nextPriority, p = whenMine(priority, request, gd)
-            if p then
-                Logger.log("find gd", gd)
-                globalDirection = gd
-            end
-            priority = nextPriority
-        end
-        return priority, globalDirection
-    end,
-    action = function (self, globalDirection)
-        local ok, reason = Memoried.getOperationAt(globalDirection).dig()
-        if not ok then Logger.logError(self.name, "error", reason, "gd", tostring(globalDirection)) end
-    end,
-}
-Rules.add {
-    name = "mining: move to block",
-    when = function ()
-        local request = Memoried.getRequest "mining"
-        if not request then return false end
+--         local priority = false
+--         local globalDirection = nil
+--         for gd = 1, 6 do
+--             local nextPriority, p = whenMine(priority, request, gd)
+--             if p then
+--                 Logger.log("find gd", gd)
+--                 globalDirection = gd
+--             end
+--             priority = nextPriority
+--         end
+--         return priority, globalDirection
+--     end,
+--     action = function (self, globalDirection)
+--         local ok, reason = Memoried.getOperationAt(globalDirection).dig()
+--         if not ok then Logger.logError(self.name, "error", reason, "gd", tostring(globalDirection)) end
+--     end,
+-- }
+-- Rules.add {
+--     name = "mining: move to block",
+--     when = function ()
+--         local request = Memoried.getRequest "mining"
+--         if not request then return false end
 
-        local range = request.range
-        if not range then return false end
+--         local range = request.range
+--         if not range then return false end
 
-        -- 周りを探索
-        local x, y, z = Memoried.currentPosition()
-        x = Memoried.memory.lastFindX or x
-        y = Memoried.memory.lastFindY or y
-        z = Memoried.memory.lastFindZ or z
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                for dz = -1, 1 do
-                    local x, y, z = x + dx, y + dy, z + dz
-                    if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
-                        Memoried.memory.lastFindX = x
-                        Memoried.memory.lastFindY = y
-                        Memoried.memory.lastFindZ = z
-                        return 0.5
-                    end
-                end
-            end
-        end
+--         -- 周りを探索
+--         local x, y, z = Memoried.currentPosition()
+--         x = Memoried.memory.lastFindX or x
+--         y = Memoried.memory.lastFindY or y
+--         z = Memoried.memory.lastFindZ or z
+--         for dx = -1, 1 do
+--             for dy = -1, 1 do
+--                 for dz = -1, 1 do
+--                     local x, y, z = x + dx, y + dy, z + dz
+--                     if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
+--                         Memoried.memory.lastFindX = x
+--                         Memoried.memory.lastFindY = y
+--                         Memoried.memory.lastFindZ = z
+--                         return 0.5
+--                     end
+--                 end
+--             end
+--         end
 
-        -- ランダムに探索
-        local maxSearchCount = 20
-        for _ = 1, maxSearchCount do
-            local x = math.random(range.minX, range.maxX)
-            local y = math.random(range.minY, range.maxY)
-            local z = math.random(range.minZ, range.maxZ)
-            if Memoried.canDigInMemory(x, y, z) then
-                Memoried.memory.lastFindX = x
-                Memoried.memory.lastFindY = y
-                Memoried.memory.lastFindZ = z
-                return 0.5
-            end
-        end
-        return false
-    end,
-    action = function ()
-        local ok, reason = mineTo(
-            20,
-            Memoried.memory.lastFindX,
-            Memoried.memory.lastFindY,
-            Memoried.memory.lastFindZ
-        )
-        if not ok then Logger.logError(reason) end
-    end
-}
-Rules.add {
-    name = "mining: suck",
-    when = function ()
-        if not Memoried.hasRequest("mining") then return false end
+--         -- ランダムに探索
+--         local maxSearchCount = 20
+--         for _ = 1, maxSearchCount do
+--             local x = math.random(range.minX, range.maxX)
+--             local y = math.random(range.minY, range.maxY)
+--             local z = math.random(range.minZ, range.maxZ)
+--             if Memoried.canDigInMemory(x, y, z) then
+--                 Memoried.memory.lastFindX = x
+--                 Memoried.memory.lastFindY = y
+--                 Memoried.memory.lastFindZ = z
+--                 return 0.5
+--             end
+--         end
+--         return false
+--     end,
+--     action = function ()
+--         local ok, reason = mineTo(
+--             20,
+--             Memoried.memory.lastFindX,
+--             Memoried.memory.lastFindY,
+--             Memoried.memory.lastFindZ
+--         )
+--         if not ok then Logger.logError(reason) end
+--     end
+-- }
+-- Rules.add {
+--     name = "mining: suck",
+--     when = function ()
+--         if not Memoried.hasRequest("mining") then return false end
 
-        local priority = false
-        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Forward))
-        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Up))
-        priority = whenSuckAt(priority, Memoried.toGlobalDirection(Down))
-        return priority
-    end,
-    action = function()
-        for gd = 1, 6 do
-            Memoried.getOperationAt(gd).suck()
-        end
-    end
-}
+--         local priority = false
+--         priority = whenSuckAt(priority, Memoried.toGlobalDirection(Forward))
+--         priority = whenSuckAt(priority, Memoried.toGlobalDirection(Up))
+--         priority = whenSuckAt(priority, Memoried.toGlobalDirection(Down))
+--         return priority
+--     end,
+--     action = function()
+--         for gd = 1, 6 do
+--             Memoried.getOperationAt(gd).suck()
+--         end
+--     end
+-- }
 Rules.add {
     name = "mining: collect map",
     when = function ()
@@ -498,32 +498,32 @@ Rules.add {
         collectMissingMapAt(gd)
     end
 }
-Rules.add {
-    name = "collect around map",
-    when = function()
-        local lastCollectClock = Memoried.memory.lastCollectMapClock or 0
-        if lastCollectClock + 5 < os.clock() then
-            return collectMapInfoPriority
-        end
+-- Rules.add {
+--     name = "collect around map",
+--     when = function()
+--         local lastCollectClock = Memoried.memory.lastCollectMapClock or 0
+--         if lastCollectClock + 5 < os.clock() then
+--             return collectMapInfoPriority
+--         end
 
-        local cx, cy, cz = Memoried.currentPosition()
-        for globalDirection = 1, 6 do
-            local nx, ny, nz = directionToNormal(globalDirection)
-            local x, y, z = cx + nx, cy + ny, cz + nz
+--         local cx, cy, cz = Memoried.currentPosition()
+--         for globalDirection = 1, 6 do
+--             local nx, ny, nz = directionToNormal(globalDirection)
+--             local x, y, z = cx + nx, cy + ny, cz + nz
 
-            local location = Memoried.getLocation(x, y, z)
-            if isMapMissing(location) then
-                return collectMapInfoPriority, globalDirection
-            end
-        end
-        return false
-    end,
-    action = function (_, gd)
-        Memoried.memory.lastCollectMapClock = os.clock()
-        if gd then return collectMissingMapAt(gd) end
-        for i = 1, 6 do collectMissingMapAt(i) end
-    end,
-}
+--             local location = Memoried.getLocation(x, y, z)
+--             if isMapMissing(location) then
+--                 return collectMapInfoPriority, globalDirection
+--             end
+--         end
+--         return false
+--     end,
+--     action = function (_, gd)
+--         Memoried.memory.lastCollectMapClock = os.clock()
+--         if gd then return collectMissingMapAt(gd) end
+--         for i = 1, 6 do collectMissingMapAt(i) end
+--     end,
+-- }
 
 local miningToolName = "minecraft:diamond_pickaxe"
 ---@param item ItemDetail
@@ -586,91 +586,91 @@ local function findItemInNearDrop(predicate)
     return
 end
 
-Rules.add {
-    name = "mining: get and equip pickaxe",
-    when = function()
-        if not Memoried.hasRequest("mining") then return false end
-        if
-            Memoried.equippedItemName(Left) == miningToolName or
-            Memoried.equippedItemName(Right) == miningToolName
-        then
-            return false
-        end
+-- Rules.add {
+--     name = "mining: get and equip pickaxe",
+--     when = function()
+--         if not Memoried.hasRequest("mining") then return false end
+--         if
+--             Memoried.equippedItemName(Left) == miningToolName or
+--             Memoried.equippedItemName(Right) == miningToolName
+--         then
+--             return false
+--         end
 
-        -- インベントリを探す
-        local slotNumber = findMiningToolInInventory()
-        if slotNumber then
-            return defaultRequestPriority * equipToolPriorityRatio, "inventory", slotNumber
-        end
+--         -- インベントリを探す
+--         local slotNumber = findMiningToolInInventory()
+--         if slotNumber then
+--             return defaultRequestPriority * equipToolPriorityRatio, "inventory", slotNumber
+--         end
 
-        -- 周りのドロップアイテム ( やチェスト ) を探す
-        local tx, ty, tz = findItemInNearDrop(isMiningTool)
-        -- TODO: アイテムが落ちた方向を追跡する
-        if tx then
-            local gd, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-            if gd then return defaultRequestPriority * equipToolPriorityRatio, "drop", gd, mx, my, mz end
-        end
+--         -- 周りのドロップアイテム ( やチェスト ) を探す
+--         local tx, ty, tz = findItemInNearDrop(isMiningTool)
+--         -- TODO: アイテムが落ちた方向を追跡する
+--         if tx then
+--             local gd, mx, my, mz = findNearMovablePosition(tx, ty, tz)
+--             if gd then return defaultRequestPriority * equipToolPriorityRatio, "drop", gd, mx, my, mz end
+--         end
 
-        return false
-    end,
-    action = function (self, type, v1, v2, v3, v4)
-        if type == "inventory" then
-            local slotNumber = v1
+--         return false
+--     end,
+--     action = function (self, type, v1, v2, v3, v4)
+--         if type == "inventory" then
+--             local slotNumber = v1
 
-            -- 持つ方向を決定
-            local direction = Right
-            if
-                Memoried.equippedItemName(Right) ~= nil and
-                Memoried.equippedItemName(Left) == nil
-            then
-                direction = Left
-            end
+--             -- 持つ方向を決定
+--             local direction = Right
+--             if
+--                 Memoried.equippedItemName(Right) ~= nil and
+--                 Memoried.equippedItemName(Left) == nil
+--             then
+--                 direction = Left
+--             end
 
-            turtle.select(slotNumber)
-            return Memoried.getOperation(direction).equip()
-        end
-        if type == "drop" then
-            local gd, x, y, z = v1, v2, v3, v4
+--             turtle.select(slotNumber)
+--             return Memoried.getOperation(direction).equip()
+--         end
+--         if type == "drop" then
+--             local gd, x, y, z = v1, v2, v3, v4
 
-            -- その場所まで移動
-            local ok, reason = mineTo(20, x, y, z, true, true)
-            if not ok then Logger.logDebug(self.name, reason) return end
+--             -- その場所まで移動
+--             local ok, reason = mineTo(20, x, y, z, true, true)
+--             if not ok then Logger.logDebug(self.name, reason) return end
 
-            -- アイテムをチェストや地面から回収
-            local ok, reason = suckIf(isMiningTool, gd, 20)
-            if not ok then Logger.logDebug(self.name, reason) end
-            return
-        end
-        Logger.logDebug(self.name, "unknown item location kind", type)
+--             -- アイテムをチェストや地面から回収
+--             local ok, reason = suckIf(isMiningTool, gd, 20)
+--             if not ok then Logger.logDebug(self.name, reason) end
+--             return
+--         end
+--         Logger.logDebug(self.name, "unknown item location kind", type)
 
-        return false
-    end
-}
-Rules.add {
-    name = "mining: move to range",
-    when = function ()
-        local request = Memoried.getRequest("mining")
-        if not request then return false end
+--         return false
+--     end
+-- }
+-- Rules.add {
+--     name = "mining: move to range",
+--     when = function ()
+--         local request = Memoried.getRequest("mining")
+--         if not request then return false end
 
-        local x, y, z = Memoried.currentPosition()
-        if inMiningRequestRange(request, x, y, z) then return false end
+--         local x, y, z = Memoried.currentPosition()
+--         if inMiningRequestRange(request, x, y, z) then return false end
 
-        return defaultRequestPriority * moveToRangePriorityRatio
-    end,
-    action = function (self)
-        local request = Memoried.getRequest("mining")
-        local range = request.range
-        local cx, cy, cz = Memoried.currentPosition()
-        local x = Ex.clamp(cx, range.minX, range.maxX)
-        local y = Ex.clamp(cy, range.minY, range.maxY)
-        local z = Ex.clamp(cz, range.minZ, range.minZ)
+--         return defaultRequestPriority * moveToRangePriorityRatio
+--     end,
+--     action = function (self)
+--         local request = Memoried.getRequest("mining")
+--         local range = request.range
+--         local cx, cy, cz = Memoried.currentPosition()
+--         local x = Ex.clamp(cx, range.minX, range.maxX)
+--         local y = Ex.clamp(cy, range.minY, range.maxY)
+--         local z = Ex.clamp(cz, range.minZ, range.minZ)
 
-        -- 掘らない
-        local ok, reason = mineTo(10, x, y, z, true, false)
+--         -- 掘らない
+--         local ok, reason = mineTo(10, x, y, z, true, false)
 
-        if not ok then Logger.logDebug("["..self.name.."]", reason) end
-    end
-}
+--         if not ok then Logger.logDebug("["..self.name.."]", reason) end
+--     end
+-- }
 local function locationIsChest(x, y, z)
     local location = Memoried.getLocation(x, y, z)
     if not location then return false end
@@ -726,61 +726,61 @@ local function getUsingRatio()
     end
     return usingRatio
 end
-Rules.add {
-    name = "mining: drop to chest",
-    when = function ()
-        if not Memoried.hasRequest "mining" then return false end
+-- Rules.add {
+--     name = "mining: drop to chest",
+--     when = function ()
+--         if not Memoried.hasRequest "mining" then return false end
 
-        -- 前回の格納から一定時間が経過するか
-        local previousDropClock = Memoried.memory.previousDropClock or 0
-        local dropSpan = os.clock() - previousDropClock
+--         -- 前回の格納から一定時間が経過するか
+--         local previousDropClock = Memoried.memory.previousDropClock or 0
+--         local dropSpan = os.clock() - previousDropClock
 
-        -- 最初の 30秒 までは優先度 0
-        -- 次の 120秒 で優先度 1 まで上昇
-        -- 次の 120秒 で優先度 2 まで上昇
-        -- 0s => 0
-        -- 30s => 0
-        -- 90s => 0.5
-        -- 150s => 1
-        -- 270s => 2
-        local dropClockRatio = math.max(0, dropSpan - 30) / 120
+--         -- 最初の 30秒 までは優先度 0
+--         -- 次の 120秒 で優先度 1 まで上昇
+--         -- 次の 120秒 で優先度 2 まで上昇
+--         -- 0s => 0
+--         -- 30s => 0
+--         -- 90s => 0.5
+--         -- 150s => 1
+--         -- 270s => 2
+--         local dropClockRatio = math.max(0, dropSpan - 30) / 120
 
-        -- 占有率が一定以上になるか
-        local ratio = dropClockRatio + getUsingRatio()
-        if ratio < 0.1 then return false end
+--         -- 占有率が一定以上になるか
+--         local ratio = dropClockRatio + getUsingRatio()
+--         if ratio < 0.1 then return false end
 
-        -- そもそもチェストの場所を知らない
-        local x, y, z = findChestInMemory()
-        if not x then return false end
+--         -- そもそもチェストの場所を知らない
+--         local x, y, z = findChestInMemory()
+--         if not x then return false end
 
-        -- チェストに到達できない
-        local d, mx, my, mz = findNearMovablePosition(x, y, z)
-        if not d then return false end
+--         -- チェストに到達できない
+--         local d, mx, my, mz = findNearMovablePosition(x, y, z)
+--         if not d then return false end
 
-        local priority = defaultDropChestPriority * ratio
-        return priority, d, mx, my, mz
-    end,
-    action = function(self, d, mx, my, mz)
+--         local priority = defaultDropChestPriority * ratio
+--         return priority, d, mx, my, mz
+--     end,
+--     action = function(self, d, mx, my, mz)
 
-        -- 移動
-        local ok, reason = mineTo(20, mx, my, mz, true, false)
-        if not ok then return Logger.logInfo("["..self.name.."]", reason) end
+--         -- 移動
+--         local ok, reason = mineTo(20, mx, my, mz, true, false)
+--         if not ok then return Logger.logInfo("["..self.name.."]", reason) end
 
-        -- 改めてチェストか確認
-        Memoried.getOperationAt(d).inspect()
-        local nx, ny, nz = directionToNormal(d)
-        if not locationIsChest(mx + nx, my + ny, mz + nz) then return end
+--         -- 改めてチェストか確認
+--         Memoried.getOperationAt(d).inspect()
+--         local nx, ny, nz = directionToNormal(d)
+--         if not locationIsChest(mx + nx, my + ny, mz + nz) then return end
 
-        -- ドロップ
-        for i = 1, 16 do
-            if 0 < turtle.getItemCount(i) then
-                turtle.select(i)
-                Memoried.getOperationAt(d).drop()
-            end
-        end
-        Memoried.memory.previousDropClock = os.clock()
-    end
-}
+--         -- ドロップ
+--         for i = 1, 16 do
+--             if 0 < turtle.getItemCount(i) then
+--                 turtle.select(i)
+--                 Memoried.getOperationAt(d).drop()
+--             end
+--         end
+--         Memoried.memory.previousDropClock = os.clock()
+--     end
+-- }
 
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
 -- 松明を置く
