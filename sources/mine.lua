@@ -354,7 +354,7 @@ Rules.add {
 
         local priority = false
         local globalDirection = nil
-        for gd = 6, 1, -1 do
+        for gd = 1, 6 do
             local nextPriority, p = whenMine(priority, request, gd)
             if p then
                 Logger.log("find gd", gd)

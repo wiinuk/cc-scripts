@@ -339,6 +339,11 @@ end
 ---@param ny number
 ---@param nz number
 local function digGeneric(inspect, dig, nx, ny, nz)
+    local ok, info = turtle.inspect()
+    local name = "???"
+    if ok then name = info.name end
+    Logger.log("[digGeneric] forward: ", name)
+
     local ok, info = inspect()
     if not ok then return false, info end
     local blockName = info.name
