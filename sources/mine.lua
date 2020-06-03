@@ -1,10 +1,11 @@
 
----@version: 0.3.3
+---@version: 0.4.0
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
+local Rules = require "rules"
 
 
 local Forward = Memoried.Forward
@@ -14,7 +15,6 @@ local Right = Memoried.Right
 local Down = Memoried.Down
 local Up = Memoried.Up
 
-Logger.addListener(Logger.fileWriterListener("/logs/mine.log"))
 
 ---@return integer|nil slotNumber
 local function findEmptySlot()
@@ -334,14 +334,7 @@ local function findNearMovablePositionIfMissingMap(tx, ty, tz)
     return
 end
 
----@class Rule
----@field public name string
----@field public when fun(self: Rule): boolean|number, any, any
----@field public action fun(self: Rule, result1: any, result2: any): any
-
----@type Rule[]
-local rules = {}
-rules[#rules+1] = {
+Rules.add {
     name = "mining: dig around",
     when = function ()
         local request = Memoried.getRequest "mining"
@@ -361,7 +354,7 @@ rules[#rules+1] = {
         if not ok then Logger.logError(self.name, "error", reason, "direction", tostring(direction)) end
     end,
 }
-rules[#rules+1] = {
+Rules.add {
     name = "mining: move to block",
     when = function ()
         local request = Memoried.getRequest "mining"
@@ -414,7 +407,7 @@ rules[#rules+1] = {
         if not ok then Logger.logError(reason) end
     end
 }
-rules[#rules+1] = {
+Rules.add {
     name = "mining: suck",
     when = function ()
         if not Memoried.hasRequest("mining") then return false end
@@ -431,7 +424,7 @@ rules[#rules+1] = {
         end
     end
 }
-rules[#rules+1] = {
+Rules.add {
     name = "mining: collect map",
     when = function ()
         local request = Memoried.getRequest("mining")
@@ -489,7 +482,7 @@ rules[#rules+1] = {
         collectMissingMapAt(gd)
     end
 }
-rules[#rules+1] = {
+Rules.add {
     name = "collect around map",
     when = function()
         local cx, cy, cz = Memoried.currentPosition()
@@ -570,7 +563,7 @@ local function findItemInNearDrop(predicate)
     return
 end
 
-rules[#rules+1] = {
+Rules.add {
     name = "mining: get and equip pickaxe",
     when = function()
         if not Memoried.hasRequest("mining") then return false end
@@ -630,7 +623,7 @@ rules[#rules+1] = {
         return false
     end
 }
-rules[#rules+1] = {
+Rules.add {
     name = "mining: move to range",
     when = function ()
         local request = Memoried.getRequest("mining")
@@ -655,87 +648,6 @@ rules[#rules+1] = {
         if not ok then Logger.logDebug("["..self.name.."]", reason) end
     end
 }
-
--- インベントリが満タンならチェストまで移動して入れる
--- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
-
--- # ルールの評価
--- - マップ情報が増えた
--- - 燃料が増えた
--- - 燃料チェストや燃料が落ちている場所を発見した
--- - リクエストを達成した
--- - リクエストの達成度を更新した
--- - リクエストがあるのに達成度が変化なしだったら減点 ( 行動当たりの時間効率 )
--- - 採掘リクエスト中
---   - 範囲内の空気ブロックが増えた
---   - 範囲内の松明ブロックが増えた
---   - チェストに入れた数が増えた
-
-local function evaluateRules()
-    local maxPriorityRuleCount = 0
-    ---@type number
-    local maxPriorityRules = {}
-    --- `{ result1,..,result5, { result6,..,resultN }, ... }`
-    ---@type any[]
-    local maxPriorityResults = {}
-
-    local function processWhenResult(maxPriority, rule, priority, result1, result2, result3, result4, result5, ...)
-        if priority then
-            if maxPriority <= priority then
-                if maxPriority < priority then
-                    Ex.clearArray(maxPriorityRules)
-                    Ex.clearArray(maxPriorityResults)
-                    maxPriorityRuleCount = 0
-                end
-                maxPriorityRuleCount = maxPriorityRuleCount + 1
-
-                maxPriorityRules[maxPriorityRuleCount] = rule
-
-                -- 6 = 固定長の戻り値個数(5) + 残りの可変長戻り値を格納する配列(1)
-                local i = maxPriorityRuleCount * 6
-                maxPriorityResults[i - 5] = result1
-                maxPriorityResults[i - 4] = result2
-                maxPriorityResults[i - 3] = result3
-                maxPriorityResults[i - 2] = result4
-                maxPriorityResults[i - 1] = result5
-                if select("#", ...) ~= 0 then maxPriorityResults[i] = {...} end
-
-                return priority
-            end
-            Logger.logInfo("-", "'"..rule.name.."'", "@"..tostring(priority))
-        end
-        return maxPriority
-    end
-    while true do
-        local maxPriority = -99999999
-        for i = 1, #rules do
-            ---@type Rule
-            local rule = rules[i]
-            maxPriority = processWhenResult(maxPriority, rule, rule:when())
-        end
-        if maxPriorityRuleCount == 0 then return true end
-
-        local index = math.random(1, maxPriorityRuleCount)
-        local rule = maxPriorityRules[index]
-        local i = index * 6
-        local result1 = maxPriorityResults[i - 5]
-        local result2 = maxPriorityResults[i - 4]
-        local result3 = maxPriorityResults[i - 3]
-        local result4 = maxPriorityResults[i - 2]
-        local result5 = maxPriorityResults[i - 1]
-        local result6ToN = maxPriorityResults[i]
-        Ex.clearArray(maxPriorityRules)
-        Ex.clearArray(maxPriorityResults)
-        maxPriorityRuleCount = 0
-
-        Logger.log("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
-
-        if result6ToN
-        then rule:action(result1, result2, result3, result4, result5, unpack(result6ToN))
-        else rule:action(result1, result2, result3, result4, result5)
-        end
-    end
-end
 
 ---@type MiningOptions
 local function getDefaultMiningOptions()
@@ -769,10 +681,10 @@ local function parseMiningOptions(options, arguments)
     return true
 end
 
-local function miningCommand(...)
+local function miningCommand(arguments)
     Logger.log("# mining")
     local options = getDefaultMiningOptions()
-    parseMiningOptions(options, {...})
+    parseMiningOptions(options, arguments)
     Logger.log("options: ")
 
     local offsetX, offsetY, offsetZ =
@@ -809,12 +721,24 @@ local function miningCommand(...)
         options = options,
         range = box
     })
-    evaluateRules()
 end
 
-local commands = {
-    mining = miningCommand
+-- インベントリが満タンならチェストまで移動して入れる
+-- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
+
+-- # ルールの評価
+-- - マップ情報が増えた
+-- - 燃料が増えた
+-- - 燃料チェストや燃料が落ちている場所を発見した
+-- - リクエストを達成した
+-- - リクエストの達成度を更新した
+-- - リクエストがあるのに達成度が変化なしだったら減点 ( 行動当たりの時間効率 )
+-- - 採掘リクエスト中
+--   - 範囲内の空気ブロックが増えた
+--   - 範囲内の松明ブロックが増えた
+--   - チェストに入れた数が増えた
+
+return {
+    miningCommand = miningCommand,
 }
 
-local function processArguments(x, ...) commands[x](...) end
-processArguments(...)
