@@ -915,7 +915,14 @@ Rules.add {
         local history = Memoried.memory.setTorchHistory
         for i = #history, math.max(1, #history - 10), -1 do
             local p = history[i]
-            if manhattanDistance(x, y, z, p[1], p[2], p[3]) < 8 then return false end
+            local tx, ty, tz = p[1], p[2], p[3]
+            local location = Memoried.getLocation(tx, ty, tz)
+            if location and (location.move == true or (location.inspect and location.inspect.name ~= "minecraft:torch")) then
+                -- トーチでないので削除
+                table.remove(history, i)
+                Logger.logInfo("remove torch history", tx, ty, tz)
+            end
+            if manhattanDistance(x, y, z, tx, ty, tz) < 8 then return false end
         end
 
         for gd = 1, 6 do
