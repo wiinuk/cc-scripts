@@ -60,6 +60,8 @@ local function getDefaultLogger() return default end
 ---@field setTextColor fun(color: number): nil
 ---@field getLine any
 ---@field write fun(text: string): nil
+--- Clears the screen by overwriting the whole display with blank spaces. The results are affected by the current background colour.
+---@field clear fun(): nil
 
 ---@class TerminalLogListener : LogListener
 ---@field public logLevel integer

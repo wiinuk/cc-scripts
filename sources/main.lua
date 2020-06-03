@@ -3,9 +3,10 @@ local Mine = require "mine"
 local Logger = require "logger"
 local ArgP = require "arg-parser"
 
----@class Window
+---@class Window : Terminal
 ---@field public getCursorPos fun(): number, number
 ---@field public reposition fun(x: number, y: number, width: number|nil, height: number|nil): nil
+---@field public setBackgroundColor fun(color_code: number): nil
 
 local t = term.current()
 local tw, th = t.getSize()
@@ -13,6 +14,8 @@ local tx, ty = t.getPosition()
 
 ---@type Window
 local logWindow = window.create(term.current(), tx + tw * 0.5, ty, tw * 0.5, th, false)
+logWindow.setBackgroundColor(colors.lightBlue)
+logWindow.clear()
 
 Logger.addListener(Logger.fileWriterListener("/logs/main.log"))
 Logger.addListener(Logger.terminalListener(logWindow, Logger.Info))
