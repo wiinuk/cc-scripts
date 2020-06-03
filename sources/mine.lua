@@ -469,23 +469,23 @@ Rules.add {
             end
         end
 
-        -- ランダムに探索
-        local maxSearchCount = 20
-        for _ = 1, maxSearchCount do
-            local tx = math.random(range.minX, range.maxX)
-            local ty = math.random(range.minY, range.maxY)
-            local tz = math.random(range.minZ, range.maxZ)
-            -- 採掘範囲内で
+        -- -- ランダムに探索
+        -- local maxSearchCount = 20
+        -- for _ = 1, maxSearchCount do
+        --     local tx = math.random(range.minX, range.maxX)
+        --     local ty = math.random(range.minY, range.maxY)
+        --     local tz = math.random(range.minZ, range.maxZ)
+        --     -- 採掘範囲内で
 
-            local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
-            if direction then
-                -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
-                return
-                    collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
-                    direction,
-                    mx, my, mz
-            end
-        end
+        --     local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
+        --     if direction then
+        --         -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
+        --         return
+        --             collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
+        --             direction,
+        --             mx, my, mz
+        --     end
+        -- end
         return false
     end,
     action = function(_, gd, mx, my, mz)
