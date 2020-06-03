@@ -68,26 +68,26 @@ local function evaluateRules()
             os.sleep(sleepTime)
         else
             sleepTime = minSleepTime
-        end
 
-        local index = math.random(1, maxPriorityRuleCount)
-        local rule = maxPriorityRules[index]
-        local i = index * 6
-        local result1 = maxPriorityResults[i - 5]
-        local result2 = maxPriorityResults[i - 4]
-        local result3 = maxPriorityResults[i - 3]
-        local result4 = maxPriorityResults[i - 2]
-        local result5 = maxPriorityResults[i - 1]
-        local result6ToN = maxPriorityResults[i]
-        Ex.clearArray(maxPriorityRules)
-        Ex.clearArray(maxPriorityResults)
-        maxPriorityRuleCount = 0
+            local index = math.random(1, maxPriorityRuleCount)
+            local rule = maxPriorityRules[index]
+            local i = index * 6
+            local result1 = maxPriorityResults[i - 5]
+            local result2 = maxPriorityResults[i - 4]
+            local result3 = maxPriorityResults[i - 3]
+            local result4 = maxPriorityResults[i - 2]
+            local result5 = maxPriorityResults[i - 1]
+            local result6ToN = maxPriorityResults[i]
+            Ex.clearArray(maxPriorityRules)
+            Ex.clearArray(maxPriorityResults)
+            maxPriorityRuleCount = 0
 
-        Logger.log("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
+            Logger.log("#", "'"..rule.name.."'", "@"..tostring(maxPriority))
 
-        if result6ToN
-        then rule:action(result1, result2, result3, result4, result5, unpack(result6ToN))
-        else rule:action(result1, result2, result3, result4, result5)
+            if result6ToN
+            then rule:action(result1, result2, result3, result4, result5, unpack(result6ToN))
+            else rule:action(result1, result2, result3, result4, result5)
+            end
         end
     end
 end
