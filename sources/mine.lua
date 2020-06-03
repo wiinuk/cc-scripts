@@ -357,8 +357,7 @@ Rules.add {
         local request = Memoried.getRequest "mining"
         if not request then return false end
 
-        for ld = 6, 1, -1 do
-            local gd = Memoried.toGlobalDirection(ld)
+        for gd = 1, 6 do
             local _, p = whenMine(false, request, gd)
             if p then return p, gd end
         end
