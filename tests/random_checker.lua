@@ -9,7 +9,6 @@ local pretty = require "pretty"
 ---@field public generator fun(size: integer): T
 ---@field public shrinker fun(x: T): fun(): boolean|nil, T
 
-local random = math.random
 local min = math.min
 local max = math.max
 local modf = math.modf
@@ -75,7 +74,7 @@ end
 local function integerGenerator(minValue, maxValue)
     return function (size)
         local size = modf(size)
-        return random(minValue, max(minValue, min(maxValue, size)))
+        return math.random(minValue, max(minValue, min(maxValue, size)))
     end
 end
 
@@ -106,7 +105,7 @@ local charArb = {
 local function arrayGenerator(itemGenerator)
     return function (size)
         local result = {}
-        local length = random(0, max(0, size))
+        local length = math.random(0, max(0, size))
         for i = 1, length do result[i] = itemGenerator(modf(size / 2)) end
         return result
     end
