@@ -834,10 +834,10 @@ Rules.add {
                 return
             end
 
-            if checkX == range.maxX then
-                checkX = 0
-                if checkY == range.maxY then
-                    checkY = 0
+            if range.maxX <= checkX then
+                checkX = range.minX
+                if range.maxY <= checkY then
+                    checkY = range.minY
                     checkZ = checkZ + 1
                 else
                     checkY = checkY + 1
