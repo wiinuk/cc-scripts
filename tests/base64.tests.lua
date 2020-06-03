@@ -4,6 +4,7 @@ package.path = package.path..";../sources/?.lua"
 local Base64 = require "base64"
 local Assert = require "assert"
 local pretty = require "pretty"
+local Checker = require "random_checker"
 local tests = {}
 
 function tests.encodeSimple()
@@ -21,19 +22,7 @@ local function roundtrip(expected)
 end
 
 function tests.roundtripPropertyTest()
-    local values = {}
-    for size = 1, 100 do
-        local bytes = {}
-        local length = math.random(0, size)
-        for _ = 1, length do
-            bytes[#bytes+1] = math.random(0, 255)
-        end
-        values[#values+1] = string.char(unpack(bytes))
-    end
-
-    for _, value in ipairs(values) do
-        roundtrip(value)
-    end
+    Checker.checkThrowOnFailure(Checker.string, roundtrip)
 end
 
 Assert.runTests(tests)

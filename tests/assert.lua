@@ -116,7 +116,7 @@ local function equals(a, b, message)
     end
 end
 
----@param tests table
+---@param tests table<string, fun(): any>
 local function runTests(tests)
     print "starting tests"
     local totalCount = 0
