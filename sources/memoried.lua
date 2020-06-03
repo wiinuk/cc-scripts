@@ -28,6 +28,8 @@ local memory = {
     -- { { position = { 1, 2, 3 }, item = { ... } }, }
     ---@type DropHistory[]
     dropHistory = {},
+    -- { { 1, 2, 3 }, { 1, 2, 1 } }
+    chestHistory = {},
     -- { { name = "mining", options = ... }, { name = "attack" } }
     requests = {},
     -- { "0,0,0" = ..., "0,0,-1" = ... }
@@ -235,26 +237,46 @@ local function detect()
     getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z).detect = ok
     return ok
 end
+---@param data InspectResult
+local function addHistory(data)
+    if data.name == "minecraft:chest" then
+        local x, y, z = currentPosition()
+        memory.chestHistory[#memory.chestHistory+1] = { x, y, z }
+    end
+end
 local function inspectDown()
     local ok, data = turtle.inspectDown()
     local l = getOrMakeLocation(position[1], position[2] - 1, position[3])
-    if ok then l.inspect = data
-    else l.inspect = false end
+    if ok then
+        l.inspect = data
+        addHistory(data)
+
+    else
+        l.inspect = false
+    end
     return ok, data
 end
 local function inspectUp()
     local ok, data = turtle.inspectUp()
     local l = getOrMakeLocation(position[1], position[2] + 1, position[3])
-    if ok then l.inspect = data
-    else l.inspect = false end
+    if ok then
+        l.inspect = data
+        addHistory(data)
+    else
+        l.inspect = false
+    end
     return ok, data
 end
 local function inspect()
     local ok, data = turtle.inspect()
     local x, y, z = currentForward()
     local l = getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z)
-    if ok then l.inspect = data
-    else l.inspect = false end
+    if ok then
+        l.inspect = data
+        addHistory(data)
+    else
+        l.inspect = false
+    end
     return ok, data
 end
 
