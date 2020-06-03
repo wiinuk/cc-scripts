@@ -546,14 +546,17 @@ local miningToolName = "minecraft:diamond_pickaxe"
 local function isMiningTool(item)
     return item.name == miningToolName and item.damage == 0
 end
-local function findMiningToolInInventory()
+local function findItemInInventory(predicate)
     for i = 1, 16 do
         local item = turtle.getItemDetail(i)
-        if item and isMiningTool(item) then
+        if item and predicate(item) then
             return i
         end
     end
     return
+end
+local function findMiningToolInInventory()
+    return findItemInInventory(isMiningTool)
 end
 
 ---@class ItemDetail
@@ -861,9 +864,139 @@ Rules.add {
         return
     end
 }
+local function findCombustibleInInventory()
+    if turtle.getFuelLimit() == "unlimited" then return false end
 
--- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
--- 松明を置く
+    local itemToFuelLevel = Memoried.memory.itemToFuelLevel
+    for i = 1, 16 do
+        local item = turtle.getItemDetail()
+        if item then
+            local name = item.name
+            local combustible = itemToFuelLevel[name]
+            if combustible == nil then
+                if turtle.getSelectedSlot() ~= i then
+                    turtle.select(i)
+                end
+                local oldLevel = turtle.getFuelLevel()
+                turtle.refuel(1)
+                itemToFuelLevel[name] = turtle.getFuelLevel() - oldLevel
+            end
+            if 0 < itemToFuelLevel[name] then
+                return i
+            end
+        end
+    end
+    return
+end
+
+local function combustible(item)
+    local l = Memoried.memory.itemToFuelLevel[item.name]
+    return l and 0 < l
+end
+
+local function manhattanDistance(ax, ay, az, bx, by, bz)
+    return math.abs(ax - bx) + math.abs(ay - by) + math.abs(az - bz)
+end
+Rules.add {
+    name = "set torch",
+    when = function()
+        -- TODO トーチをクラフト
+
+        -- トーチを持っていて
+        local slot = nil
+        for i = 1, 16 do
+            local item = turtle.getItemDetail(i)
+            if item and item.name == "minecraft:torch" then slot = i break end
+        end
+        if not slot then return false end
+
+        -- 近くにトーチを置いたことがなく
+        local x, y, z = Memoried.currentPosition()
+        local history = Memoried.memory.setTorchHistory
+        for i = #history, math.max(1, #history - 10), -1 do
+            local p = history[i]
+            if manhattanDistance(x, y, z, p[1], p[2], p[3]) < 8 then return false end
+        end
+
+        for gd = 1, 6 do
+            local tx, ty, tz = globalDirectionToPosition(gd)
+            local location = Memoried.getLocation(tx, ty, tz)
+
+            -- トーチを設置できる空間があり
+            if location and (location.move == true or location.inspect == false) then
+                local hasBaseBlock = false
+
+                -- トーチが刺さるブロックがあるか探す ( 天井を除く )
+                for baseDirection = 1, 5 do
+                    local nx, ny, nz = directionToNormal(baseDirection)
+                    local baseLocation = Memoried.getLocation(tx + nx, ty + ny, tz + nz)
+                    if baseLocation and (baseLocation.move == false or baseLocation.detect == true) then
+                        hasBaseBlock = true
+                        break
+                    end
+                end
+                if hasBaseBlock then return slot, gd end
+            end
+        end
+        return false
+    end,
+    action = function(self, slot, gd)
+        if turtle.getSelectedSlot() ~= slot then
+            turtle.select(slot)
+        end
+
+        local ok, reason = Memoried.getOperationAt(gd).place()
+        if not ok then
+            Logger.logError("["..self.name.."]", "place failure", reason)
+        end
+    end
+}
+Rules.add {
+    name = "refuel",
+    when = function()
+        local fuel = turtle.getFuelLevel()
+        if fuel == "unlimited" then return false end
+        if 0.5 < fuel / turtle.getFuelLimit() then return false end
+
+        -- インベントリを探す
+        local slotNumber = findCombustibleInInventory()
+        if slotNumber then
+            return 1, "inventory", slotNumber
+        end
+
+        -- 周りのドロップアイテム ( やチェスト ) を探す
+        local tx, ty, tz = findItemInNearDrop(combustible)
+
+        -- TODO: アイテムが落ちた方向を追跡する
+        if tx then
+            local gd, mx, my, mz = findNearMovablePosition(tx, ty, tz)
+            if gd then return 1, "drop", gd, mx, my, mz end
+        end
+
+    end,
+    action = function(self, type, v1, v2, v3, v4)
+        if type == "inventory" then
+            local slotNumber = v1
+            if turtle.getSelectedSlot() ~= slotNumber then
+                turtle.select(slotNumber)
+            end
+            turtle.refuel()
+        end
+        if type == "drop" then
+            local gd, x, y, z = v1, v2, v3, v4
+
+            -- その場所まで移動
+            local ok, reason = mineTo(20, x, y, z, true, true)
+            if not ok then Logger.logDebug(self.name, reason) return end
+
+            -- アイテムをチェストや地面から回収
+            local ok, reason = suckIf(combustible, gd, 20)
+            if not ok then Logger.logDebug(self.name, reason) end
+            return
+        end
+        return false
+    end,
+}
 
 -- # ルールの評価
 -- - マップ情報が増えた
