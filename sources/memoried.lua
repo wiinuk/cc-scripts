@@ -516,6 +516,7 @@ local function suckGeneric(suck, count, currentNormal)
         y = y + ny
         z = z + nz
         local location = getOrMakeLocation(x, y, z)
+        Logger.logDebug("set empty drops", x, y, z)
 
         -- drop していない場合と区別するため、空の配列を代入する
         local drops = location.drops or {}

@@ -117,12 +117,14 @@ end
 --- できるだけ元のスロットの位置を維持する
 local function compactItems()
     for i = 1, 16 do
-        if 0 ~= turtle.getItemSpace(i) then
+        local iSpace = turtle.getItemSpace(i)
+        if 0 ~= iSpace then
             local ii = turtle.getItemDetail(i)
             if ii then
                 for j = i + 1, 16 do
                     local ji = turtle.getItemDetail(j)
-                    if ji and ii.name == ji.name then
+                    local jCount = turtle.getItemCount()
+                    if ji and ii.name == ji.name and ii.damage == ji.damage and jCount <= iSpace then
                         turtle.select(j)
                         turtle.transferTo(i)
                     end
