@@ -40,36 +40,24 @@ local memory = {
 }
 ---@param name string
 local function hasRequest(name)
-    if memory.requests then
-        local rs = memory.requests
-        for i = 1, #rs do
-            local r = rs[i]
-            if r == name or (r and r.name == name) then
-                return true
-            end
-        end
-    end
-    return false
+    return memory.requests[name] ~= nil
 end
 
 ---@param name string
 ---@return Request|nil
 local function getRequest(name)
-    if memory.requests then
-        local rs = memory.requests
-        for i = 1, #rs do
-            local r = rs[i]
-            if r == name or (r and r.name == name) then
-                return r
-            end
-        end
-    end
-    return nil
+    return memory.requests[name]
+end
+local function removeRequest(name)
+    memory.requests[name] = nil
 end
 
 ---@param request Request
 local function addRequest(request)
-    memory.requests[#memory.requests+1] = request
+    if memory.requests[request.name] then
+        return false, "request '"..request.name.."' in memory"
+    end
+    memory.requests[request.name] = request
     return true
 end
 
@@ -669,6 +657,7 @@ return {
     addRequest = addRequest,
     hasRequest = hasRequest,
     getRequest = getRequest,
+    removeRequest = removeRequest,
 
     equippedItemName = equippedItemName,
 

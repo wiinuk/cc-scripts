@@ -787,6 +787,70 @@ Rules.add {
         Memoried.memory.previousDropClock = os.clock()
     end
 }
+local function isMined(location)
+    local inspect = location.inspect
+    if location.move == true or inspect == false then return true end
+    if inspect == nil then return false end
+    local name = inspect.name
+    if name == "minecraft:chest" or name == "minecraft:torch" then return true end
+    return false
+end
+
+Rules.add {
+    name = "mining: check complete",
+    when = function()
+        local request = Memoried.getRequest "mining"
+        if not request then return false end
+
+        return defaultRequestPriority * 0.1, request
+    end,
+    action = function(self, request)
+        local range = request.range
+        local checkX = request.checkX or range.minX
+        local checkY = request.checkY or range.minY
+        local checkZ = request.checkZ or range.minZ
+
+        local maxCheckCount = 100
+        local checkCount = 0
+        while checkCount <= maxCheckCount do
+            local location = Memoried.getLocation(checkX, checkY, checkZ)
+            if not location or not isMined(location) then
+                request.checkX = checkX
+                request.checkY = checkY
+                request.checkZ = checkZ
+                Logger.logDebug("find mining point: ", checkX, checkY, checkZ)
+                local ok, reason = mineTo(20, checkX, checkY, checkZ, true, false)
+                if not ok then Logger.logError("["..self.name.."]", "mineTo failed", reason) end
+                return
+            end
+            checkCount = checkCount + 1
+
+            if
+                checkX == range.maxX and
+                checkY == range.maxY and
+                checkZ == range.maxZ
+            then
+                Logger.log("mining complete")
+                Memoried.removeRequest "mining"
+                return
+            end
+
+            if checkX == range.maxX then
+                checkX = 0
+                if checkY == range.maxY then
+                    checkY = 0
+                    checkZ = checkZ + 1
+                else
+                    checkY = checkY + 1
+                end
+            else
+                checkX = checkX + 1
+            end
+        end
+        Logger.logDebug("tired at ", checkX, checkY, checkZ, "("..tostring(maxCheckCount).." checks)")
+        return
+    end
+}
 
 -- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
 -- 松明を置く
