@@ -494,7 +494,7 @@ Rules.add {
         local ok, reason = mineTo(20, mx, my, mz, false, true)
         if not ok then Logger.logError(reason) end
 
-        Memoried.memory.lastCollectMapClock = os.clock()
+        -- Memoried.memory.lastCollectMapClock = os.clock()
         collectMissingMapAt(gd)
     end
 }
