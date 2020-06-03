@@ -46,9 +46,9 @@ local function logCommand(arguments)
         return
     end
 
-    if sub == "hide" then
+    if sub == "show" then
         logWindow.setVisible(true)
-    elseif sub == "show" then
+    elseif sub == "hide" then
         logWindow.setVisible(false)
     else
         mainLogger.logError("unrecognized command", sub)
