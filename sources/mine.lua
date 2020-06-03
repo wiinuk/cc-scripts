@@ -754,6 +754,7 @@ Rules.add {
             turtle.select(i)
             Memoried.getOperationAt(d).drop()
         end
+        Memoried.memory.previousDropClock = os.clock()
     end
 }
 
