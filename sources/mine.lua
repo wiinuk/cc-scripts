@@ -357,17 +357,11 @@ Rules.add {
         local request = Memoried.getRequest "mining"
         if not request then return false end
 
-        local priority = false
-        local globalDirection = nil
         for gd = 1, 6 do
-            local nextPriority, p = whenMine(priority, request, gd)
-            if p then
-                Logger.log("find gd", gd)
-                globalDirection = gd
-            end
-            priority = nextPriority
+            local _, p = whenMine(false, request, gd)
+            if p then return p, gd end
         end
-        return priority, globalDirection
+        return false
     end,
     action = function (self, globalDirection)
         local ok, reason = Memoried.getOperationAt(globalDirection).dig()
