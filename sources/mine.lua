@@ -6,7 +6,7 @@ local Box3 = require "box3"
 local Ex = require "extensions"
 local Logger = require "logger"
 local Rules = require "rules"
-
+local pretty = require "pretty"
 
 local Forward = Memoried.Forward
 local Left = Memoried.Left
@@ -496,6 +496,11 @@ Rules.add {
 
         -- Memoried.memory.lastCollectMapClock = os.clock()
         collectMissingMapAt(gd)
+
+        local nx, ny, nz = directionToNormal(gd)
+        local x, y, z = mx + nx, my + ny, mz + nz
+        local location = Memoried.getLocation(x, y, z)
+        Logger.logInfo(pretty(location))
     end
 }
 -- Rules.add {
