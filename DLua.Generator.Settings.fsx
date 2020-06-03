@@ -91,8 +91,8 @@ let declares() = [
         }
     },
     source "wiki/Colors_(API)"
-    settings "window",
-    source "wiki/Window_(API)"
+    settings "window", source "wiki/Window_(API)"
+    settings "textutils", source "wiki/Textutils_(API)"
 ]
 
 let writeAllDeclarationFiles convertText writeSettings declares =

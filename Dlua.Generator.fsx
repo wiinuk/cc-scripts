@@ -53,6 +53,7 @@ type Type<'namedType,'functionType,'unknownType> =
     | NamedType of 'namedType
     | FunctionType of 'functionType
     | UnknownType of 'unknownType
+    | OrType of Type<'namedType,'functionType,'unknownType> list
 
 type CompositeType<'T> =
     | Sum of 'T CompositeType list
@@ -102,6 +103,8 @@ module Parsers =
     let t p = s p |> token
 
     let keywords = Set ["or"]
+    let knownTypeNames = Set ["nil"; "boolean"; "number"; "string"; "table"]
+
     let letter = letter <|> pchar '_'
     let notKeyword p = p >>= fun n -> if Set.contains n keywords then fail "keyword" else preturn n
     let name =
@@ -125,13 +128,31 @@ module Parsers =
     // `boolean success, table data/string error message`
     let returnParameter = returnType .>>. (opt (t"," >>. t"...") |>> Option.isSome)
 
-    let parameter = choice [
+    let typeSign = sepBy1 typeName (t"/" <|> t"or") |>> function
+        | [t] -> NamedType t
+        | ts -> OrType <| List.map NamedType ts
+
+    let parameterFull = choice [
         // peripheral.find(string type [, function fnFilter( name, object )])
         t"function" >>. name .>> t"(" .>>. sepBy name (t",") .>> t")" |>> fun (a, b) -> { name = a; type' = FunctionType b }
-
-        typeName .>>. many1 name |>> fun (a, b) -> { type' = NamedType a; name = String.concat "_" b }
-        typeName |>> fun x -> { type' = UnknownType(); name = x }
+        typeSign .>>. many1 name |>> fun (a, b) -> { type' = a; name = String.concat "_" b }
     ]
+    /// `name type` 形式の完全なパラメーターと共に
+    /// `nameOrType` 形式の不完全なパラメーターも認識する
+    let parameterPrim = choice [
+        parameterFull
+        name |>> fun x ->
+            if Set.contains x knownTypeNames
+            then { type' = NamedType x; name = "" }
+            else { type' = UnknownType(); name = x }
+    ]
+
+    /// 全ての内部のパラメーターが完全な時だけ、選択パラメーターとする
+    let parameterOr = choice [
+        sepBy1 parameterFull (t"/" <|> t"or")
+        parameterPrim |>> List.singleton
+    ]
+    let parameter = parameterOr
 
     /// e.g. `a b, c d`
     let requiredParameters1 = sepBy1 parameter (t",")
@@ -184,7 +205,10 @@ module Parsers =
         let (=?) l r = if not (l = r) then failwithf "%A =? %A" l r
         let parse = parse parameters
 
-        let p (p, n) = { type' = NamedType p; name = n }
+        let param (t, n) = { type' = t; name = n }
+        let named (t, n) = param(NamedType t, n)
+        let p (t, n) = [named(t, n)]
+        let req1 p1 = { reqs = [p1]; opts = []; varArg = false }
         let sign va rs os = { reqs = List.map p rs; opts = List.map (List.map p) os; varArg = va }
         let varSign = sign true
         let sign = sign false
@@ -200,6 +224,9 @@ module Parsers =
 
         parse "a b [, c d] [, e f]" =? sign ["a","b"] [["c","d"];["e","f"]]
         parse "a b [, c d, ...] [, e f]" =? varSign ["a","b"] [["c","d"];["e","f"]]
+
+        parse "t1 p1 / t2 p2" =? req1 [named("t1", "p1"); named("t2", "p2")]
+        parse "number / nil p1" =? req1 [param(OrType [NamedType "number"; NamedType "nil"], "p1")]
 
     let methodSign = pipe4 name (t".") name (between (t"(") (t")") parameters) <| fun this _ name ps ->
         { this = this; name = name; ps = ps }
@@ -380,6 +407,7 @@ let writeFunction w f =
                 | _ -> ()
         }
         fprintfn w "---@return %s%s" typeName comments
+
     if varReturn then
         let (|IdN|_|) x =
             let m = Regex.Match(x, pattern = @"^([\w_][\d\w_]*)(\d)")
@@ -401,7 +429,7 @@ let writeFunction w f =
         | Some(typeName, id) -> fprintfn w "---@return %s %sN" typeName id
 
     let concat reqs opts = List.concat (reqs::opts)
-    let showType = function
+    let rec showType = function
         | UnknownType() -> "any"
         | NamedType t -> t
         | FunctionType ts ->
@@ -410,7 +438,18 @@ let writeFunction w f =
             |> String.concat ", "
             |> sprintf "fun(%s): any"
 
-    for { type' = t; name = n } in concat sign.reqs sign.opts do
+        | OrType ts ->
+            ts
+            |> Seq.map showType
+            |> String.concat "|"
+
+    let mergeParameter parameterOrs =
+        let typeName = parameterOrs |> List.map (fun p -> p.type') |> OrType
+        let paramName = parameterOrs |> Seq.map (fun p -> p.name) |> String.concat "_or_"
+        { type' = typeName; name = paramName }
+
+    for p in concat sign.reqs sign.opts do
+        let { type' = t; name = n } = mergeParameter p
         fprintfn w "---@param %s %s" n <| showType t
 
     let parametersSign print varArg ps =
@@ -424,7 +463,10 @@ let writeFunction w f =
         let opts, _ = List.splitAt (i + 1) sign.opts
         let sign =
             concat sign.reqs opts
-            |> parametersSign (fun p -> sprintf "%s: %s" p.name (showType p.type')) sign.varArg
+            |> parametersSign (fun p ->
+                let p = mergeParameter p
+                sprintf "%s: %s" p.name (showType p.type')
+            ) sign.varArg
 
         let returnType = String.concat ", " <| seq {
             for ot in returnSign do
@@ -436,7 +478,7 @@ let writeFunction w f =
 
     let methodParameters =
         concat sign.reqs sign.opts
-        |> parametersSign (fun p -> p.name) sign.varArg
+        |> parametersSign (fun p -> mergeParameter(p).name) sign.varArg
 
     let body =
         match sign with
@@ -460,7 +502,6 @@ let writeMember w { baseDomain = baseDomain } { convertText = convertText } m = 
         link = link
         extension = extension
         } = m
-
 
     match link with
     | None -> ()
@@ -666,9 +707,13 @@ let writeDeclarationFiles settings declares = async {
                 Path.ChangeExtension(name, ".html")
             | p -> p
         let p = { p with path = settings.cacheDir/path }
-        use w = new StreamWriter(settings.outDir/settings.getName s.thisName)
-        do! getAndWriteLuaDeclarationSource w settings (s, p)
-        ()
+        let path = settings.outDir/settings.getName s.thisName
+        do! async {
+            use w = new StreamWriter(path)
+            printfn "writing %A" path
+            do! getAndWriteLuaDeclarationSource w settings (s, p)
+        }
+        printfn "done %A" path
 }
 
 #if TEST
