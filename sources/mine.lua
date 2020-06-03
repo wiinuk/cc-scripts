@@ -356,7 +356,10 @@ Rules.add {
         local globalDirection = nil
         for gd = 6, 1, -1 do
             local nextPriority, p = whenMine(priority, request, gd)
-            if p then globalDirection = gd end
+            if p then
+                Logger.log("find gd", gd)
+                globalDirection = gd
+            end
             priority = nextPriority
         end
         return priority, globalDirection
