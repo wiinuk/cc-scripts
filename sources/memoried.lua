@@ -239,19 +239,19 @@ local function detect()
     return ok
 end
 ---@param data InspectResult
-local function addHistory(data)
+local function addHistory(data, x, y, z)
     if data.name == "minecraft:chest" then
-        local x, y, z = currentPosition()
         Logger.logInfo("add chest history", x, y, z)
         memory.chestHistory[#memory.chestHistory+1] = { x, y, z }
     end
 end
 local function inspectDown()
     local ok, data = turtle.inspectDown()
-    local l = getOrMakeLocation(position[1], position[2] - 1, position[3])
+    local x, y, z = position[1], position[2] - 1, position[3]
+    local l = getOrMakeLocation(x, y, z)
     if ok then
         l.inspect = data
-        addHistory(data)
+        addHistory(data, x, y, z)
 
     else
         l.inspect = false
@@ -260,10 +260,11 @@ local function inspectDown()
 end
 local function inspectUp()
     local ok, data = turtle.inspectUp()
-    local l = getOrMakeLocation(position[1], position[2] + 1, position[3])
+    local x, y, z = position[1], position[2] + 1, position[3]
+    local l = getOrMakeLocation(x, y, z)
     if ok then
         l.inspect = data
-        addHistory(data)
+        addHistory(data, x, y, z)
     else
         l.inspect = false
     end
@@ -272,10 +273,11 @@ end
 local function inspect()
     local ok, data = turtle.inspect()
     local x, y, z = currentForward()
-    local l = getOrMakeLocation(position[1] + x, position[2] + y, position[3] + z)
+    local x, y, z = position[1] + x, position[2] + y, position[3] + z
+    local l = getOrMakeLocation(x, y, z)
     if ok then
         l.inspect = data
-        addHistory(data)
+        addHistory(data, x, y, z)
     else
         l.inspect = false
     end
