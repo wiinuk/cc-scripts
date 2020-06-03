@@ -259,6 +259,7 @@ local miningCollectMapInfoPriorityRatio = 1.2
 local equipToolPriorityRatio = 1.5
 local moveToRangePriorityRatio = 1
 local defaultDropChestPriority = 1
+local setTorchPriority = 1.2
 
 ---@param priority number
 ---@param request Request
@@ -942,7 +943,7 @@ Rules.add {
                         break
                     end
                 end
-                if hasBaseBlock then return slot, gd end
+                if hasBaseBlock then return setTorchPriority, slot, gd end
             end
         end
         return false
