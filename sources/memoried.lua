@@ -327,11 +327,6 @@ end
 ---@param ny number
 ---@param nz number
 local function digGeneric(inspect, dig, nx, ny, nz)
-    local ok, info = turtle.inspect()
-    local name = "???"
-    if ok then name = info.name end
-    Logger.log("[digGeneric] forward: ", name)
-
     local ok, info = inspect()
     if not ok then return false, info end
     local blockName = info.name
@@ -504,7 +499,6 @@ local function suckGeneric(suck, count, currentNormal)
         y = y + ny
         z = z + nz
         local location = getOrMakeLocation(x, y, z)
-        Logger.logDebug("set empty drops", x, y, z)
 
         -- drop していない場合と区別するため、空の配列を代入する
         local drops = location.drops or {}
@@ -536,8 +530,6 @@ local function dropGeneric(drop, count, currentNormal)
     -- 落としたはずのアイテムを記録
     if ok and itemDetail then
         drops[#drops+1] = itemDetail
-
-        Logger.logInfo("add drop history", x, y, z)
         local history = memory.dropHistory
         history[#history+1] = {
             position = { x, y, z },

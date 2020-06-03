@@ -501,7 +501,6 @@ Rules.add {
         local nx, ny, nz = directionToNormal(gd)
         local x, y, z = mx + nx, my + ny, mz + nz
         local location = Memoried.getLocation(x, y, z)
-        Logger.logInfo(pretty(location))
     end
 }
 Rules.add {
