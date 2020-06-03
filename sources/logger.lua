@@ -86,7 +86,7 @@ local function initLogFile(self)
     if fs.exists(self._logPath) then
         fs.delete(self._logPath)
     end
-    self.logFile = io.open(self._logPath, "w+") or true
+    self._logFile = io.open(self._logPath, "w+") or true
 end
 local function writeLog(self, level, ...)
     if not self._logFile then initLogFile(self) end
