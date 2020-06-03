@@ -24,8 +24,10 @@ local memory = {
     -- { dart = 10, sand = 3 }
     blockToDigTryCount = {},
     blockToDigSuccessCount = {},
+    itemToFuelLevel = {},
     -- { 0,0,0, 0,0,1, 0,1,1 }
     moveHistory = {},
+    setTorchHistory = {},
     -- { { position = { 1, 2, 3 }, item = { ... } }, }
     ---@type DropHistory[]
     dropHistory = {},
@@ -478,6 +480,7 @@ local Up = 6
 ---@field public inspect fun(): boolean, InspectResult
 ---@field public attack fun(): boolean
 ---@field public equip fun(): boolean
+---@field public place fun(signText: string): boolean
 
 local function anyItemSpace()
     for i = 1, 16 do
@@ -544,6 +547,38 @@ local function drop(count)
     return dropGeneric(turtle.drop, count, currentForward)
 end
 
+local function addPlaceHistory(item, tx, ty, tz)
+    if item.name == "minecraft:torch" then
+        memory.setTorchHistory[#memory.setTorchHistory+1] = { tx, ty, tz }
+    end
+end
+local function placeGeneric(place, signText, currentNormal)
+    local item = turtle.getItemDetail()
+    local ok, reason = place(signText)
+    local x, y, z = currentPosition()
+    local nx, ny, nz = currentNormal()
+    local tx, ty, tz = x + nx, y + ny, z + nz
+    local l = getOrMakeLocation(tx, ty, tz)
+    if ok then
+        l.detect = nil
+        l.drops = {}
+        l.inspect = nil
+        l.move = nil
+        addPlaceHistory(item, tx, ty, tz)
+    end
+    l.place = ok
+    return ok, reason
+end
+local function place(signText)
+    return placeGeneric(turtle.place, signText, currentForward)
+end
+local function placeDown(signText)
+    return placeGeneric(turtle.placeDown, signText, currentDown)
+end
+local function placeUp(signText)
+    return placeGeneric(turtle.placeUp, signText, currentUp)
+end
+
 ---@type DirectionOperations[]
 local directionOperations = {
     [Forward] = {
@@ -551,6 +586,7 @@ local directionOperations = {
         detect = detect,
         currentNormal = currentForward,
         dig = dig,
+        place = place,
         move = move,
         suck = suck,
         drop = drop,
@@ -563,6 +599,7 @@ local directionOperations = {
         detect = makeTurnAndDo(turnLeft, detect),
         currentNormal = currentLeft,
         dig = makeTurnAndDo(turnLeft, dig),
+        place = makeTurnAndDo(turnLeft, place),
         move = makeTurnAndDo(turnLeft, move),
         suck = makeTurnAndDo(turnLeft, suck),
         drop = makeTurnAndDo(turnLeft, drop),
@@ -575,6 +612,7 @@ local directionOperations = {
         detect = makeTurnAndDo(turnRight2, detect),
         currentNormal = currentBack,
         dig = makeTurnAndDo(turnRight2, dig),
+        place = makeTurnAndDo(turnRight2, place),
         move = makeTurnAndDo(turnRight2, move),
         suck = makeTurnAndDo(turnRight2, suck),
         drop = makeTurnAndDo(turnRight2, drop),
@@ -587,6 +625,7 @@ local directionOperations = {
         detect = makeTurnAndDo(turnRight, detect),
         currentNormal = currentRight,
         dig = makeTurnAndDo(turnRight, dig),
+        place = makeTurnAndDo(turnRight, place),
         move = makeTurnAndDo(turnRight, move),
         suck = makeTurnAndDo(turnRight, suck),
         drop = makeTurnAndDo(turnRight, drop),
@@ -597,8 +636,9 @@ local directionOperations = {
     [Down] = {
         name = "down",
         detect = detectDown,
-        currentNormal = function () return 0, -1, 0 end,
+        currentNormal = currentDown,
         dig = digDown,
+        place = placeDown,
         move = moveDown,
         suck = function (count) return suckGeneric(turtle.suckDown, count, currentDown) end,
         drop = function (count) return dropGeneric(turtle.dropDown, count, currentDown) end,
@@ -611,6 +651,7 @@ local directionOperations = {
         detect = detectUp,
         currentNormal = currentUp,
         dig = digUp,
+        place = placeUp,
         move = moveUp,
         suck = function (count) return suckGeneric(turtle.suckUp, count, currentUp) end,
         drop = function (count) return dropGeneric(turtle.dropUp, count, currentUp) end,
