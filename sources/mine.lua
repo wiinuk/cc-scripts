@@ -362,7 +362,7 @@ Rules.add {
         return priority, globalDirection
     end,
     action = function (self, globalDirection)
-        local ok, reason = Memoried.getOperation(Back).dig() -- Memoried.getOperationAt(globalDirection).dig()
+        local ok, reason = Memoried.getOperation(Forward).dig() -- Memoried.getOperationAt(globalDirection).dig()
         if not ok then Logger.logError(self.name, "error", reason, "gd", tostring(globalDirection)) end
     end,
 }
