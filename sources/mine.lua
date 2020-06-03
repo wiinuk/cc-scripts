@@ -243,11 +243,13 @@ local defaultDropChestPriority = 1
 ---@param request Request
 ---@param globalDirection integer
 local function whenMine(priority, request, globalDirection)
-    if not Memoried.getOperationAt(globalDirection).detect() then return priority end
-
-    local x, y, z = Memoried.currentPosition()
+    local cx, cy, cz = Memoried.currentPosition()
     local nx, ny, nz = directionToNormal(globalDirection)
-    if not inMiningRequestRange(request, x + nx, y + ny, z + nz) then return priority end
+    local tx, ty, tz = cx + nx, cy + ny, cz + nz
+
+    if not inMiningRequestRange(request, tx, ty, tz) then return priority end
+    local location = Memoried.getLocation(tx, ty, tz)
+    if not location or not location.detect then return priority end
 
     local ok, info = Memoried.getOperationAt(globalDirection).inspect()
     if ok then
