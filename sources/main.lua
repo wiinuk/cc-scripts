@@ -59,10 +59,23 @@ local function logCommand(arguments)
     end
 end
 
+local function tabCommand(arguments)
+    local sub, subArgs = parseSubCommand(arguments)
+    if not sub then
+        mainLogger.logError("unrecognized command", arguments[1])
+        return
+    end
+    if sub == "open" then
+        local id = shell.openTab(unpack(subArgs))
+        mainLogger.log("open new tab", id)
+    end
+end
+
 ---@type table<string, fun(arguments: string[]): any>
 local commands = {
     mine = Mine.miningCommand,
     log = logCommand,
+    tab = tabCommand,
 }
 local function readAndProcessCommand()
     local arguments, error = ArgP.splitCommand(read())
