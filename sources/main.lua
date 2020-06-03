@@ -54,6 +54,8 @@ local function logCommand(arguments)
         mainLogger.logError("unrecognized command", sub)
     end
 end
+
+---@type table<string, fun(arguments: string[]): any>
 local commands = {
     mine = Mine.miningCommand,
     log = logCommand,
