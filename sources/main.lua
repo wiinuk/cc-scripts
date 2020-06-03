@@ -13,14 +13,14 @@ local tw, th = t.getSize()
 local tx, ty = t.getPosition()
 
 ---@type Window
-local logWindow = window.create(term.current(), tx + tw * 0.5, ty, tw * 0.5, th, false)
+local logWindow = window.create(term.current(), tx, ty, tw, th, false)
 logWindow.setBackgroundColor(colors.lightBlue)
 logWindow.clear()
 
 Logger.addListener(Logger.fileWriterListener("/logs/main.log"))
 Logger.addListener(Logger.terminalListener(logWindow, Logger.Info))
 
-local mainLogger = Logger.create("main")
+local mainLogger = Mine.mainLogger
 mainLogger.addListener(Logger.printListener(Logger.Error))
 mainLogger.addListener(Logger.loggerListener(Logger.getDefaultLogger()))
 

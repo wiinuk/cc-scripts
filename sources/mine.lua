@@ -1,5 +1,5 @@
 
----@version: 0.4.2
+---@version: 0.4.3
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -14,6 +14,8 @@ local Back = Memoried.Back
 local Right = Memoried.Right
 local Down = Memoried.Down
 local Up = Memoried.Up
+
+local mainLogger = Logger.create("main")
 
 
 ---@return integer|nil slotNumber
@@ -497,10 +499,6 @@ Rules.add {
 
         Memoried.memory.lastCollectMapClock = os.clock()
         collectMissingMapAt(gd)
-
-        local nx, ny, nz = directionToNormal(gd)
-        local x, y, z = mx + nx, my + ny, mz + nz
-        local location = Memoried.getLocation(x, y, z)
     end
 }
 Rules.add {
@@ -829,7 +827,7 @@ Rules.add {
                 checkY == range.maxY and
                 checkZ == range.maxZ
             then
-                Logger.log("mining complete")
+                mainLogger.log("mining complete")
                 Memoried.removeRequest "mining"
                 return
             end
@@ -899,26 +897,26 @@ local function parseMiningOptions(options, arguments)
 end
 
 local function miningCommand(arguments)
-    Logger.log("# mining")
+    mainLogger.log("# mining")
     local options = getDefaultMiningOptions()
     parseMiningOptions(options, arguments)
-    Logger.log("options: ")
+    mainLogger.log("options: ")
 
     local offsetX, offsetY, offsetZ =
         options["offset-x"], options["offset-y"], options["offset-z"]
     local forward, left, back, right, down, up =
         options.forward, options.left, options.back, options.right, options.down, options.up
 
-    if offsetX then Logger.log("- offset-x", offsetX) end
-    if offsetY then Logger.log("- offset-y", offsetY) end
-    if offsetZ then Logger.log("- offset-z", offsetZ) end
-    if down then Logger.log("- down", down) end
-    if up then Logger.log("- up", up) end
-    if forward then Logger.log("- forward", forward) end
-    if back then Logger.log("- back", back) end
-    if right then Logger.log("- right", right) end
-    if left then Logger.log("- left", left) end
-    Logger.log("")
+    if offsetX then mainLogger.log("- offset-x", offsetX) end
+    if offsetY then mainLogger.log("- offset-y", offsetY) end
+    if offsetZ then mainLogger.log("- offset-z", offsetZ) end
+    if down then mainLogger.log("- down", down) end
+    if up then mainLogger.log("- up", up) end
+    if forward then mainLogger.log("- forward", forward) end
+    if back then mainLogger.log("- back", back) end
+    if right then mainLogger.log("- right", right) end
+    if left then mainLogger.log("- left", left) end
+    mainLogger.log("")
 
     local x, y, z = Memoried.currentPosition()
     if offsetX then x = x + offsetX end
@@ -941,6 +939,7 @@ local function miningCommand(arguments)
 end
 
 return {
+    mainLogger = mainLogger,
     miningCommand = miningCommand,
 }
 
