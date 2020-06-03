@@ -1,5 +1,6 @@
 local Vec2 = require "vec2"
 local Ex = require "extensions"
+local Logger = require "logger"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -241,6 +242,7 @@ end
 local function addHistory(data)
     if data.name == "minecraft:chest" then
         local x, y, z = currentPosition()
+        Logger.logInfo("add chest history", x, y, z)
         memory.chestHistory[#memory.chestHistory+1] = { x, y, z }
     end
 end
@@ -539,6 +541,7 @@ local function dropGeneric(drop, count, currentNormal)
     if ok and itemDetail then
         drops[#drops+1] = itemDetail
 
+        Logger.logInfo("add drop history", x, y, z)
         local history = memory.dropHistory
         history[#history+1] = {
             position = { x, y, z },

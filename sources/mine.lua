@@ -1,5 +1,5 @@
 
----@version: 0.4.0
+---@version: 0.4.1
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
@@ -233,6 +233,7 @@ local collectMapInfoPriority = 0.1
 local miningCollectMapInfoPriorityRatio = 1.2
 local equipToolPriorityRatio = 1.5
 local moveToRangePriorityRatio = 1
+local defaultDropChestPriority = 1
 
 ---@param priority number
 ---@param request Request
@@ -648,6 +649,128 @@ Rules.add {
         if not ok then Logger.logDebug("["..self.name.."]", reason) end
     end
 }
+local function locationIsChest(x, y, z)
+    local location = Memoried.getLocation(x, y, z)
+    if not location then return false end
+
+    -- チェスト
+    local inspect = location.inspect
+    if inspect and inspect.name == "minecraft:chest" then return true end
+
+    -- 触ったことがあって、捨てたことがあるならチェスト?
+    if location.detect then
+        local drops = location.drops
+        if drops and 1 < #drops then return true end
+    end
+
+    return false
+end
+local function findChestInMemory()
+
+    -- チェスト履歴から検索
+    local maxSearchCount = 20
+    local chestHistory = Memoried.memory.chestHistory
+    for i = #chestHistory, math.max(1, #chestHistory - maxSearchCount), -1 do
+        local position = chestHistory[i]
+        local x, y, z = position[1], position[2], position[3]
+
+        -- ( 記憶上の ) 最新の情報を取得
+        if locationIsChest(x, y, z) then return x, y, z end
+
+        -- チェストでなかったので履歴から削除
+        table.remove(chestHistory, i)
+        Logger.logInfo("remove chest history", x, y, z)
+    end
+
+    -- 捨て履歴から検索
+    local maxSearchCount = 20
+    local history = Memoried.memory.dropHistory
+
+    for i = #history, math.max(1, #history - maxSearchCount), -1 do
+        local position = history[i].position
+        local x, y, z = position[1], position[2], position[3]
+        if locationIsChest(x, y, z) then return x, y, z end
+    end
+    return
+end
+local function getUsingRatio()
+    local usingRatio = 0
+    for i = 1, 16 do
+        local count = turtle.getItemCount(i)
+        if count ~= 0 then
+            local space = turtle.getItemSpace(i)
+            usingRatio = usingRatio + (count / (count + space)) * (1 / 16)
+        end
+    end
+    return usingRatio
+end
+Rules.add {
+    name = "mining: drop to chest",
+    when = function ()
+        if not Memoried.hasRequest "mining" then return false end
+
+        -- 前回の格納から一定時間が経過するか
+        local previousDropClock = Memoried.memory.previousDropClock or 0
+        local dropSpan = os.clock() - previousDropClock
+
+        -- 最初の 30秒 までは優先度 0
+        -- 次の 120秒 で優先度 1 まで上昇
+        -- 次の 120秒 で優先度 2 まで上昇
+        -- 0s => 0
+        -- 30s => 0
+        -- 90s => 0.5
+        -- 150s => 1
+        -- 270s => 2
+        local dropClockRatio = math.max(0, dropSpan - 30) / 120
+
+        -- 占有率が一定以上になるか
+        local ratio = dropClockRatio + getUsingRatio()
+        if ratio < 0.8 then return false end
+
+        -- そもそもチェストの場所を知らない
+        local x, y, z = findChestInMemory()
+        if not x then return false end
+
+        -- チェストに到達できない
+        local d, mx, my, mz = findNearMovablePosition(x, y, z)
+        if not d then return false end
+
+        local priority = defaultDropChestPriority * ratio
+        return priority, d, mx, my, mz
+    end,
+    action = function(self, d, mx, my, mz)
+
+        -- 移動
+        local ok, reason = mineTo(20, mx, my, mz, true, false)
+        if not ok then return Logger.logInfo("["..self.name.."]", reason) end
+
+        -- 改めてチェストか確認
+        Memoried.getOperationAt(d).inspect()
+        local nx, ny, nz = directionToNormal(d)
+        if not locationIsChest(mx + nx, my + ny, mz + nz) then return end
+
+        -- ドロップ
+        for i = 1, 16 do
+            turtle.select(i)
+            Memoried.getOperationAt(d).drop()
+        end
+    end
+}
+
+-- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
+-- 松明を置く
+
+-- # ルールの評価
+-- - マップ情報が増えた
+-- - 燃料が増えた
+-- - 燃料チェストや燃料が落ちている場所を発見した
+-- - リクエストを達成した
+-- - リクエストの達成度を更新した
+-- - リクエストがあるのに達成度が変化なしだったら減点 ( 行動当たりの時間効率 )
+-- - 採掘リクエスト中
+--   - 範囲内の空気ブロックが増えた
+--   - 範囲内の松明ブロックが増えた
+--   - チェストに入れた数が増えた
 
 ---@type MiningOptions
 local function getDefaultMiningOptions()
@@ -722,21 +845,6 @@ local function miningCommand(arguments)
         range = box
     })
 end
-
--- インベントリが満タンならチェストまで移動して入れる
--- ホームに帰れなくなりそうなら帰るか燃料を探す ( 高優先度 )
-
--- # ルールの評価
--- - マップ情報が増えた
--- - 燃料が増えた
--- - 燃料チェストや燃料が落ちている場所を発見した
--- - リクエストを達成した
--- - リクエストの達成度を更新した
--- - リクエストがあるのに達成度が変化なしだったら減点 ( 行動当たりの時間効率 )
--- - 採掘リクエスト中
---   - 範囲内の空気ブロックが増えた
---   - 範囲内の松明ブロックが増えた
---   - チェストに入れた数が増えた
 
 return {
     miningCommand = miningCommand,
