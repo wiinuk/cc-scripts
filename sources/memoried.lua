@@ -579,7 +579,7 @@ local directionOperations = {
     },
     [Left] = {
         name = "left",
-        detect = detectLeftInMemory,
+        detect = makeTurnAndDo(turnLeft, detect),
         currentNormal = currentLeft,
         dig = makeTurnAndDo(turnLeft, dig),
         move = makeTurnAndDo(turnLeft, move),
@@ -591,7 +591,7 @@ local directionOperations = {
     },
     [Back] = {
         name = "back",
-        detect = detectBackInMemory,
+        detect = makeTurnAndDo(turnRight2, detect),
         currentNormal = currentBack,
         dig = makeTurnAndDo(turnRight2, dig),
         move = makeTurnAndDo(turnRight2, move),
@@ -603,7 +603,7 @@ local directionOperations = {
     },
     [Right] = {
         name = "right",
-        detect = detectRightInMemory,
+        detect = makeTurnAndDo(turnRight, detect),
         currentNormal = currentRight,
         dig = makeTurnAndDo(turnRight, dig),
         move = makeTurnAndDo(turnRight, move),
