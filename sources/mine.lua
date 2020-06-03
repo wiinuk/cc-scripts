@@ -725,7 +725,7 @@ Rules.add {
 
         -- 占有率が一定以上になるか
         local ratio = dropClockRatio + getUsingRatio()
-        if ratio < 0.8 then return false end
+        if ratio < 0.1 then return false end
 
         -- そもそもチェストの場所を知らない
         local x, y, z = findChestInMemory()
