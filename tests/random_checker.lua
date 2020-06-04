@@ -51,15 +51,19 @@ local function convertArbitrary(arbitraryOfInnerValue, fromInnerValue, toInnerVa
 end
 
 local function nilGenerator() return nil end
+
+--- Arbitrary of nil
+---@type Arbitrary<nil>
 local nilArb = {
     name = "nil",
     generator = nilGenerator,
     shrinker = emptyShrinker,
 }
 
-local function positiveIntegerShrinker(n) return wrap(function ()
+local function integerShrinker(n) return wrap(function ()
     if n == 0 then return end
 
+    if n < 0 then yield(math.abs(n)) end
     yield(0)
 
     local i = n
@@ -78,12 +82,29 @@ local function integerGenerator(minValue, maxValue)
     end
 end
 
----@type Arbitrary<byte>
+--- Arbitrary of 8bit positive integer [0,255]
+---@type Arbitrary<integer>
 local byteArb = {
     name = "byte",
     -- TODO: 可搬性
     generator = integerGenerator(0, 255),
-    shrinker = positiveIntegerShrinker,
+    shrinker = integerShrinker,
+}
+
+--- Arbitrary of 53bit integer [-9007199254740992,9007199254740991]
+---@type Arbitrary<integer>
+local int53 = {
+    name = "int53",
+    generator = integerGenerator(-9007199254740992, 9007199254740991),
+    shrinker = integerShrinker,
+}
+
+--- Arbitrary of 32bit integer []
+---@type Arbitrary<integer>
+local int32 = {
+    name = "int32",
+    generator = integerGenerator(-2147483648, 2147483647),
+    shrinker = integerShrinker,
 }
 
 local chars = { ("abc"):byte(1, 3) }
@@ -93,7 +114,8 @@ local function charShrinker(x) return wrap(function ()
     end
 end) end
 
----@type Arbitrary<char>
+--- Arbitrary of positive integer [0..127]
+---@type Arbitrary<integer>
 local charArb = {
     name = "char",
     generator = integerGenerator(0, 127),
@@ -149,6 +171,7 @@ local function arrayShrinker(itemShrinker)
     return shrinkArray
 end
 
+--- Arbitrary of array of T
 ---@generic T
 ---@param arbitrary Arbitrary<T>
 ---@return Arbitrary<T[]> arbitraryOfArray
@@ -166,7 +189,13 @@ end
 local function stringToBytes(s)
     return {string.byte(s, 1, #s)}
 end
+
+--- Arbitrary of string ( char array based )
+---@type Arbitrary<string>
 local stringArb = convertArbitrary(arrayArb(charArb), codePointsToString, stringToBytes, "string")
+
+--- Arbitrary of binary ( byte array based )
+---@type Arbitrary<string>
 local binaryArb = convertArbitrary(arrayArb(byteArb), codePointsToString, stringToBytes, "binary")
 
 ---@class CheckConfig
@@ -311,6 +340,8 @@ return {
     nil_ = nilArb,
     char = charArb,
     byte = byteArb,
+    int32 = int32,
+    int53 = int53,
     string = stringArb,
     binary = binaryArb,
     array = arrayArb,
