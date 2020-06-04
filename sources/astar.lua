@@ -1,6 +1,6 @@
 local Heap = require "heap"
 
----@class AStarKey : integer
+---@alias AStarKey integer
 
 ---@class AStarFinder
 ---@field public goalX integer
