@@ -81,6 +81,12 @@ end
 ---@field public inspect InspectResult|boolean|nil
 ---@field public move boolean|nil
 ---@field public drops ItemDetail[]|nil
+local function clearLocation(location)
+    location.move = nil
+    location.inspect = nil
+    location.detect = nil
+    location.drops = nil
+end
 
 ---@param x number
 ---@param y number
@@ -708,6 +714,7 @@ return {
     dig = dig,
 
     getLocation = getLocation,
+    clearLocation = clearLocation,
 
     detectRightInMemory = detectRightInMemory,
     detectLeftInMemory = detectLeftInMemory,
