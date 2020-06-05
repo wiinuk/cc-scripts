@@ -14,7 +14,7 @@ local function clearTable(table)
 end
 
 local function clearArray(table)
-    for i = 0, #table do
+    for i = #table, 1, -1 do
         table[i] = nil
     end
 end
