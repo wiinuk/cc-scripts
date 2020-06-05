@@ -200,6 +200,9 @@ end
 
 ---@param globalDirection integer
 local function toLocalDirection(globalDirection)
+    if globalDirection == nil then
+        error(debug.traceback())
+    end
     if 1 <= globalDirection and globalDirection <= 4 then
         return (globalDirection - angleY - 1) % 4 + 1
     end
