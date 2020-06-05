@@ -426,10 +426,10 @@ Rules.add {
         local priority = false
         local direction = nil
         for gd = 1, 6 do
-            local priority2, p = whenMine(priority, request, gd)
+            local nextPriority, p = whenMine(priority, request, gd)
             if p then
-                priority = priority2
-                gd = direction
+                priority = nextPriority
+                direction = gd
             end
         end
         return priority, direction
