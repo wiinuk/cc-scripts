@@ -36,8 +36,7 @@ local function write(value, buffer, visitedTables)
         end
         buffer[#buffer+1] = " }"
     elseif t == "string" then
-        -- TODO:
-        buffer[#buffer+1] = '"'..value..'"'
+        buffer[#buffer+1] = string.format("%q", value)
     else
         buffer[#buffer+1] = tostring(value)
     end
