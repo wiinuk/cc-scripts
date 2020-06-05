@@ -123,7 +123,7 @@ function tests.findPathEqualsProperty()
 
         local finder = AStar.newFinder(isMovable)
 
-        local path, state = AStar.start(finder, startX, startX, 0, goalX, goalY, 0, 1)
+        local path, state = AStar.start(finder, startX, startY, 0, goalX, goalY, 0, 1)
         while state == "suspended" do
             path, state = AStar.resume(finder, 1)
         end
