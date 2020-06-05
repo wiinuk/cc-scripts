@@ -56,7 +56,14 @@ local function pop(heap, compare)
     return result
 end
 
+local function peek(heap)
+    local n = #heap
+    if n == 0 then return nil, "empty heap" end
+    return heap[1]
+end
+
 return {
     pop = pop,
     push = push,
+    peek = peek,
 }
