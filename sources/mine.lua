@@ -7,6 +7,7 @@ local Ex = require "extensions"
 local Logger = require "logger"
 local Rules = require "rules"
 local pretty = require "pretty"
+local AStar = require "astar"
 
 local Forward = Memoried.Forward
 local Left = Memoried.Left
@@ -132,6 +133,20 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
             retryCount = retryCount + 1
         end
     end
+end
+
+local DisableDig = true
+local EnableDig = false
+local DisableAttack = true
+local EnableAttack = false
+
+local function goToGoal(maxRetryCount, path, disableDig, disableAttack)
+    for i = 1, #path, 3 do
+        local px, py, pz = path[i], path[i+1], path[i+2]
+        local ok, reason = mineTo(maxRetryCount, px, py, pz, disableDig, disableAttack)
+        if not ok then return ok, reason end
+    end
+    return true
 end
 
 --- 同種のアイテムを重ねてインベントリに空きを作る。
@@ -340,38 +355,68 @@ local function collectMissingMapAt(gd)
     end
 end
 
----@return integer|nil globalDirection
----@return integer mx
----@return integer my
----@return integer mz
-local function findNearMovablePosition(tx, ty, tz)
-    for globalDirection = 1, 6 do
-        local nx, ny, nz = directionToNormal(globalDirection)
-        local mx, my, mz = tx - nx, ty - ny, tz - nz
-        local location = Memoried.getLocation(mx, my, mz)
-        if location and (location.detect == false or location.move == true) then
-            return globalDirection, mx, my, mz
-        end
-    end
-    return
-end
----@param tx integer 対象の世界座標x
----@param ty integer 対象の世界座標y
----@param tz integer 対象の世界座標z
----@return integer|nil globalDirection `mx, my, mz` から見た、`tx, ty, tz` の世界方向
----@return integer mx 対象のそばの、移動できるブロックの世界座標x
----@return integer my 対象のそばの、移動できるブロックの世界座標y
----@return integer mz 対象のそばの、移動できるブロックの世界座標z
-local function findNearMovablePositionIfMissingMap(tx, ty, tz)
-    local location = Memoried.getLocation(tx, ty, tz)
-    if isMapMissing(location) then
-        -- 探査していない情報がある
-        local d, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-        if d then return d, mx, my, mz end
-    end
-    return
+local function isMovableInMemory(x, y, z)
+    local location = Memoried.getLocation(x, y, z)
+    return location and (location.detect == false or location.move == true)
 end
 
+local finderMaxStep = 100
+-- TODO: 探索器や経路をキャッシュする
+local function getPath(sx, sy, sz, gx, gy, gz)
+
+    local finder = AStar.newFinder(isMovableInMemory)
+    AStar.initialize(finder, sx, sy, sz, gx, gy, gz)
+
+    local path, state = AStar.resume(finder, finderMaxStep)
+    if path then return path end
+    if state == "ready" then return nil end
+    if state == "suspended" then return nil, AStar.getBestPath(finder) end
+    error("unknown finder state: "..tostring(state))
+end
+
+--- まず対象位置のそばにある移動可能位置を特定する。
+--- 次に、タートルの現在位置から移動可能位置へのパスと、移動可能位置から見た対象位置の大域方向を返す
+---
+--- ---
+--- ### 例:
+--- 前提
+--- - 現在 (0,0,0), 対象 (0,0,3) とする
+--- - 全ての位置は移動可能とする
+---
+--- 処理
+--- - 対象のそばの (0,0,2) を移動可能位置と決定する
+--- - 移動可能位置 (0,0,2) をゴールとする
+--- - 現在の (0,0,0) から (0,0,2) へのパスを検索する
+--- - パス `{ 0,0,0, 0,0,1, 0,0,2 }` と、ゴールから見た対象の方向 `Forward` が返る
+---@param tx integer
+---@param ty integer
+---@param tz integer
+---@return boolean findCompletePath
+---@return integer[] path
+---@return integer globalDirection
+local function findNearMovablePath(tx, ty, tz)
+
+    local lastBestPath = nil
+    local lastBestPathDirection = nil
+    for globalDirection = 1, 6 do
+        -- ゴール候補の移動可能な場所をさがす
+
+        local nx, ny, nz = directionToNormal(globalDirection)
+        local mx, my, mz = tx - nx, ty - ny, tz - nz
+
+        -- パスのゴールとなる移動先は、移動可能な場所を選ぶ必要がある
+        if isMovableInMemory(mx, my, mz) then
+            local cx, cy, cz = Memoried.currentPosition()
+            local path, bestPath = getPath(cx, cy, cz, mx, my, mz)
+            if path then return true, path, globalDirection end
+            if bestPath then
+                lastBestPath = bestPath
+                lastBestPathDirection = globalDirection
+            end
+        end
+    end
+    return false, lastBestPath, lastBestPathDirection
+end
 Rules.add {
     name = "mining: dig around",
     when = function ()
@@ -398,47 +443,48 @@ Rules.add {
         local range = request.range
         if not range then return false end
 
-        -- 周りを探索
+        -- 周りをランダムに探索
         local x, y, z = Memoried.currentPosition()
         x = Memoried.memory.lastFindX or x
         y = Memoried.memory.lastFindY or y
         z = Memoried.memory.lastFindZ or z
-        for dx = -1, 1 do
-            for dy = -1, 1 do
-                for dz = -1, 1 do
-                    local x, y, z = x + dx, y + dy, z + dz
-                    if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
-                        Memoried.memory.lastFindX = x
-                        Memoried.memory.lastFindY = y
-                        Memoried.memory.lastFindZ = z
-                        return 0.5
-                    end
+        local dx, dy, dz = math.random(-2, 2), math.random(-2, 2), math.random(-2, 2)
+        local x, y, z = x + dx, y + dy, z + dz
+        if Box3.vsPoint(range, x, y, z) and Memoried.canDigInMemory(x, y, z) then
+            local complete, path = findNearMovablePath(x, y, z)
+            if path then
+                if complete then
+                    Memoried.memory.lastFindX = x
+                    Memoried.memory.lastFindY = y
+                    Memoried.memory.lastFindZ = z
+                    return 0.5, path
+                else
+                    return 0.4, path
                 end
             end
         end
 
         -- ランダムに探索
-        local maxSearchCount = 20
-        for _ = 1, maxSearchCount do
-            local x = math.random(range.minX, range.maxX)
-            local y = math.random(range.minY, range.maxY)
-            local z = math.random(range.minZ, range.maxZ)
-            if Memoried.canDigInMemory(x, y, z) then
-                Memoried.memory.lastFindX = x
-                Memoried.memory.lastFindY = y
-                Memoried.memory.lastFindZ = z
-                return 0.5
+        local x = math.random(range.minX, range.maxX)
+        local y = math.random(range.minY, range.maxY)
+        local z = math.random(range.minZ, range.maxZ)
+        if Memoried.canDigInMemory(x, y, z) then
+            local complete, path = findNearMovablePath(x, y, z)
+            if path then
+                if complete then
+                    Memoried.memory.lastFindX = x
+                    Memoried.memory.lastFindY = y
+                    Memoried.memory.lastFindZ = z
+                    return 0.5, path
+                else
+                    return 0.4, path
+                end
             end
         end
         return false
     end,
-    action = function ()
-        local ok, reason = mineTo(
-            20,
-            Memoried.memory.lastFindX,
-            Memoried.memory.lastFindY,
-            Memoried.memory.lastFindZ
-        )
+    action = function (_, path)
+        local ok, reason = goToGoal(20, path, EnableDig, EnableAttack)
         if not ok then Logger.logError(reason) end
     end
 }
@@ -459,6 +505,7 @@ Rules.add {
         end
     end
 }
+
 Rules.add {
     name = "mining: collect map",
     when = function ()
@@ -468,50 +515,59 @@ Rules.add {
         local range = request.range
         if not range then return false end
 
-        -- 周りを探索
+        -- ランダムに周りのブロックを選択
         local cx, cy, cz = Memoried.currentPosition()
-        for dx = -2, 2 do
-            for dy = -2, 2 do
-                for dz = -2, 2 do
-                    local tx, ty, tz = cx + dx, cy + dy, cz + dz
-                    if Box3.vsPoint(range, tx, ty, tz) then
-                        -- 採掘範囲内で
-                        local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
-                        if direction then
-                            -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
-                            return
-                                collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
-                                direction,
-                                mx, my, mz
-                        end
+        local dx, dy, dz = math.random(-2, 2), math.random(-2, 2), math.random(-2, 2)
+        local tx, ty, tz = cx + dx, cy + dy, cz + dz
+
+        if Box3.vsPoint(range, tx, ty, tz) then
+            -- ブロックが採掘範囲内で
+
+            local location = Memoried.getLocation(tx, ty, tz)
+            if isMapMissing(location) then
+                -- マップ情報が無くて
+
+                local complete, path, direction = findNearMovablePath(tx, ty, tz)
+                if path then
+                    -- そのブロックに到達できる
+                    if complete then
+                        return
+                            collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
+                            direction, path
+                    else
+                        return
+                            collectMapInfoPriority * miningCollectMapInfoPriorityRatio * 0.9,
+                            direction, path
                     end
                 end
             end
         end
 
-        -- ランダムに探索
-        local maxSearchCount = 20
-        for _ = 1, maxSearchCount do
-            local tx = math.random(range.minX, range.maxX)
-            local ty = math.random(range.minY, range.maxY)
-            local tz = math.random(range.minZ, range.maxZ)
-            -- 採掘範囲内で
-
-            local direction, mx, my, mz = findNearMovablePositionIfMissingMap(tx, ty, tz)
-            if direction then
-                -- マップ情報が無くて、そのブロックの周りに行けるブロックがある
-                return
-                    collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
-                    direction,
-                    mx, my, mz
+        -- 採掘範囲内をランダムに探索
+        local tx = math.random(range.minX, range.maxX)
+        local ty = math.random(range.minY, range.maxY)
+        local tz = math.random(range.minZ, range.maxZ)
+        local location = Memoried.getLocation(tx, ty, tz)
+        if isMapMissing(location) then
+            local complete, path, direction = findNearMovablePath(tx, ty, tz)
+            if path then
+                if complete then
+                    return
+                        collectMapInfoPriority * miningCollectMapInfoPriorityRatio,
+                        direction,
+                        path
+                else
+                    return
+                        collectMapInfoPriority * miningCollectMapInfoPriorityRatio * 0.9,
+                        direction,
+                        path
+                end
             end
         end
         return false
     end,
-    action = function(_, gd, mx, my, mz)
-
-        -- 攻撃しないで移動
-        local ok, reason = mineTo(20, mx, my, mz, false, true)
+    action = function(_, gd, path)
+        local ok, reason = goToGoal(20, path, EnableDig, DisableAttack)
         if not ok then Logger.logError(reason) end
 
         Memoried.memory.lastCollectMapClock = os.clock()
@@ -627,13 +683,15 @@ Rules.add {
         local tx, ty, tz = findItemInNearDrop(isMiningTool)
         -- TODO: アイテムが落ちた方向を追跡する
         if tx then
-            local gd, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-            if gd then return defaultRequestPriority * equipToolPriorityRatio, "drop", gd, mx, my, mz end
+            local complete, path, gd = findNearMovablePath(tx, ty, tz)
+            local ratio = 1
+            if not complete then ratio = 0.9 end
+            if path then return defaultRequestPriority * equipToolPriorityRatio * ratio, "drop", gd, path end
         end
 
         return false
     end,
-    action = function (self, type, v1, v2, v3, v4)
+    action = function (self, type, v1, v2)
         if type == "inventory" then
             local slotNumber = v1
 
@@ -650,10 +708,10 @@ Rules.add {
             return Memoried.getOperation(direction).equip()
         end
         if type == "drop" then
-            local gd, x, y, z = v1, v2, v3, v4
+            local gd, path = v1, v2
 
             -- その場所まで移動
-            local ok, reason = mineTo(20, x, y, z, true, true)
+            local ok, reason = goToGoal(20, path, DisableDig, DisableAttack)
             if not ok then Logger.logDebug(self.name, reason) return end
 
             -- アイテムをチェストや地面から回収
@@ -685,8 +743,17 @@ Rules.add {
         local y = Ex.clamp(cy, range.minY, range.maxY)
         local z = Ex.clamp(cz, range.minZ, range.minZ)
 
+        local path, bestPath = getPath(cx, cy, cz, x, y, z)
+        local ok, reason
+
         -- 掘らない
-        local ok, reason = mineTo(10, x, y, z, true, false)
+        if path then
+            ok, reason = goToGoal(20, path, DisableDig, EnableAttack)
+        elseif bestPath then
+            ok, reason = goToGoal(20, bestPath, DisableDig, EnableAttack)
+        else
+            ok, reason = mineTo(10, x, y, z, DisableDig, EnableAttack)
+        end
 
         if not ok then Logger.logDebug("["..self.name.."]", reason) end
     end
@@ -774,22 +841,27 @@ Rules.add {
         if not x then return false end
 
         -- チェストに到達できない
-        local d, mx, my, mz = findNearMovablePosition(x, y, z)
-        if not d then return false end
+        local complete, path, direction = findNearMovablePath(x, y, z)
+        if not path then return false end
 
+        if not complete then ratio = ratio * 0.9 end
         local priority = defaultDropChestPriority * ratio
-        return priority, d, mx, my, mz
+        return priority, direction, path
     end,
-    action = function(self, d, mx, my, mz)
+    action = function(self, d, path)
 
         -- 移動
-        local ok, reason = mineTo(20, mx, my, mz, true, false)
+        local ok, reason = goToGoal(20, path, DisableDig, EnableAttack)
         if not ok then return Logger.logInfo("["..self.name.."]", reason) end
 
         -- 改めてチェストか確認
         Memoried.getOperationAt(d).inspect()
+        local cx, cy, cz = Memoried.currentPosition()
         local nx, ny, nz = directionToNormal(d)
-        if not locationIsChest(mx + nx, my + ny, mz + nz) then return end
+        local tx, ty, tz = cx + nx, cy + ny, cz + nz
+        if not locationIsChest(tx, ty, tz) then
+            return Logger.logInfo("["..self.name.."]", tx, ty, tz, "is not chest")
+        end
 
         -- ドロップ
         for i = 1, 16 do
@@ -801,7 +873,9 @@ Rules.add {
         Memoried.memory.previousDropClock = os.clock()
     end
 }
-local function isMined(location)
+local function isMined(x, y, z)
+    local location = Memoried.getLocation(x, y, z)
+    if not location then return false end
     local inspect = location.inspect
     if location.move == true or inspect == false then return true end
     if inspect == nil then return false end
@@ -827,14 +901,14 @@ Rules.add {
         local maxCheckCount = 100
         local checkCount = 0
         while checkCount <= maxCheckCount do
-            local location = Memoried.getLocation(checkX, checkY, checkZ)
-            if not location or not isMined(location) then
+            if not isMined(checkX, checkY, checkZ) then
                 request.checkX = checkX
                 request.checkY = checkY
                 request.checkZ = checkZ
                 Logger.logDebug("find mining point: ", checkX, checkY, checkZ, " in ", pretty(range))
-                local ok, reason = mineTo(20, checkX, checkY, checkZ, true, false)
-                if not ok then Logger.logError("["..self.name.."]", "mineTo failed", reason) end
+                local _, path = findNearMovablePath(checkX, checkY, checkZ)
+                local ok, reason = goToGoal(20, path, EnableDig, DisableAttack)
+                if not ok then Logger.logError("["..self.name.."]", "goToGoal failed", reason) end
                 return
             end
             checkCount = checkCount + 1
@@ -861,6 +935,7 @@ Rules.add {
                 checkX = checkX + 1
             end
         end
+        request.checkX, request.checkY, request.checkZ = checkX, checkY, checkZ
         Logger.logDebug("tired at ", checkX, checkY, checkZ, "("..tostring(maxCheckCount).." checks)", pretty(range))
         return
     end
@@ -977,12 +1052,13 @@ Rules.add {
 
         -- TODO: アイテムが落ちた方向を追跡する
         if tx then
-            local gd, mx, my, mz = findNearMovablePosition(tx, ty, tz)
-            if gd then return 1, "drop", gd, mx, my, mz end
+            local complete, path, gd = findNearMovablePath(tx, ty, tz)
+            local p = 1
+            if not complete then p = 0.9 end
+            if gd then return p, "drop", gd, path end
         end
-
     end,
-    action = function(self, type, v1, v2, v3, v4)
+    action = function(self, type, v1, v2)
         if type == "inventory" then
             local slotNumber = v1
             if turtle.getSelectedSlot() ~= slotNumber then
@@ -991,10 +1067,10 @@ Rules.add {
             turtle.refuel()
         end
         if type == "drop" then
-            local gd, x, y, z = v1, v2, v3, v4
+            local gd, path = v1, v2
 
             -- その場所まで移動
-            local ok, reason = mineTo(20, x, y, z, true, true)
+            local ok, reason = goToGoal(20, path, DisableDig, DisableAttack)
             if not ok then Logger.logDebug(self.name, reason) return end
 
             -- アイテムをチェストや地面から回収
