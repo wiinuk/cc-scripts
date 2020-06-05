@@ -31,10 +31,12 @@ end
 
 function tests.startAndResumeSimple()
     local finder = AStar.newFinder(isMovable)
-    local path, state = AStar.start(finder, 1,1,0, 1,2,0)
+    AStar.initialize(finder, 1,1,0, 1,2,0)
+    local path, state = AStar.resume(finder)
     Assert.equals({ path = path, state = state }, { path = { 1,1,0, 1,2,0, }, state = "ready" })
 
-    local path, state = AStar.start(finder, 1,1,0, 1,2,0)
+    AStar.initialize(finder, 1,1,0, 1,2,0)
+    local path, state = AStar.resume(finder)
     Assert.equals({ path = path, state = state }, { path = { 1,1,0, 1,2,0, }, state = "ready" })
 end
 
@@ -123,14 +125,16 @@ function tests.findPathEqualsProperty()
 
         local finder = AStar.newFinder(isMovable)
 
-        local path, state = AStar.start(finder, startX, startY, 0, goalX, goalY, 0, 1)
+        AStar.initialize(finder, startX, startY, 0, goalX, goalY, 0)
+        local path, state = AStar.resume(finder, 1)
         while state == "suspended" do
             path, state = AStar.resume(finder, 1)
         end
         Assert.equals(state, "ready")
         Assert.equals(path, expected, "first\n"..prettyMap(isMovable, startX, startY, goalX, goalY, expected))
 
-        local path, state = AStar.start(finder, startX, startY, 0, goalX, goalY, 0, 1)
+        AStar.initialize(finder, startX, startY, 0, goalX, goalY, 0)
+        local path, state = AStar.resume(finder, 1)
         while state == "suspended" do
             path, state = AStar.resume(finder, 1)
         end

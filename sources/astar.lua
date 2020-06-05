@@ -141,6 +141,13 @@ local function readyToSuspended(self, goalX, goalY, goalZ)
     self.state = "suspended"
     self.goalX, self.goalY, self.goalZ = goalX, goalY, goalZ
 end
+
+local function getBestPath(self)
+    local k = Heap.peek(self.opens)
+    if k then return makePath(self, k), self.positionToScore[k] end
+    return
+end
+
 local function findCore(self, maxStep)
     local step = 1
     local compareNodeOfCost = self.compareNodeOfCost
@@ -188,16 +195,14 @@ end
 ---@param goalX integer
 ---@param goalY integer
 ---@param goalZ integer
----@param maxStep integer|nil
 ---@return integer[] pathOrNil
 ---@return string lastFinderState
-local function start(finder, startX, startY, startZ, goalX, goalY, goalZ, maxStep)
+local function initialize(finder, startX, startY, startZ, goalX, goalY, goalZ)
     if finder.state ~= "ready" then return error("invalid state '"..finder.state.."', requires: 'ready'") end
     readyToSuspended(finder, goalX, goalY, goalZ)
 
     local startKey = positionToKey(startX, startY, startZ)
     open(finder, startKey)
-    return findCore(finder, maxStep or (1/0))
 end
 
 --- requires: 'suspended' state
@@ -220,14 +225,15 @@ end
 ---@return integer[] pathOrNil
 local function findPath(isMovable, startX, startY, startZ, goalX, goalY, goalZ)
     local finder = newFinder(isMovable)
-    local result = start(finder, startX, startY, startZ, goalX, goalY, goalZ)
-    return result
+    initialize(finder, startX, startY, startZ, goalX, goalY, goalZ)
+    return (resume(finder))
 end
 
 return {
     isValidPosition = isValidPosition,
     newFinder = newFinder,
-    start = start,
+    initialize = initialize,
     resume = resume,
     findPath = findPath,
+    getBestPath = getBestPath,
 }
