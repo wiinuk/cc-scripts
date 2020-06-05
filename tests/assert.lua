@@ -89,6 +89,13 @@ local function failure(message, level)
     assert(false, debug.traceback(message, level + 1))
 end
 
+local function buildMessage(message)
+    if message
+    then return ", message: '"..message.."'"
+    else return ""
+    end
+end
+
 --- `assert(deepEquals(nan, nan))`
 --- `assert(deepEquals({x=1,y=2}, {x=1,y=2}))`
 ---@generic T
@@ -102,11 +109,7 @@ local function deepEquals(a, b, message)
         if path ~= "" then
             location = ", at: `"..path.."`, left: "..pretty(diffA)..", right: "..pretty(diffB)
         end
-        if message
-        then message = ", message: '"..message.."'"
-        else message = ""
-        end
-        failure("deepEquals("..pretty(a)..", "..pretty(b)..")"..location..message, 2)
+        failure("deepEquals("..pretty(a)..", "..pretty(b)..")"..location..buildMessage(message), 2)
     end
 end
 
@@ -118,11 +121,16 @@ end
 ---@param message string|nil
 local function equals(a, b, message)
     if not (a == b) then
-        if message
-        then message = ", message: '"..message.."'"
-        else message = ""
-        end
-        failure(pretty(a).." == "..pretty(b)..message, 2)
+        failure(pretty(a).." == "..pretty(b)..buildMessage(message), 2)
+    end
+end
+
+---@param action fun(): any
+---@param message string|nil
+local function throws(action, message)
+    local ok, reason = pcall(action)
+    if ok then
+        failure("throws(...), actual result: "..pretty(reason)..buildMessage(message), 2)
     end
 end
 
@@ -165,5 +173,6 @@ return {
     shallowEquals = equals,
     equals = deepEquals,
     failure = failure,
+    throws = throws,
     runTests = runTests,
 }
