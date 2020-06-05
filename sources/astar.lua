@@ -3,11 +3,11 @@ local Heap = require "heap"
 ---@alias AStarKey integer
 
 ---@class AStarFinder
+---@field public state string
 ---@field public goalX integer
 ---@field public goalY integer
 ---@field public goalZ integer
----@field public isWall fun(x: integer, y: integer, z: integer): boolean
----@field public hCost fun(x: integer, y: integer, z: integer, goalX: integer, goalY: integer, goalZ: integer): number
+---@field public isMovable fun(x: integer, y: integer, z: integer): boolean
 ---@field public opens table<integer, AStarKey> @heap
 
 ---@field public compareNodeOfCost fun(a: AStarKey, b: AStarKey): number
@@ -49,10 +49,6 @@ local function keyToPosition(key)
     return x, y, z
 end
 
-local function hCost(x, y, z, goalX, goalY, goalZ)
-    return (goalX - x) + (goalY - y) + (goalZ - z)
-end
-
 local function printNode(self, message, key)
     local x, y = keyToPosition(key)
     local cost = self.positionToCost[key]
@@ -68,15 +64,13 @@ local function open(self, key, parentKey)
     self.positionToCost[key] = cost
 
     local x, y, z = keyToPosition(key)
-    local hCost = self.hCost(
-        x, y, z,
-        self.goalX, self.goalY, self.goalZ
-    )
+
     -- static weighing
+    local hCost = (self.goalX - x) + (self.goalY - y) + (self.goalZ - z)
     self.positionToScore[key] = cost + hCost * 5
 
     Heap.push(self.opens, key, self.compareNodeOfCost)
-    -- printNode(self, "open", key)
+    if self._debug then printNode(self, "open", key) end
 end
 
 local function reverse(xs)
@@ -106,14 +100,17 @@ local neighborNormals = {
     0,-1,0,
     0,0,-1,
 }
-local function findPath(isWall, startX, startY, startZ, goalX, goalY, goalZ)
+
+---@param isMovable fun(x: integer, y: integer, z: integer): boolean
+---@return AStarFinder
+local function newFinder(isMovable)
     ---@type AStarFinder
     local self = {
-        goalX = goalX,
-        goalY = goalY,
-        goalZ = goalZ,
-        isWall = isWall,
-        hCost = hCost,
+        state = "ready",
+        goalX = nil,
+        goalY = nil,
+        goalZ = nil,
+        isMovable = isMovable,
         opens = {},
 
         positionToCost = {},
@@ -121,36 +118,116 @@ local function findPath(isWall, startX, startY, startZ, goalX, goalY, goalZ)
         positionToStatus = {},
         positionToParent = {},
     }
-
     function self.compareNodeOfCost(a, b)
         local c = self.positionToScore[b] - self.positionToScore[a]
         if c ~= 0 then return c end
         return self.positionToCost[b] - self.positionToCost[a]
     end
+    return self
+end
 
-    local startKey = positionToKey(startX, startY, startZ)
-    open(self, startKey)
+local function suspendedToReady(self)
+    self.state = "ready"
+    self.goalX = nil
+    self.goalY = nil
+    self.goalZ = nil
+    self.opens = {}
+    self.positionToStatus = {}
+    self.positionToCost = {}
+    self.positionToScore = {}
+    self.positionToParent = {}
+end
+local function readyToSuspended(self, goalX, goalY, goalZ)
+    self.state = "suspended"
+    self.goalX, self.goalY, self.goalZ = goalX, goalY, goalZ
+end
+local function findCore(self, maxStep)
+    local step = 1
+    local compareNodeOfCost = self.compareNodeOfCost
+    local goalX, goalY, goalZ = self.goalX, self.goalY, self.goalZ
+    local isMovable = self.isMovable
+    local positionToStatus = self.positionToStatus
+    local opens = self.opens
+    local pop = Heap.pop
+    local isDebugMode = self._debug
 
-    while true do
-        local pk = Heap.pop(self.opens, self.compareNodeOfCost)
-        if not pk then return false end
+    while step <= maxStep do
+        local pk = pop(opens, compareNodeOfCost)
+        if not pk then
+            suspendedToReady(self)
+            return nil, self.state
+        end
+
         local px, py, pz = keyToPosition(pk)
 
-        -- printNode(self, "pop", pk)
-        if px == self.goalX and py == self.goalY and pz == self.goalZ then return makePath(self, pk) end
+        if isDebugMode then printNode(self, "pop", pk) end
+        if px == goalX and py == goalY and pz == goalZ then
+            local path = makePath(self, pk)
+            suspendedToReady(self)
+            return path, self.state
+        end
 
         for i = 1, #neighborNormals, 3 do
             local x, y, z = px + neighborNormals[i], py + neighborNormals[i+1], pz + neighborNormals[i+2]
-            if not isWall(x, y, z) then
+            if isMovable(x, y, z) then
                 open(self, positionToKey(x, y, z), pk)
             end
         end
-        self.positionToStatus[pk] = Closed
-        -- printNode(self, "closed", pk)
+        positionToStatus[pk] = Closed
+        if isDebugMode then printNode(self, "closed", pk) end
+        step = step + 1
     end
+    return nil, self.state
+end
+
+--- requires: 'ready' state
+---@param finder AStarFinder
+---@param startX integer
+---@param startY integer
+---@param startZ integer
+---@param goalX integer
+---@param goalY integer
+---@param goalZ integer
+---@param maxStep integer|nil
+---@return integer[] pathOrNil
+---@return string lastFinderState
+local function start(finder, startX, startY, startZ, goalX, goalY, goalZ, maxStep)
+    if finder.state ~= "ready" then return error("invalid state '"..finder.state.."', requires: 'ready'") end
+    readyToSuspended(finder, goalX, goalY, goalZ)
+
+    local startKey = positionToKey(startX, startY, startZ)
+    open(finder, startKey)
+    return findCore(finder, maxStep or (1/0))
+end
+
+--- requires: 'suspended' state
+---@param finder AStarFinder
+---@param maxStep integer|nil
+---@return integer[] pathOrNil
+---@return string lastFinderState
+local function resume(finder, maxStep)
+    if finder.state ~= "suspended" then return error("invalid state '"..finder.state.."', requires: 'suspended'") end
+    return findCore(finder, maxStep or (1/0))
+end
+
+---@param isMovable fun(x: integer, y: integer, z: integer): boolean
+---@param startX integer
+---@param startY integer
+---@param startZ integer
+---@param goalX integer
+---@param goalY integer
+---@param goalZ integer
+---@return integer[] pathOrNil
+local function findPath(isMovable, startX, startY, startZ, goalX, goalY, goalZ)
+    local finder = newFinder(isMovable)
+    local result = start(finder, startX, startY, startZ, goalX, goalY, goalZ)
+    return result
 end
 
 return {
     isValidPosition = isValidPosition,
+    newFinder = newFinder,
+    start = start,
+    resume = resume,
     findPath = findPath,
 }
