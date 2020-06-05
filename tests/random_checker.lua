@@ -1,3 +1,4 @@
+package.path = package.path..";../sources/?.lua"
 local Ex = require "extensions"
 local pretty = require "pretty"
 ---@class T
@@ -77,8 +78,7 @@ end
 
 local function integerGenerator(minValue, maxValue)
     return function (size)
-        local size = modf(size)
-        return math.random(minValue, max(minValue, min(maxValue, size)))
+        return math.random(minValue, max(minValue, min(maxValue, (modf(size)))))
     end
 end
 
@@ -122,14 +122,23 @@ local charArb = {
     shrinker = charShrinker,
 }
 
+local function generateArrayOfLength(length, itemGenerator, size)
+    local result = {}
+    for i = 1, length do result[i] = itemGenerator((modf(size / 2))) end
+    return result
+end
 ---@generic T
 ---@param itemGenerator fun(size: number): T
 local function arrayGenerator(itemGenerator)
-    return function (size)
-        local result = {}
+    return function(size)
         local length = math.random(0, max(0, size))
-        for i = 1, length do result[i] = itemGenerator(modf(size / 2)) end
-        return result
+        return generateArrayOfLength(length, itemGenerator, size)
+    end
+end
+
+local function fixedLengthArrayGenerator(itemGenerator, length)
+    return function(size)
+        return generateArrayOfLength(length, itemGenerator, size)
     end
 end
 
@@ -171,6 +180,19 @@ local function arrayShrinker(itemShrinker)
     return shrinkArray
 end
 
+local function fixedLengthArrayShrinker(itemShrinker)
+    return function(items) return wrap(function()
+        for i, item in ipairs(items) do
+            for smallItem in itemShrinker(item) do
+                local small = {unpack(items)}
+                small[i] = smallItem
+                yield(small)
+            end
+        end
+    end)
+    end
+end
+
 --- Arbitrary of array of T
 ---@generic T
 ---@param arbitrary Arbitrary<T>
@@ -180,6 +202,19 @@ local function arrayArb(arbitrary)
         name = "array<"..(arbitrary.name or "?")..">",
         generator = arrayGenerator(arbitrary.generator),
         shrinker = arrayShrinker(arbitrary.shrinker),
+    }
+end
+
+--- Arbitrary of fixed length array of T
+---@generic T
+---@param arbitrary Arbitrary<T>
+---@param length integer
+---@return Arbitrary<T[]> arbitraryOfArray
+local function fixedLengthArrayArb(arbitrary, length)
+    return {
+        name = "fixedLengthArray<"..(arbitrary.name or "?")..", "..tostring(length)..">",
+        generator = fixedLengthArrayGenerator(arbitrary.generator, length),
+        shrinker = fixedLengthArrayShrinker(arbitrary.shrinker),
     }
 end
 
@@ -302,7 +337,11 @@ local function check(arbitrary, test, config)
             printError(pp(shrinkValue))
         end
         printError("reason:")
-        printError(pp(shrinkReason))
+        if type(shrinkReason) == "string" then
+            printError(shrinkReason)
+        else
+            printError(pp(shrinkReason))
+        end
     end
 
     local seed = randomSeed or (os.clock() * 1000)
@@ -344,6 +383,7 @@ return {
     int53 = int53,
     string = stringArb,
     binary = binaryArb,
+    fixedLengthArray = fixedLengthArrayArb,
     array = arrayArb,
 
     _convertArbitrary = convertArbitrary,
