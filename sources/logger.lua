@@ -91,6 +91,10 @@ local function initLogFile(self)
     self._logFile = io.open(self._logPath, "w+") or true
 end
 local function writeLog(self, level, ...)
+    if self._logFile and 8 < math.random(1, 10) and not fs.exists(self._logPath) then
+        self._logFile:close()
+        self._logFile = nil
+    end
     if not self._logFile then initLogFile(self) end
     local logFile = self._logFile
     if logFile == true then return end
