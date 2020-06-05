@@ -741,7 +741,7 @@ Rules.add {
         local cx, cy, cz = Memoried.currentPosition()
         local x = Ex.clamp(cx, range.minX, range.maxX)
         local y = Ex.clamp(cy, range.minY, range.maxY)
-        local z = Ex.clamp(cz, range.minZ, range.minZ)
+        local z = Ex.clamp(cz, range.minZ, range.maxZ)
 
         local path, bestPath = getPath(cx, cy, cz, x, y, z)
         local ok, reason
