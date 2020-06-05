@@ -488,9 +488,9 @@ Rules.add {
                     Memoried.memory.lastFindX = x
                     Memoried.memory.lastFindY = y
                     Memoried.memory.lastFindZ = z
-                    return 0.5, path
+                    return 0.3, path
                 else
-                    return 0.4, path
+                    return 0.2, path
                 end
             end
         end
@@ -980,7 +980,7 @@ local function findCombustibleInInventory()
 
     local itemToFuelLevel = Memoried.memory.itemToFuelLevel
     for i = 1, 16 do
-        local item = turtle.getItemDetail()
+        local item = turtle.getItemDetail(i)
         if item then
             local name = item.name
             local combustible = itemToFuelLevel[name]
