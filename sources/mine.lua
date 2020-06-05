@@ -907,8 +907,12 @@ Rules.add {
                 request.checkZ = checkZ
                 Logger.logDebug("find mining point: ", checkX, checkY, checkZ, " in ", pretty(range))
                 local _, path = findNearMovablePath(checkX, checkY, checkZ)
-                local ok, reason = goToGoal(20, path, EnableDig, DisableAttack)
-                if not ok then Logger.logError("["..self.name.."]", "goToGoal failed", reason) end
+                if path then
+                    local ok, reason = goToGoal(20, path, EnableDig, DisableAttack)
+                    if not ok then
+                        Logger.logError("["..self.name.."]", "goToGoal failed", reason)
+                    end
+                end
                 return
             end
             checkCount = checkCount + 1
