@@ -32,6 +32,16 @@ local function deepDiff(a, b, path, visitedTablesA, visitedTablesB)
     -- nan
     if at == "number" and a ~= a and b ~= b then return true end
 
+    if at == "string" then
+        for i = 1, math.max(#a, #b) do
+            local ac = string.sub(a, i, i)
+            local bc = string.sub(b, i, i)
+            if ac ~= bc then
+                return false, path..":sub("..tostring(i)..", "..tostring(i)..")", tostring(ac), tostring(bc)
+            end
+        end
+    end
+
     if at == "table" then
         if visitedTablesA[a] == true or visitedTablesB[b] == true then
             return false, "cycle("..path..")", a, b
@@ -75,7 +85,7 @@ end
 ---@param level integer
 ---@overload fun(message: string): nil
 local function failure(message, level)
-    if level == nil then level = 1 end
+    level = level or 1
     assert(false, debug.traceback(message, level + 1))
 end
 
@@ -90,13 +100,13 @@ local function deepEquals(a, b, message)
     if not ok then
         local location = ""
         if path ~= "" then
-            location = ", at: `"..path.."`, a: "..pretty(diffA)..", b: "..pretty(diffB)
+            location = ", at: `"..path.."`, left: "..pretty(diffA)..", right: "..pretty(diffB)
         end
         if message
-        then message = "'"..message.."', "
+        then message = ", message: '"..message.."'"
         else message = ""
         end
-        failure(message.."deepEquals("..pretty(a)..", "..pretty(b)..")"..location, 2)
+        failure("deepEquals("..pretty(a)..", "..pretty(b)..")"..location..message, 2)
     end
 end
 
@@ -109,10 +119,10 @@ end
 local function equals(a, b, message)
     if not (a == b) then
         if message
-        then message = "'"..message.."', "
+        then message = ", message: '"..message.."'"
         else message = ""
         end
-        failure(message..pretty(a).." == "..pretty(b), 2)
+        failure(pretty(a).." == "..pretty(b)..message, 2)
     end
 end
 
