@@ -9,17 +9,30 @@ local Logger = require "logger"
 
 ---@type Rule[]
 local rules = {}
+local function reset()
+    Ex.clearArray(rules)
+end
 
 ---@param rule Rule
 local function add(rule)
     rules[#rules+1] = rule
 end
 
-local function evaluateRules()
+
+---@param nonMatchHandler fun(): boolean
+local function evaluateRules(nonMatchHandler)
     local minSleepTime = 0.5
     local maxSleepTime = 10
     local sleepTime = minSleepTime
 
+    nonMatchHandler = nonMatchHandler or function()
+        Logger.log("available rule is not found.")
+        sleepTime = math.min(sleepTime * 2, maxSleepTime)
+        Logger.log("sleep", tostring(sleepTime).."s")
+        os.sleep(sleepTime)
+    end
+
+    local runningThreadCount = 0
     local maxPriorityRuleCount = 0
     ---@type Rule[]
     local maxPriorityRules = {}
@@ -39,7 +52,7 @@ local function evaluateRules()
 
                 maxPriorityRules[maxPriorityRuleCount] = rule
 
-                -- 6 = 固定長の戻り値個数(5) + 残りの可変長戻り値を格納する配列(1)
+                -- 6 = 5(固定長の戻り値個数) + 1(残りの可変長戻り値を格納する配列)
                 local i = maxPriorityRuleCount * 6
                 maxPriorityResults[i - 5] = result1
                 maxPriorityResults[i - 4] = result2
@@ -54,6 +67,7 @@ local function evaluateRules()
         end
         return maxPriority
     end
+
     while true do
         local maxPriority = -99999999
         for i = 1, #rules do
@@ -62,10 +76,7 @@ local function evaluateRules()
             maxPriority = processWhenResult(maxPriority, rule, rule:when())
         end
         if maxPriorityRuleCount == 0 then
-            Logger.log("available rule is not found.")
-            sleepTime = math.min(sleepTime * 2, maxSleepTime)
-            Logger.log("sleep", tostring(sleepTime).."s")
-            os.sleep(sleepTime)
+            if runningThreadCount == 0 and nonMatchHandler() then return end
         else
             sleepTime = minSleepTime
 
@@ -93,7 +104,7 @@ local function evaluateRules()
 end
 
 return {
-    command = nil,
+    reset = reset,
     evaluate = evaluateRules,
     add = add,
 }
