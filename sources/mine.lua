@@ -1056,10 +1056,7 @@ local recipes = {
     [Planks] = simpleRecipe(1, 1, Log),
 }
 local function createCraftTree(itemName)
-    if findSlotByName(itemName) then
-        Logger.logDebug("find", itemName)
-        return { item = itemName }
-    end
+    if findSlotByName(itemName) then return { item = itemName } end
 
     local recipe = recipes[itemName]
     if not recipe then
@@ -1076,7 +1073,6 @@ local function createCraftTree(itemName)
             materials = {},
         }
         for i = 1, #names do
-            Logger.logDebug("finding material", names[i])
             local t = createCraftTree(names[i])
             if not t then return end
 
@@ -1297,7 +1293,7 @@ Rules.add {
         if path then
             local ok, reason = goToGoal(20, path, DisableDig, DisableAttack)
             if not ok then
-                Logger.logDebug(self.name, reason)
+                Logger.logDebug(self.name, "goToGoal", reason)
                 return
             end
         end
@@ -1308,18 +1304,17 @@ Rules.add {
 
         -- 装備
         local ok, reason = equipByName(CraftingTable)
-        if not ok then Logger.logDebug(self.name, reason) end
+        if not ok then Logger.logDebug(self.name, "equip", reason) end
 
         -- クラフト
         compactItems()
         local ok, reason = craftOfTree(tree, direction)
-        if not ok then Logger.logDebug(self.name, reason) end
+        if not ok then Logger.logDebug(self.name, "craftOfTree", reason) end
     end
 }
 Rules.add {
     name = "set torch",
     when = function()
-        -- TODO トーチをクラフト
 
         -- トーチを持っていて
         local slot = findSlotByName("minecraft:torch")
