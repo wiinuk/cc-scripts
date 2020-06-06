@@ -427,9 +427,9 @@ Rules.add {
                 -- local location = Memoried.getLocation(mx, my, mz)
                 -- if not maybeAir(location) then       
                     local ok, reason = limitedDig(d)
-                    if not ok then Logger.logDebug(self.name, reason) end
+                    -- if not ok then Logger.logDebug(self.name, reason) end
                 -- end
-                Logger.logDebug(self.name, "air", mx, my, mz)
+                -- Logger.logDebug(self.name, "air", mx, my, mz)
             end
         end
 
