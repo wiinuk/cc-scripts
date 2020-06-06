@@ -833,12 +833,20 @@ local function getUsingRatio()
     end
     return usingRatio
 end
+
+local function manhattanDistance(ax, ay, az, bx, by, bz)
+    return math.abs(ax - bx) + math.abs(ay - by) + math.abs(az - bz)
+end
+local function distanceToHome()
+    local cx, cy, cz = Memoried.currentPosition()
+    return manhattanDistance(cx, cy, cz, 0, 0, 0)
+end
 local function getNeedFuelLevel()
     local level = turtle.getFuelLevel()
     if level ~= "unlimited" then return 0 end
 
-    -- 5割ぐらいまでは確保しておきたい
-    return math.max(turtle.getFuelLimit() * 0.5 - level, 0)
+    -- ホームまでの距離の1.5倍
+    return distanceToHome() * 1.5
 end
 Rules.add {
     name = "mining: drop to chest",
@@ -1012,9 +1020,6 @@ local function combustible(item)
     return l and 0 < l
 end
 
-local function manhattanDistance(ax, ay, az, bx, by, bz)
-    return math.abs(ax - bx) + math.abs(ay - by) + math.abs(az - bz)
-end
 local function findSlotByName(name)
     for i = 1, 16 do
         local item = turtle.getItemDetail(i)
@@ -1362,9 +1367,7 @@ Rules.add {
 Rules.add {
     name = "refuel",
     when = function()
-        local fuel = turtle.getFuelLevel()
-        if fuel == "unlimited" then return false end
-        if 0.5 < fuel / turtle.getFuelLimit() then return false end
+        if getNeedFuelLevel() < turtle.getFuelLevel() then return false end
 
         -- インベントリを探す
         local slotNumber = findCombustibleInInventory()
