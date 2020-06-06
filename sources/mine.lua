@@ -131,7 +131,9 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
         else
             local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
             if ok then return direction end
-            return ok, reason
+
+            lastReason = reason
+            retryCount = retryCount + 1
         end
     end
     return nil, "number of retries exceeded: "..tostring(lastReason)
@@ -220,10 +222,10 @@ local function measureBlockLine()
     if #blocks == 0 then return nil, "start block not found" end
 
     local block, bx, by, bz, normalX, normalZ = measureBlockNormal(blocks)
-    if not block then return nil, "next block not found"..tostring(bx) end
+    if not block then return nil, "next block not found: "..tostring(bx) end
 
     local ex, ey, ez = measureEndBlock(block, bx, by, bz, normalX, normalZ)
-    if not ex then return nil, "end block not found"..tostring(ey) end
+    if not ex then return nil, "end block not found: "..tostring(ey) end
 
     return bx, by, bz, ex, ey, ez
 end
