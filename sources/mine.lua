@@ -495,7 +495,7 @@ Rules.add {
                     return
                 end
 
-                Logger.logDebug(self.name, "next", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
+                mainLogger.logInfo(self.name, "line", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
 
                 -- 目標へ移動
                 local ok, reason = M.mineTo(20, request.mineX, request.mineY, request.mineZ, EnableDig, EnableAttack)

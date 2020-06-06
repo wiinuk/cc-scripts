@@ -22,7 +22,7 @@ Logger.addListener(Logger.fileWriterListener("/logs/main.log"))
 Logger.addListener(Logger.terminalListener(logWindow, Logger.Info))
 
 local mainLogger = Mine.mainLogger
-mainLogger.addListener(Logger.printListener(Logger.Error))
+mainLogger.addListener(Logger.printListener(Logger.Info))
 mainLogger.addListener(Logger.loggerListener(Logger.getDefaultLogger()))
 
 local function ruleThread()
