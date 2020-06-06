@@ -1220,7 +1220,10 @@ local function craftOfTree(tree, dropDirection)
     local materials = tree.materials
 
     -- 原料が無い場合、既に持っている
-    if not materials or #materials == 0 then return end
+    if not materials or #materials == 0 then
+        Logger.logDebug("inv", tree.item)
+        return true
+    end
 
     -- まず原料をクラフトする
     for i = 1, #materials do
@@ -1247,6 +1250,8 @@ local function craftOfTree(tree, dropDirection)
         -- クラフト
         local ok, reason = turtle.craft(1)
         if not ok then suckMany(dropDirection) return ok, reason end
+
+        Logger.logDebug("new", tree.item, "from", pretty(recipe))
 
         -- 拾う
         suckMany(dropDirection)
