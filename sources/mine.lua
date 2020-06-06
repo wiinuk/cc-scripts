@@ -1055,8 +1055,8 @@ local recipes = {
     [Stick] = simpleRecipe(1, 2, Planks, Planks),
     [Planks] = simpleRecipe(1, 1, Log),
 }
-local function createCraftTree(hasItemByName, itemName)
-    if hasItemByName(itemName) then
+local function createCraftTree(itemName)
+    if findSlotByName(itemName) then
         Logger.logDebug("find", itemName)
         return { item = itemName }
     end
@@ -1077,7 +1077,7 @@ local function createCraftTree(hasItemByName, itemName)
         }
         for i = 1, #names do
             Logger.logDebug("finding material", names[i])
-            local t = createCraftTree(hasItemByName, names[i])
+            local t = createCraftTree(names[i])
             if not t then return end
 
             tree.materials[#tree.materials+1] = t
