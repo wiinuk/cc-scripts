@@ -100,6 +100,7 @@ local function evaluateRules(nonMatchHandler)
             else rule:action(result1, result2, result3, result4, result5)
             end
         end
+        os.sleep(0)
     end
 end
 
