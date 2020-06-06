@@ -1218,7 +1218,7 @@ local function transferItemsOfRecipe(recipe)
                 if not emptySlot then return false, "empty slot not found" end
 
                 turtle.select(slot)
-                turtle.transferTo(emptySlot)
+                turtle.transferTo(emptySlot, 1)
 
                 Logger.logDebug("slot", slot, " => slot", emptySlot)
 
@@ -1229,7 +1229,7 @@ local function transferItemsOfRecipe(recipe)
                     if not fromSlot then return false, "item not found '"..name.."'" end
 
                     turtle.select(fromSlot)
-                    turtle.transferTo(slot)
+                    turtle.transferTo(slot, 1)
                     Logger.logDebug("slot", fromSlot, " => slot", slot)
                 end
             end
