@@ -382,13 +382,12 @@ local function isMinYBound(minY, y)
     if y <= minY then return true end
 
     local ok, info = Memoried.getOperationAt(Down).inspect()
-    if ok then
-        return
-            info.name == "minecraft:bedrock" or
-            info.name == "minecraft:lava" or
-            info.name == "minecraft:flowing_lava"
-    end
-    return false
+    if not ok then return false end
+
+    return
+        info.name == "minecraft:bedrock" or
+        info.name == "minecraft:lava" or
+        info.name == "minecraft:flowing_lava"
 end
 Rules.add {
     name = "mine: core",
@@ -437,9 +436,10 @@ Rules.add {
         if request.normalY == -1 then
             -- 下に掘っているとき
 
-            if isMinYBound(request.range.minX, cy) then
+            if isMinYBound(request.range.minX, request.mineX) then
                 -- 掘らないブロックなら反転
                 request.normalY = -1 * request.normalY
+                Logger.logDebug(self.name, "rev y", request.normalY, "minX:", request.range.minX, "mineX:", request.mineX)
             else
                 -- 掘る
                 local ok, reason = M.mineTo(1, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
@@ -462,7 +462,7 @@ Rules.add {
                     detectAnyAround()
                 )
             then
-                local ok, reason = M.mineTo(1, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
+                local ok, reason = M.mineTo(5, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
                 if not ok then return removeMiningRequest(self.name, reason) end
                 request.mineY = request.mineY + request.normalY
                 Logger.logDebug(self.name, "up", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
