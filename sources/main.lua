@@ -2,6 +2,7 @@ local Rules = require "rules"
 local Mine = require "mine"
 local Logger = require "logger"
 local ArgP = require "arg-parser"
+local BasicRules = require "basic_rules"
 
 ---@class Window : Terminal
 ---@field public getCursorPos fun(): number, number
@@ -25,6 +26,13 @@ mainLogger.addListener(Logger.printListener(Logger.Error))
 mainLogger.addListener(Logger.loggerListener(Logger.getDefaultLogger()))
 
 local function ruleThread()
+    Rules.add(
+        BasicRules.collectAroundMapRule,
+        BasicRules.craftTorchRule,
+        BasicRules.setTorchRule,
+        BasicRules.refuelRule,
+        BasicRules.goHomeRule
+    )
     Rules.evaluate()
 end
 
