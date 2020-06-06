@@ -12,6 +12,8 @@ local findLastEmptySlot = M.findLastEmptySlot
 local suckIf = M.suckIf
 local getNeedFuelLevel = M.getNeedFuelLevel
 local distanceToHome = M.distanceToHome
+local globalDirectionToPosition = M.globalDirectionToPosition
+local maybeAir = M.maybeAir
 
 local Left = Memoried.Left
 local Right = Memoried.Right
@@ -31,12 +33,6 @@ local Chest = "minecraft:chest"
 local collectMapInfoPriority = 0.1
 local setTorchPriority = 1.2
 
-
-local function globalDirectionToPosition(globalDirection)
-    local x, y, z = Memoried.currentPosition()
-    local nx, ny, nz = directionToNormal(globalDirection)
-    return x + nx, y + ny, z + nz
-end
 
 local function findItemSlotBy(predicate)
     for i = 1, 16 do
@@ -177,10 +173,6 @@ local function canSingleCraft(tree)
         end
         return false
     end)
-end
-
-local function maybeAir(location)
-    return location and (location.move == true or location.inspect == false)
 end
 
 local function findCanDropDirection()
