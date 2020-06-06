@@ -121,7 +121,7 @@ end
 ---@param tx integer
 ---@param ty integer
 ---@param tz integer
----@param enableNoMovableGoal boolean
+---@param enableNoMovableGoal boolean|nil
 ---@return boolean findCompletePath
 ---@return integer[] path
 ---@return integer globalDirection

@@ -159,6 +159,41 @@ local function collectAroundMap()
     return true
 end
 
+local function collectMap()
+    local positions = {}
+    local cx, cy, cz = Memoried.currentPosition()
+    for dx = -2, 2 do
+        for dy = -2, 2 do
+            for dz = -2, 2 do
+                local tx, ty, tz = cx + dx, cy + dy, cz + dz
+                if isMapMissing(Memoried.getLocation(tx, ty, tz)) then
+                    positions = positions or {}
+                    positions[#positions+1] = tx
+                    positions[#positions+1] = ty
+                    positions[#positions+1] = tz
+                end
+            end
+        end
+    end
+    if not positions then return 0, 0 end
+
+    local count = 0
+    for i = 1, #positions, 3 do
+        local tx, ty, tz = positions[i], positions[i+1], positions[i+2]
+        local complete, path, direction = findNearMovablePath(tx, ty, tz)
+        if complete then
+            local ok, reason = goToGoal(3, path, DisableDig, EnableAttack)
+            if not ok then
+                Logger.logDebug("collectMap", reason)
+            else
+                collectMissingMapAt(direction)
+                count = count + 1
+            end
+        end
+    end
+    return count, #positions / 3
+end
+
 ---@return number|nil direction
 ---@return any reason
 local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
@@ -174,7 +209,7 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
         else
             lastReason = "path not found"
             Logger.logDebug("mineToNear: not found: ", retryCount, "/", maxRetryCount)
-            collectAroundMap()
+            collectMap()
         end
         retryCount = retryCount + 1
     end
