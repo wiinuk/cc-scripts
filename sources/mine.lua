@@ -1029,6 +1029,13 @@ local function combustible(item)
     return l and 0 < l
 end
 
+local function findLastSlotByName(name)
+    for i = 16, 1, -1 do
+        local item = turtle.getItemDetail(i)
+        if item and item.name == name then return i end
+    end
+    return
+end
 local function findSlotByName(name)
     for i = 1, 16 do
         local item = turtle.getItemDetail(i)
@@ -1214,7 +1221,7 @@ local function transferItemsOfRecipe(recipe)
                 if name ~= "" and name ~= nil then
 
                     -- 配置
-                    local fromSlot = findSlotByName(name)
+                    local fromSlot = findLastSlotByName(name)
                     if not fromSlot then return false, "item not found '"..name.."'" end
 
                     turtle.select(fromSlot)
