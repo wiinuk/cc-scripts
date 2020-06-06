@@ -36,6 +36,17 @@ local function findLastEmptySlot()
     return nil
 end
 
+
+local importantItems = {
+    [DiamondPickaxe] = true,
+    [Torch] = true,
+    [CraftingTable] = true,
+    [Chest] = true
+}
+local function isImportantItem(name)
+    return not not importantItems[name]
+end
+
 local normals = {
     0,0,1,
     -1,0,0,
@@ -60,7 +71,7 @@ local function limitedDig(globalDirection)
     if not ok then return false, info end
 
     local name = info.name
-    if name == Chest or name == Torch then
+    if isImportantItem(name) then
         return false, "important item"
     end
     return Memoried.getOperationAt(globalDirection).dig()
@@ -303,7 +314,7 @@ local function whenMine(priority, request, globalDirection)
         local name = info.name
 
         -- TODO: アイテム名をハードコードせずに判断したい
-        if name == Chest or name == Torch then
+        if isImportantItem(name) then
             return priority
         end
     end
@@ -914,7 +925,7 @@ Rules.add {
             if 0 < turtle.getItemCount(i) then
                 local item = turtle.getItemDetail(i)
                 local name = item.name
-                if name ~= Torch then
+                if not isImportantItem(name) then
                     local level = Memoried.memory.itemToFuelLevel[name]
                     if level and 0 < needFuelLevel then
                         needFuelLevel = needFuelLevel - (item.count * level)
@@ -935,7 +946,7 @@ local function isMined(x, y, z)
     if location.move == true or inspect == false then return true end
     if inspect == nil then return false end
     local name = inspect.name
-    if name == Chest or name == Torch then return true end
+    if isImportantItem(name) then return true end
     return false
 end
 
