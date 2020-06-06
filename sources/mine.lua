@@ -1278,11 +1278,15 @@ local function equipByName(name)
     if Memoried.equippedItemName(Left) then side = Right end
 
     -- 装備
+    turtle.select(slot)
+    Logger.logDebug("equip", Memoried.equippedItemName(side))
     return Memoried.getOperation(side).equip()
 end
 Rules.add {
     name = "craft torch",
     when = function()
+        if findSlotByName(Torch) then return false end
+
         local tree, completePath, path, direction = createCraftInfo(Torch)
         if not tree then return false end
         return 1, tree, completePath, path, direction
