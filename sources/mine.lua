@@ -535,6 +535,35 @@ Rules.add {
         if not ok then return removeMiningRequest("mineTo failed:", reason) end
     end
 }
+local function dropAllMinedItems(direction)
+    local needFuelLevel = getNeedFuelLevel()
+
+    local count = 64
+    if 95 < math.random(1, 100) then
+        direction = Up
+        count = 1
+    end
+    local allOk = true
+    local lastReason = nil
+    for i = 1, 16 do
+        if 0 < turtle.getItemCount(i) then
+            local item = turtle.getItemDetail(i)
+            local name = item.name
+            if not isImportantItem(name) then
+                local level = Memoried.memory.itemToFuelLevel[name]
+                if level and 0 < needFuelLevel then
+                    needFuelLevel = needFuelLevel - (item.count * level)
+                else
+                    turtle.select(i)
+                    local ok, reason = Memoried.getOperationAt(direction).drop(count)
+                    allOk = allOk and ok
+                    if not ok then lastReason = reason end
+                end
+            end
+        end
+    end
+    return allOk, lastReason
+end
 Rules.add {
     name = "mine: go to chest",
     when = function()
@@ -548,6 +577,9 @@ Rules.add {
         if not direction then
             return removeMiningRequest("go to chest failed:", reason)
         end
+        dropAllMinedItems(direction)
+        Memoried.removeRequest "mining"
+        mainLogger.log("mining complete")
     end,
 }
 Rules.add {
@@ -683,29 +715,8 @@ Rules.add {
             return Logger.logInfo("["..self.name.."]", tx, ty, tz, "is not chest")
         end
 
-        local needFuelLevel = getNeedFuelLevel()
-
         -- ドロップ
-        local count = 64
-        if 95 < math.random(1, 100) then
-            d = Up
-            count = 1
-        end
-        for i = 1, 16 do
-            if 0 < turtle.getItemCount(i) then
-                local item = turtle.getItemDetail(i)
-                local name = item.name
-                if not isImportantItem(name) then
-                    local level = Memoried.memory.itemToFuelLevel[name]
-                    if level and 0 < needFuelLevel then
-                        needFuelLevel = needFuelLevel - (item.count * level)
-                    else
-                        turtle.select(i)
-                        Memoried.getOperationAt(d).drop(count)
-                    end
-                end
-            end
-        end
+        dropAllMinedItems(d)
         Memoried.memory.previousDropClock = os.clock()
     end
 }
