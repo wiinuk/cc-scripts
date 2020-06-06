@@ -259,10 +259,10 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
     end
 end
 
-local function goToGoal(maxRetryCount, path, disableDig, disableAttack)
+local function goToGoal(maxRetryCount, path, disableDig, disableAttack, unlimited)
     for i = 1, #path, 3 do
         local px, py, pz = path[i], path[i+1], path[i+2]
-        local ok, reason = mineTo(maxRetryCount, px, py, pz, disableDig, disableAttack)
+        local ok, reason = mineTo(maxRetryCount, px, py, pz, disableDig, disableAttack, unlimited)
         if not ok then return ok, reason end
     end
     return true

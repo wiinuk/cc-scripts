@@ -123,13 +123,13 @@ end
 
 ---@return number|nil direction
 ---@return any reason
-local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
+local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
     local retryCount = 0
     local lastReason = nil
     while retryCount <= maxRetryCount do
         local complete, path = findPath(x, y, z)
         if path then
-            local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
+            local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack, unlimited)
             if complete then
                 if ok then return true end
                 lastReason = reason
@@ -138,7 +138,7 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
             end
             retryCount = retryCount + 1
         else
-            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
+            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
             if ok then return true end
 
             lastReason = reason
@@ -226,34 +226,38 @@ local normals = {
 local function measureBlockNormal(baseBlocks)
     local lastReason = nil
     for bi = 1, #baseBlocks do
-        local d = baseBlocks[bi].direction
-        local block = baseBlocks[bi].block
+        local bx, by, bz = baseBlocks[bi].position
+        local bd, reason = mineToNear(10, bx, by, bz, DisableDig, EnableAttack)
+        if not bd then
+            lastReason = reason
+        else
+            local block = baseBlocks[bi].block
 
-        -- 始点となるブロックの座標
-        --    [b]
-        -- [b][T][b]
-        --    [b]
-        local bx, by, bz = globalDirectionToPosition(d)
-
-        for ni = 1, #normals, 2 do
-            -- 始点ブロックの次のブロックの座標から、ブロック線の方向を求める
-            -- [n]   [n]
+            -- 始点となるブロックの座標
             --    [b]
-            -- [n]   [n]
+            -- [b][T][b]
+            --    [b]
 
-            local normalX, normalZ = normals[ni], normals[ni + 1]
-            local nx, ny, nz = bx + normalX, by, bz + normalZ
-            local direction, reason = mineToNear(10, nx, ny, nz, DisableDig, EnableAttack)
-            if direction then
-                -- 次のブロックに移動できた
+            for ni = 1, #normals, 2 do
+                -- 始点ブロックの次のブロックの座標から、ブロック線の方向を求める
+                -- [n]   [n]
+                --    [b]
+                -- [n]   [n]
 
-                local ok, nextBlock = Memoried.getOperationAt(direction).inspect()
-                if ok and block.name == nextBlock.name then
-                    -- 前のブロックと次のブロックが同じ
-                    return block, bx, by, bz, normalX, normalZ
+                local normalX, normalZ = normals[ni], normals[ni + 1]
+                local nx, ny, nz = bx + normalX, by, bz + normalZ
+                local direction, reason = mineToNear(10, nx, ny, nz, DisableDig, EnableAttack)
+                if direction then
+                    -- 次のブロックに移動できた
+
+                    local ok, nextBlock = Memoried.getOperationAt(direction).inspect()
+                    if ok and block.name == nextBlock.name then
+                        -- 前のブロックと次のブロックが同じ
+                        return block, bx, by, bz, normalX, normalZ
+                    end
+                else
+                    lastReason = reason
                 end
-            else
-                lastReason = reason
             end
         end
     end
@@ -285,7 +289,8 @@ local function measureBlockLine()
     local blocks = {}
     for d = 1, 4 do
         local ok, info = Memoried.getOperationAt(d).inspect()
-        if ok then blocks[#blocks+1] = { direction = d, block = info } end
+        local x, y, z = globalDirectionToPosition(d)
+        if ok then blocks[#blocks+1] = { position = { x, y, z }, block = info } end
     end
     if #blocks == 0 then return nil, "start block not found" end
 
@@ -531,7 +536,7 @@ Rules.add {
             request.mineZ or range.minZ
 
         -- 採掘先頭位置にいないなら移動
-        local ok, reason = mineTo(20, mx, my, mz, EnableDig, EnableAttack)
+        local ok, reason = mineTo(20, mx, my, mz, EnableDig, EnableAttack, Unlimited)
         if not ok then return removeMiningRequest("mineTo failed:", reason) end
     end
 }
