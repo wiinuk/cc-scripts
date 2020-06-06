@@ -70,12 +70,20 @@ local function getDefaultLogger() return default end
 
 local function printVarArgTailWithSelf(self, write, arg1, ...)
     write(self, "\t")
-    write(self, pretty(arg1))
+    if type(arg1) == "string" then
+        write(self, arg1)
+    else
+        write(self, pretty(arg1))
+    end
     if select('#', ...) == 0 then return end
     printVarArgTailWithSelf(self, write, ...)
 end
 local function printVarArgHeadWithSelf(self, write, arg1, ...)
-    write(self, pretty(arg1))
+    if type(arg1) == "string" then
+        write(self, arg1)
+    else
+        write(self, pretty(arg1))
+    end
     if select('#', ...) == 0 then return end
     printVarArgTailWithSelf(self, write, ...)
 end
