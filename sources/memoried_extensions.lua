@@ -38,6 +38,12 @@ local function directionToNormal(direction)
     return normals[i - 2], normals[i - 1], normals[i]
 end
 
+local function globalDirectionToPosition(globalDirection)
+    local x, y, z = Memoried.currentPosition()
+    local nx, ny, nz = directionToNormal(globalDirection)
+    return x + nx, y + ny, z + nz
+end
+
 local function isMovableInMemory(x, y, z)
     local location = Memoried.getLocation(x, y, z)
     return location and (location.detect == false or location.move == true)
@@ -115,11 +121,11 @@ end
 ---@param tx integer
 ---@param ty integer
 ---@param tz integer
+---@param enableNoMovableGoal boolean
 ---@return boolean findCompletePath
 ---@return integer[] path
 ---@return integer globalDirection
-local function findNearMovablePath(tx, ty, tz)
-
+local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
     local lastBestPath = nil
     local lastBestPathDirection = nil
     for globalDirection = 1, 6 do
@@ -129,7 +135,7 @@ local function findNearMovablePath(tx, ty, tz)
         local mx, my, mz = tx - nx, ty - ny, tz - nz
 
         -- パスのゴールとなる移動先は、移動可能な場所を選ぶ必要がある
-        if isMovableInMemory(mx, my, mz) then
+        if enableNoMovableGoal or isMovableInMemory(mx, my, mz) then
             local cx, cy, cz = Memoried.currentPosition()
             local path, bestPath = getPath(cx, cy, cz, mx, my, mz)
             if path then return true, path, globalDirection end
@@ -166,7 +172,8 @@ end
 ---@param globalDirection integer
 ---@param disableDig boolean|nil
 ---@param disableAttack boolean|nil
-local function mineMove1(globalDirection, disableDig, disableAttack)
+---@param isUnlimited boolean|nil
+local function mineMove1(globalDirection, disableDig, disableAttack, isUnlimited)
 
     if Memoried.getOperationAt(globalDirection).move() then return true end
     -- 行けなかった
@@ -175,7 +182,11 @@ local function mineMove1(globalDirection, disableDig, disableAttack)
     if not disableDig and Memoried.getOperationAt(globalDirection).detect() then
 
         -- 掘る
-        limitedDig(globalDirection)
+        if isUnlimited then
+            Memoried.getOperationAt(globalDirection).dig()
+        else
+            limitedDig(globalDirection)
+        end
 
         -- 拾う
         Memoried.getOperationAt(globalDirection).suck()
@@ -210,7 +221,7 @@ local function mineMove1(globalDirection, disableDig, disableAttack)
     return false, reason
 end
 
-local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disableAttack)
+local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disableAttack, isUnlimited)
     local maxRetryCount = math.max(0, maxRetryCount)
     local retryCount = 0
     local lastReason = nil
@@ -223,13 +234,13 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
         if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
 
         local ok, reason = false, nil
-        if targetX < currentX then ok, reason = mineMove1(Left, disableDig, disableAttack)
-        elseif currentX < targetX then ok, reason = mineMove1(Right, disableDig, disableAttack)
-        elseif targetZ < currentZ then ok, reason = mineMove1(Back, disableDig, disableAttack)
-        elseif currentZ < targetZ then ok, reason = mineMove1(Forward, disableDig, disableAttack)
+        if targetX < currentX then ok, reason = mineMove1(Left, disableDig, disableAttack, isUnlimited)
+        elseif currentX < targetX then ok, reason = mineMove1(Right, disableDig, disableAttack, isUnlimited)
+        elseif targetZ < currentZ then ok, reason = mineMove1(Back, disableDig, disableAttack, isUnlimited)
+        elseif currentZ < targetZ then ok, reason = mineMove1(Forward, disableDig, disableAttack, isUnlimited)
 
-        elseif currentY < targetY then ok, reason = mineMove1(Up, disableDig, disableAttack)
-        elseif targetY < currentY then ok, reason = mineMove1(Down, disableDig, disableAttack)
+        elseif currentY < targetY then ok, reason = mineMove1(Up, disableDig, disableAttack, isUnlimited)
+        elseif targetY < currentY then ok, reason = mineMove1(Down, disableDig, disableAttack, isUnlimited)
         end
         if not ok then
             lastReason = reason
@@ -245,6 +256,10 @@ local function goToGoal(maxRetryCount, path, disableDig, disableAttack)
         if not ok then return ok, reason end
     end
     return true
+end
+
+local function maybeAir(location)
+    return location and (location.move == true or location.inspect == false)
 end
 
 --- 同種のアイテムを重ねてインベントリに空きを作る。
@@ -348,13 +363,17 @@ end
 
 return {
     directionToNormal = directionToNormal,
+    globalDirectionToPosition = globalDirectionToPosition,
     findLastEmptySlot = findLastEmptySlot,
     findItemInNearDrop = findItemInNearDrop,
     findNearMovablePath = findNearMovablePath,
     suckIf = suckIf,
     compactItems = compactItems,
     goToGoal = goToGoal,
-    distanceToHome= distanceToHome,
+    distanceToHome = distanceToHome,
     getNeedFuelLevel = getNeedFuelLevel,
     isImportantItem = isImportantItem,
+    maybeAir = maybeAir,
+    mineTo = mineTo,
+    limitedDig = limitedDig,
 }
