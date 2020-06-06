@@ -91,10 +91,28 @@ local function initLogFile(self)
     self._logFile = io.open(self._logPath, "w+") or true
 end
 local function writeLog(self, level, ...)
+
+    -- ドライブの空き領域チェック
+    if self._logFile and 8 < math.random(1, 10) then
+        local size = fs.getSize(self._logPath)
+        if fs.getFreeSpace(fs.getDrive(self._logPath)) <= size then
+            self._logFile:close()
+            self._logFile = nil
+            fs.delete(self._logPath)
+
+            initLogFile(self)
+            if self._logFile and self._logFile ~= true then
+                self._logFile:write("<<truncated. max size: "..tostring(size).."byte>>")
+            end
+        end
+    end
+
+    -- ログファイルの存在チェック
     if self._logFile and 8 < math.random(1, 10) and not fs.exists(self._logPath) then
         self._logFile:close()
         self._logFile = nil
     end
+
     if not self._logFile then initLogFile(self) end
     local logFile = self._logFile
     if logFile == true then return end
