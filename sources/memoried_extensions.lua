@@ -371,6 +371,43 @@ local function getNeedFuelLevel()
     return distanceToHome() * 1.5
 end
 
+---@param globalDirection integer
+---@return table|nil itemDetail
+---@return string reason
+local function inspectItemAt(globalDirection)
+    compactItems()
+    local emptySlot = findLastEmptySlot()
+    if not emptySlot then return nil, "empty slot not found" end
+
+    if turtle.getSelectedSlot() ~= emptySlot then
+        turtle.select(emptySlot)
+    end
+    local item = nil
+    if Memoried.getOperationAt(globalDirection).suck() then
+        item = turtle.getItemDetail()
+        Memoried.getOperationAt(globalDirection).drop()
+    end
+    return item
+end
+
+local function isMapMissing(location)
+    if not location then return true end
+    if location.detect == nil then return true end
+    if location.inspect == nil then return true end
+    if location.drops == nil then return true end
+    return false
+end
+
+--- 指定された世界方向のマップ情報を取得する
+local function collectMissingMapAt(gd)
+    Memoried.getOperationAt(gd).detect()
+    Memoried.getOperationAt(gd).inspect()
+    if not inspectItemAt(gd) then
+        Memoried.getOperationAt(gd).drop()
+        Memoried.getOperationAt(gd).suck()
+    end
+end
+
 return {
     directionToNormal = directionToNormal,
     globalDirectionToPosition = globalDirectionToPosition,
@@ -387,4 +424,6 @@ return {
     maybeAir = maybeAir,
     mineTo = mineTo,
     limitedDig = limitedDig,
+    isMapMissing = isMapMissing,
+    collectMissingMapAt = collectMissingMapAt,
 }

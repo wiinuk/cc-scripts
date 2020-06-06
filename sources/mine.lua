@@ -17,6 +17,8 @@ local isImportantItem = M.isImportantItem
 local globalDirectionToPosition = M.globalDirectionToPosition
 local limitedDig = M.limitedDig
 local maybeAir = M.maybeAir
+local isMapMissing = M.isMapMissing
+local collectMissingMapAt = M.collectMissingMapAt
 
 local Forward = Memoried.Forward
 local Left = Memoried.Left
@@ -140,6 +142,23 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
     return nil, "number of retries exceeded: "..tostring(lastReason)
 end
 
+---@return boolean foundMissingMap
+local function collectAroundMap()
+    local directions = nil
+    for d = 1, 6 do
+        if isMapMissing(Memoried.getLocation(globalDirectionToPosition(d))) then
+            directions = directions or {}
+            directions[#directions+1] = d
+        end
+    end
+    if not directions then return false end
+
+    for d = 1, #directions do
+        collectMissingMapAt(d)
+    end
+    return true
+end
+
 ---@return number|nil direction
 ---@return any reason
 local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
@@ -153,9 +172,9 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
             if ok and complete then return direction end
             if not ok then lastReason = reason end
         else
-            
-            Logger.logDebug("mineToNear: not found: ", retryCount, "/", maxRetryCount)
             lastReason = "path not found"
+            Logger.logDebug("mineToNear: not found: ", retryCount, "/", maxRetryCount)
+            collectAroundMap()
         end
         retryCount = retryCount + 1
     end
