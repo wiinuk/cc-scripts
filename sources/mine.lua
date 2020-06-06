@@ -1446,6 +1446,20 @@ Rules.add {
         return false
     end,
 }
+Rules.add {
+    name = "go home",
+    when = function()
+        if not Memoried.anyRequest() then
+            local _, path = findNearMovablePath(0, 0, 0)
+            if not path then return false end
+            return 1, path
+        end
+    end,
+    action = function(self, path)
+        local ok, reason = goToGoal(100, path, DisableDig, EnableAttack)
+        if not ok then Logger.logDebug(self.name, reason) end
+    end
+}
 
 -- # ルールの評価
 -- - マップ情報が増えた

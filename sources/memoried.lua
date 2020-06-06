@@ -44,6 +44,12 @@ local memory = {
 local function hasRequest(name)
     return memory.requests[name] ~= nil
 end
+local function anyRequest()
+    for _ in pairs(memory.requests) do
+        return true
+    end
+    return false
+end
 
 ---@param name string
 ---@return Request|nil
@@ -696,6 +702,7 @@ return {
 
     addRequest = addRequest,
     hasRequest = hasRequest,
+    anyRequest = anyRequest,
     getRequest = getRequest,
     removeRequest = removeRequest,
 
