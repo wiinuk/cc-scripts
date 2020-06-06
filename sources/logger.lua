@@ -111,7 +111,7 @@ local function writeLog(self, level, ...)
 
     -- ドライブの空き領域チェック
     if self._logFile and 8 < math.random(1, 10) then
-        regenerateLogFile()
+        regenerateLogFile(self)
     end
 
     -- ログファイルの存在チェック
