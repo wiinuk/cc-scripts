@@ -226,7 +226,8 @@ local normals = {
 local function measureBlockNormal(baseBlocks)
     local lastReason = nil
     for bi = 1, #baseBlocks do
-        local bx, by, bz = baseBlocks[bi].position
+        local bp = baseBlocks[bi].position
+        local bx, by, bz = bp[1], bp[2], bp[3]
         local bd, reason = mineToNear(10, bx, by, bz, DisableDig, EnableAttack)
         if not bd then
             lastReason = reason
