@@ -29,7 +29,7 @@ local mainLogger = Logger.create("main")
 
 
 ---@return integer|nil slotNumber
-local function findEmptySlot()
+local function findLastEmptySlot()
     for i = 16, 1, -1 do
         if turtle.getItemCount(i) == 0 then return i end
     end
@@ -213,7 +213,7 @@ local function suckIf(isNeedItem, globalDirection, maxRetryCount)
     while retryCount <= maxRetryCount do
 
         -- 空スロットを選択
-        local slot = findEmptySlot()
+        local slot = findLastEmptySlot()
         if not slot then
             -- 空スロットがないなら、不要なアイテムを落として終わり
             dropManyAndLog(globalDirection, temporarySlots)
@@ -324,7 +324,7 @@ end
 ---@return string reason
 local function inspectItemAt(globalDirection)
     compactItems()
-    local emptySlot = findEmptySlot()
+    local emptySlot = findLastEmptySlot()
     if not emptySlot then return nil, "empty slot not found" end
 
     if turtle.getSelectedSlot() ~= emptySlot then
@@ -1209,14 +1209,18 @@ local function transferItemsOfRecipe(recipe)
             local item = turtle.getItemDetail(slot)
             local name = recipe.names[recipe.width * (sy - 1) + sx]
 
+            Logger.logDebug("recipe", sx, sy, name, " = slot", slot)
+
             if (item and item.name) ~= name then
 
                 -- 空きを作る
-                local emptySlot = findEmptySlot()
+                local emptySlot = findLastEmptySlot()
                 if not emptySlot then return false, "empty slot not found" end
 
                 turtle.select(slot)
                 turtle.transferTo(emptySlot)
+
+                Logger.logDebug("slot", slot, " => slot", emptySlot)
 
                 if name ~= "" and name ~= nil then
 
@@ -1226,6 +1230,7 @@ local function transferItemsOfRecipe(recipe)
 
                     turtle.select(fromSlot)
                     turtle.transferTo(slot)
+                    Logger.logDebug("slot", fromSlot, " => slot", slot)
                 end
             end
         end
