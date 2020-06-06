@@ -945,7 +945,7 @@ Rules.add {
         local request = Memoried.getRequest "mining"
         if not request then return false end
 
-        return defaultRequestPriority * 0.1, request
+        return defaultRequestPriority * 0.5, request
     end,
     action = function(self, request)
         local range = request.range
