@@ -1380,7 +1380,7 @@ Rules.add {
                 for baseDirection = 1, 5 do
                     local nx, ny, nz = directionToNormal(baseDirection)
                     local baseLocation = Memoried.getLocation(tx + nx, ty + ny, tz + nz)
-                    if baseLocation and (baseLocation.move == false or baseLocation.detect == true) then
+                    if baseLocation and baseLocation.detect == true then
                         hasBaseBlock = true
                         break
                     end
