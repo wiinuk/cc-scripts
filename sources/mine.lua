@@ -142,29 +142,12 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
     return nil, "number of retries exceeded: "..tostring(lastReason)
 end
 
----@return boolean foundMissingMap
-local function collectAroundMap()
-    local directions = nil
-    for d = 1, 6 do
-        if isMapMissing(Memoried.getLocation(globalDirectionToPosition(d))) then
-            directions = directions or {}
-            directions[#directions+1] = d
-        end
-    end
-    if not directions then return false end
-
-    for d = 1, #directions do
-        collectMissingMapAt(d)
-    end
-    return true
-end
-
 local function collectMap()
     local positions = {}
     local cx, cy, cz = Memoried.currentPosition()
-    for dx = -2, 2 do
-        for dy = -2, 2 do
-            for dz = -2, 2 do
+    for dx = -1, 1 do
+        for dy = -1, 1 do
+            for dz = -1, 1 do
                 local tx, ty, tz = cx + dx, cy + dy, cz + dz
                 if isMapMissing(Memoried.getLocation(tx, ty, tz)) then
                     positions = positions or {}
@@ -325,6 +308,8 @@ Rules.add {
         return defaultRequestPriority
     end,
     action = function()
+        mainLogger.log("measuring range...")
+
         local sx, sy, sz, ex, ey, ez = measureBlockLine()
         if not sx then return removeMiningRequest("block line not found,", sy) end
 
@@ -333,6 +318,12 @@ Rules.add {
         Box3.expandByPoint(range, ex, ey, ez)
         Box3.expandByPoint(range, sx, sy + (request.options.up or 1000), sz)
         Box3.expandByPoint(range, sx, sy - (request.options.down or 1000), sz)
+
+        mainLogger.log(
+            "range: ",
+            { range.minX, range.minY, range.minZ }, ", ",
+            { range.maxX, range.maxY, range.maxZ }
+        )
         request.range = range
         request.step = "find-chest"
     end
@@ -357,6 +348,7 @@ Rules.add {
         local cx, cy, cz = findChestNoMove()
         if not cx then return removeMiningRequest("chest not found") end
 
+        mainLogger.log("chest:", { cx, cy, cz })
         local request = Memoried.getRequest "mining"
         local range = request.range
 
