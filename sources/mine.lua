@@ -188,6 +188,13 @@ local function dropManyAndLog(globalDirection, slotNumbers)
     if not ok then Logger.logInfo("drop many failure: ", reason) end
 end
 
+local function suckMany(globalDirection)
+    while true do
+        local ok, reason = Memoried.getOperationAt(globalDirection).suck()
+        if not ok then return reason end
+    end
+end
+
 local function suckIf(isNeedItem, globalDirection, maxRetryCount)
     maxRetryCount = math.max(0, maxRetryCount or 20)
 
@@ -1008,17 +1015,300 @@ end
 local function manhattanDistance(ax, ay, az, bx, by, bz)
     return math.abs(ax - bx) + math.abs(ay - by) + math.abs(az - bz)
 end
+local function findSlotByName(name)
+    for i = 1, 16 do
+        local item = turtle.getItemDetail(i)
+        if item and item.name == name then return i end
+    end
+    return
+end
+local function findItemSlotBy(predicate)
+    for i = 1, 16 do
+        local item = turtle.getItemDetail(i)
+        if item and predicate(item) then return i end
+    end
+    return
+end
+
+local Torch = "minecraft:torch"
+local CraftingTable = "minecraft:crafting_table"
+local Stick = "minecraft:crafting_table"
+local Coal = "minecraft:coal"
+local Planks = "minecraft:planks"
+local Log = "minecraft:log"
+
+local function simpleRecipe(width, height, ...)
+    return {
+        tag = "simple",
+        width = width,
+        height = height,
+        names = { ... },
+    }
+end
+local recipes = {
+    [Torch] = simpleRecipe(1, 2, Coal, Stick),
+    [Stick] = simpleRecipe(1, 2, Planks, Planks),
+    [Planks] = simpleRecipe(1, 1, Log),
+}
+local function createCraftTree(hasItemByName, itemName)
+    if hasItemByName(itemName) then
+        return { item = itemName }
+    end
+
+    local recipe = recipes[itemName]
+    if not recipe then return end
+
+    local tag = recipe.tag
+    if tag == "simple" then
+        local names = recipe.names
+        local tree = {
+            item = itemName,
+            recipe = recipe,
+            materials = {},
+        }
+        for i = 1, #names do
+            local t = createCraftTree(hasItemByName, names[i])
+            if not t then return end
+
+            tree.materials[#tree.materials+1] = t
+        end
+        return tree
+    end
+    Logger.logDebug("unknown recipe tag: ", tag)
+    return
+end
+local function findNearCanDropPath()
+    local cx, cy, cz = Memoried.currentPosition()
+    for dx = -2, 2 do
+        for dy = -2, 2 do
+            for dz = -2, 2 do
+                local bx, by, bz = cx + dx, cy + dy, cz + dz
+                local l = Memoried.getLocation(bx, by, bz)
+                -- 自分の周りで
+
+                if l and l.detect == true then
+                    -- アイテムを置けるブロックがあり
+
+                    local ax, ay, az = bx, by + 1, bz
+                    local l = Memoried.getLocation(ax, ay, az)
+                    if l and (l.detect == false or l.move == true or l.inspect == false) then
+                        -- その上が空気
+
+                        local complete, path, d = findNearMovablePath(ax, ay, az)
+                        if path then
+                            -- 移動可能
+
+                            return complete, path, d
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
+local function canSingleCraft(tree)
+    local deepTree = false
+    local materials = tree.materials
+    if materials then
+        for i = 1, #materials do
+            local childMaterials = materials[i].materials
+            if childMaterials and 0 < #childMaterials then
+                deepTree = true
+                break
+            end
+        end
+    end
+    return not deepTree and not findItemSlotBy(function(item)
+        for i = 1, #materials do
+            if materials[i].name ~= item.name then
+                return true
+            end
+        end
+        return false
+    end)
+end
+local function createCraftInfo(itemName)
+    -- そもそも作業台を持っていない
+    if
+        Memoried.equippedItemName(Left) ~= CraftingTable and
+        Memoried.equippedItemName(Right) ~= CraftingTable and
+        not findSlotByName(CraftingTable)
+    then
+        return false
+    end
+
+    -- 原料を持っていない
+    local tree = createCraftTree(itemName)
+    if not tree then return false end
+
+    -- 多段クラフトが必要なく、その原料のほかにアイテムを持っていないときは、アイテムを捨てる必要がない
+    if canSingleCraft(tree) then return tree end
+
+    -- 安全に捨てられる場所に移動する必要がある
+    local completePath, path, d = findNearCanDropPath()
+    if not path then return false end
+
+    return tree, completePath, path, d
+end
+local function dropWithoutNeededMaterials(materials, dropDirection)
+    local neededItemCounts = {}
+    for i = 1, #materials do
+        local name = materials[i].name
+        neededItemCounts[name] = (neededItemCounts[name] or 0) + 1
+    end
+
+    local currentItemCounts = {}
+
+    for slot = 1, 16 do
+        local item = turtle.getItemDetail(slot)
+        if item then
+            local name = item.name
+            local currentCount = (currentItemCounts[name] or 0) + item.count
+            currentItemCounts[name] = currentCount
+
+            local remainingCount = currentCount - (neededItemCounts[name] or 0)
+            if 0 < remainingCount then
+                turtle.select(slot)
+                local ok, reason = Memoried.getOperationAt(dropDirection).drop(remainingCount)
+                if not ok then return ok, reason end
+            end
+        end
+    end
+    return true
+end
+
+--- スロットに1つ以上の空きが必要
+local function transferItemsOfRecipe(recipe)
+    for sy = 1, recipe.height do
+        for sx = 1, recipe.width do
+            local slot = 4 * (sy - 1) + sx
+            local name = recipe.names[recipe.width * (sy - 1) + sx]
+
+            if turtle.getItemDetail(slot).name ~= name then
+
+                -- 空きを作る
+                local emptySlot = findEmptySlot()
+                if not emptySlot then return false, "empty slot not found" end
+
+                turtle.select(slot)
+                turtle.transferTo(emptySlot)
+
+                if name ~= "" and name ~= nil then
+
+                    -- 配置
+                    local fromSlot = findSlotByName(name)
+                    if not fromSlot then return false, "item not found '"..name.."'" end
+
+                    turtle.select(fromSlot)
+                    turtle.transferTo(slot)
+                end
+            end
+        end
+    end
+    return true
+end
+
+--- - 作業台を装備している必要がある
+--- - 指定された方向に一時的にアイテムをドロップする
+local function craftOfTree(tree, dropDirection)
+    local materials = tree.materials
+
+    -- 原料が無い場合、既に持っている
+    if not materials or #materials == 0 then return end
+
+    -- まず原料をクラフトする
+    for i = 1, #materials do
+        local ok, reason = craftOfTree(materials[i], dropDirection)
+        if not ok then return ok, reason end
+    end
+
+    -- 原料がそろったので、必要な原料以外を捨てる
+    local ok, reason = dropWithoutNeededMaterials(materials, dropDirection)
+    if not ok then
+        Logger.logDebug("craftOfTree", reason)
+        suckMany(dropDirection)
+        return ok, reason
+    end
+
+    -- レシピを基にクラフトする
+    local recipe = tree.recipe
+    if recipe.tag == "simple" then
+
+        -- 原料を配置する
+        local ok, reason = transferItemsOfRecipe(recipe)
+        if not ok then suckMany(dropDirection) return ok, reason end
+
+        -- クラフト
+        local ok, reason = turtle.craft(1)
+        if not ok then suckMany(dropDirection) return ok, reason end
+
+        -- 拾う
+        suckMany(dropDirection)
+        return true
+    end
+
+    suckMany(dropDirection)
+    return false, "unknown recipe tag: '"..recipe.tag.."'"
+end
+local function equipByName(name)
+    -- 既に装備していた
+    for d = 1, 6 do
+        if Memoried.equippedItemName(d) == name then return true end
+    end
+
+    -- そもそもアイテムを持っていなかった
+    local slot = findSlotByName(name)
+    if not slot then return false, "item not found" end
+
+    -- ダメージのあるアイテムだった
+    if 0 < turtle.getItemDetail(slot).damage then return false, "damaged item" end
+
+    -- 装備する方向を決定
+    local side = Left
+    if Memoried.equippedItemName(Left) then side = Right end
+
+    -- 装備
+    return Memoried.getOperation(side).equip()
+end
+Rules.add {
+    name = "craft torch",
+    when = function()
+        local tree, completePath, path, direction = createCraftInfo(Torch)
+        if not tree then return false end
+        return 1, tree, completePath, path, direction
+    end,
+    action = function(self, tree, completePath, path, direction)
+
+        -- アイテム置き場まで移動
+        if path then
+            local ok, reason = goToGoal(20, path, DisableDig, DisableAttack)
+            if not ok then
+                Logger.logDebug(self.name, reason)
+                return
+            end
+        end
+        if not completePath then
+            Logger.logDebug(self.name, "complete path", completePath)
+            return
+        end
+
+        -- 装備
+        local ok, reason = equipByName(CraftingTable)
+        if not ok then Logger.logDebug(self.name, reason) end
+
+        -- クラフト
+        compactItems()
+        local ok, reason = craftOfTree(tree, direction)
+        if not ok then Logger.logDebug(self.name, reason) end
+    end
+}
 Rules.add {
     name = "set torch",
     when = function()
         -- TODO トーチをクラフト
 
         -- トーチを持っていて
-        local slot = nil
-        for i = 1, 16 do
-            local item = turtle.getItemDetail(i)
-            if item and item.name == "minecraft:torch" then slot = i break end
-        end
+        local slot = findSlotByName("minecraft:torch")
         if not slot then return false end
 
         -- 近くにトーチを置いたことがなく
@@ -1033,7 +1323,7 @@ Rules.add {
                 table.remove(history, i)
                 Logger.logInfo("remove torch history", tx, ty, tz)
             end
-            if manhattanDistance(x, y, z, tx, ty, tz) < 4 then return false end
+            if manhattanDistance(x, y, z, tx, ty, tz) < 6 then return false end
         end
 
         for gd = 1, 6 do
