@@ -8,6 +8,7 @@ local Rules = require "rules"
 local M = require "memoried_extensions"
 local findItemInNearDrop = M.findItemInNearDrop
 local findNearMovablePath = M.findNearMovablePath
+local findPath = M.findPath
 local goToGoal = M.goToGoal
 local suckIf = M.suckIf
 local directionToNormal = M.directionToNormal
@@ -118,6 +119,33 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
     local retryCount = 0
     local lastReason = nil
     while retryCount <= maxRetryCount do
+        local complete, path = findPath(x, y, z)
+        if path then
+            local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
+            if complete then
+                if ok then return true end
+                lastReason = reason
+            else
+                if not ok then lastReason = reason end
+            end
+            retryCount = retryCount + 1
+        else
+            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
+            if ok then return true end
+
+            lastReason = reason
+            retryCount = retryCount + 1
+        end
+    end
+    return nil, "number of retries exceeded: "..tostring(lastReason)
+end
+
+---@return number|nil direction
+---@return any reason
+local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
+    local retryCount = 0
+    local lastReason = nil
+    while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
             local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
@@ -129,10 +157,6 @@ local function mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
             end
             retryCount = retryCount + 1
         else
-            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
-            if ok then return direction end
-
-            lastReason = reason
             retryCount = retryCount + 1
         end
     end
@@ -177,7 +201,7 @@ local function measureBlockNormal(baseBlocks)
 
             local normalX, normalZ = normals[ni], normals[ni + 1]
             local nx, ny, nz = bx + normalX, by, bz + normalZ
-            local direction, reason = mineTo(20, nx, ny, nz, DisableDig, EnableAttack)
+            local direction, reason = mineToNear(10, nx, ny, nz, DisableDig, EnableAttack)
             if direction then
                 -- 次のブロックに移動できた
 
@@ -199,7 +223,7 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
     while true do
         local tx, ty, tz = ex + normalX, ey, ez + normalX
         Logger.logDebug("measureEndBlock", bx, by, bz, "e", ex, ey, ez)
-        local direction = mineTo(20, tx, ty, tz, DisableDig, EnableAttack)
+        local direction = mineToNear(20, tx, ty, tz, DisableDig, EnableAttack)
         if direction then
             -- 次のブロックに移動できた
 
@@ -438,12 +462,8 @@ Rules.add {
             request.mineZ or range.minZ
 
         -- 採掘先頭位置にいないなら移動
-        local direction, reason = mineTo(20, mx, my, mz, EnableDig, EnableAttack)
-        if not direction then return removeMiningRequest("mineTo failed:", reason) end
-
-        local ok, reason = Memoried.getOperation(direction).move()
-        if not ok then return removeMiningRequest("move[1] failed:", reason) end
-
+        local ok, reason = mineTo(20, mx, my, mz, EnableDig, EnableAttack)
+        if not ok then return removeMiningRequest("mineTo failed:", reason) end
     end
 }
 Rules.add {

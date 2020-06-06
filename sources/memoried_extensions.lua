@@ -148,6 +148,16 @@ local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
     return false, lastBestPath, lastBestPathDirection
 end
 
+local function findPath(tx, ty, tz)
+    local cx, cy, cz = Memoried.currentPosition()
+    local path, bestPath = getPath(cx, cy, cz, tx, ty, tz)
+    if path then
+        return true, path
+    else
+        return false, bestPath
+    end
+end
+
 local importantItems = {
     [DiamondPickaxe] = true,
     [Torch] = true,
@@ -366,6 +376,7 @@ return {
     globalDirectionToPosition = globalDirectionToPosition,
     findLastEmptySlot = findLastEmptySlot,
     findItemInNearDrop = findItemInNearDrop,
+    findPath = findPath,
     findNearMovablePath = findNearMovablePath,
     suckIf = suckIf,
     compactItems = compactItems,
