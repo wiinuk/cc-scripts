@@ -1,4 +1,5 @@
 local Ex = require "extensions"
+local pretty = require "pretty"
 
 
 ---@class LogListener
@@ -69,12 +70,12 @@ local function getDefaultLogger() return default end
 
 local function printVarArgTailWithSelf(self, write, arg1, ...)
     write(self, "\t")
-    write(self, tostring(arg1))
+    write(self, pretty(arg1))
     if select('#', ...) == 0 then return end
     printVarArgTailWithSelf(self, write, ...)
 end
 local function printVarArgHeadWithSelf(self, write, arg1, ...)
-    write(self, tostring(arg1))
+    write(self, pretty(arg1))
     if select('#', ...) == 0 then return end
     printVarArgTailWithSelf(self, write, ...)
 end
@@ -90,21 +91,27 @@ local function initLogFile(self)
     end
     self._logFile = io.open(self._logPath, "w+") or true
 end
+local function regenerateLogFile(self)
+    local size = fs.getSize(self._logPath)
+    if fs.getFreeSpace(fs.getDrive(self._logPath)) <= size then
+        self._logFile:close()
+        self._logFile = nil
+        fs.delete(self._logPath)
+
+        initLogFile(self)
+        if self._logFile and self._logFile ~= true then
+            self._logFile:write("<<truncated. max size: ")
+            self._logFile:write(tostring(size))
+            self._logFile:write(" bytes>>\n")
+            self._logFile:flush()
+        end
+    end
+end
 local function writeLog(self, level, ...)
 
     -- ドライブの空き領域チェック
     if self._logFile and 8 < math.random(1, 10) then
-        local size = fs.getSize(self._logPath)
-        if fs.getFreeSpace(fs.getDrive(self._logPath)) <= size then
-            self._logFile:close()
-            self._logFile = nil
-            fs.delete(self._logPath)
-
-            initLogFile(self)
-            if self._logFile and self._logFile ~= true then
-                self._logFile:write("<<truncated. max size: "..tostring(size).."byte>>")
-            end
-        end
+        regenerateLogFile()
     end
 
     -- ログファイルの存在チェック
