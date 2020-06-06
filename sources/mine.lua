@@ -1208,9 +1208,6 @@ local function transferItemsOfRecipe(recipe)
             local slot = 4 * (sy - 1) + sx
             local item = turtle.getItemDetail(slot)
             local name = recipe.names[recipe.width * (sy - 1) + sx]
-
-            Logger.logDebug("recipe", sx, sy, name, " = slot", slot)
-
             if (item and item.name) ~= name then
 
                 -- 空きを作る
@@ -1220,8 +1217,6 @@ local function transferItemsOfRecipe(recipe)
                 turtle.select(slot)
                 turtle.transferTo(emptySlot)
 
-                Logger.logDebug("slot", slot, " => slot", emptySlot)
-
                 if name ~= "" and name ~= nil then
 
                     -- 配置
@@ -1230,7 +1225,6 @@ local function transferItemsOfRecipe(recipe)
 
                     turtle.select(fromSlot)
                     turtle.transferTo(slot, 1)
-                    Logger.logDebug("slot", fromSlot, " => slot", slot)
                 end
             end
         end
@@ -1310,9 +1304,9 @@ end
 Rules.add {
     name = "craft torch",
     when = function()
-        if findSlotByName(Stick) then return false end    
+        if findSlotByName(Torch) then return false end
 
-        local tree, direction = createCraftInfo(Stick)    
+        local tree, direction = createCraftInfo(Torch)
         if not tree then return false end
         return 1, tree, direction
     end,
