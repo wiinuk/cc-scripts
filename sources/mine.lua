@@ -1193,6 +1193,7 @@ local function dropWithoutNeededMaterials(materials, dropDirection)
     return true
 end
 
+--- スロットにレシピの材料が必要
 --- スロットに1つ以上の空きが必要
 local function transferItemsOfRecipe(recipe)
     for sy = 1, recipe.height do
@@ -1245,7 +1246,7 @@ local function craftOfTree(tree, dropDirection)
     -- 原料がそろったので、必要な原料以外を捨てる
     local ok, reason = dropWithoutNeededMaterials(materials, dropDirection)
     if not ok then
-        Logger.logDebug("craftOfTree", reason)
+        Logger.logError("craftOfTree", reason)
         suckMany(dropDirection)
         return ok, reason
     end
@@ -1297,9 +1298,9 @@ end
 Rules.add {
     name = "craft torch",
     when = function()
-        if findSlotByName(Torch) then return false end
+        if findSlotByName(Stick) then return false end    
 
-        local tree, direction = createCraftInfo(Torch)
+        local tree, direction = createCraftInfo(Stick)    
         if not tree then return false end
         return 1, tree, direction
     end,
