@@ -614,9 +614,13 @@ end
 ---@param options MiningOptions
 local function parseMiningOptions(options, arguments)
     while 0 < #arguments do
-        ArgParser.parseNamedOption(arguments, "up", "u", options, tonumber)
-        ArgParser.parseNamedOption(arguments, "down", "d", options, tonumber)
-        return error("unrecognized argument: "..arguments[1])
+        if
+            ArgParser.parseNamedOption(arguments, "up", "u", options, tonumber) or
+            ArgParser.parseNamedOption(arguments, "down", "d", options, tonumber)
+        then
+        else
+            return error("unrecognized argument: "..tostring(arguments[1]))
+        end
     end
     return true
 end
