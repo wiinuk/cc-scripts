@@ -14,8 +14,13 @@ local function reset()
 end
 
 ---@param rule Rule
-local function add(rule)
+local function add(rule, ...)
     rules[#rules+1] = rule
+    if 0 ~= select("#", ...) then
+        for _, v in ipairs{...} do
+            rules[#rules+1] = v
+        end
+    end
 end
 
 
