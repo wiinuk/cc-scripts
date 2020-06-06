@@ -207,6 +207,7 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
                 -- 前のブロックと次のブロックが違うなら終点
                 return ex, ey, ez
             end
+            ex, ey, ez = tx, ty, tz
         else
             -- 移動できなかった
             return nil, reason
