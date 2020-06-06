@@ -1042,6 +1042,13 @@ local Coal = "minecraft:coal"
 local Planks = "minecraft:planks"
 local Log = "minecraft:log"
 
+---@class Recipe
+---@field public tag string
+---@field public width integer simple
+---@field public height integer simple
+---@field public names table<integer, string> simple
+
+---@return Recipe
 local function simpleRecipe(width, height, ...)
     return {
         tag = "simple",
@@ -1050,11 +1057,20 @@ local function simpleRecipe(width, height, ...)
         names = { ... },
     }
 end
+
+---@type table<string, Recipe>
 local recipes = {
     [Torch] = simpleRecipe(1, 2, Coal, Stick),
     [Stick] = simpleRecipe(1, 2, Planks, Planks),
     [Planks] = simpleRecipe(1, 1, Log),
 }
+
+---@class CraftTree
+---@field public item string
+---@field public recipe Recipe
+---@field public materials table<integer, CraftTree>
+
+---@return CraftTree|nil
 local function createCraftTree(itemName)
     if findSlotByName(itemName) then return { item = itemName } end
 
@@ -1156,10 +1172,13 @@ local function createCraftInfo(itemName)
 
     return tree, completePath, path, d
 end
+
+---@param materials table<integer, CraftTree>
+---@param dropDirection integer
 local function dropWithoutNeededMaterials(materials, dropDirection)
     local neededItemCounts = {}
     for i = 1, #materials do
-        local name = materials[i].name
+        local name = materials[i].item
         neededItemCounts[name] = (neededItemCounts[name] or 0) + 1
     end
 
