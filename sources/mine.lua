@@ -1109,8 +1109,7 @@ local function createCraftTree(itemName)
     return
 end
 local function maybeAir(location)
-    return location and
-        (location.detect == false or location.move == true or location.inspect == false)
+    return location and (location.move == true or location.inspect == false)
 end
 local function findCanDropDirection()
     -- 自分の周り
@@ -1373,7 +1372,7 @@ Rules.add {
             local location = Memoried.getLocation(tx, ty, tz)
 
             -- トーチを設置できる空間があり
-            if location and (location.move == true or location.inspect == false) then
+            if maybeAir(location) then
                 local hasBaseBlock = false
 
                 -- トーチが刺さるブロックがあるか探す ( 天井を除く )
