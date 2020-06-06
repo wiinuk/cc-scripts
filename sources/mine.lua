@@ -321,8 +321,8 @@ Rules.add {
 
         mainLogger.log(
             "range: ",
-            { range.minX, range.minY, range.minZ }, ", ",
-            { range.maxX, range.maxY, range.maxZ }
+            range.minX, range.minY, range.minZ, " to ",
+            range.maxX, range.maxY, range.maxZ
         )
         request.range = range
         request.step = "find-chest"
@@ -348,7 +348,7 @@ Rules.add {
         local cx, cy, cz = findChestNoMove()
         if not cx then return removeMiningRequest("chest not found") end
 
-        mainLogger.log("chest:", { cx, cy, cz })
+        mainLogger.log("chest:", cx, cy, cz)
         local request = Memoried.getRequest "mining"
         local range = request.range
 
@@ -417,7 +417,9 @@ Rules.add {
                     local ok, reason = limitedDig(d)
                     if not ok then Logger.logDebug(self.name, reason) end
                 end
+                Logger.logDebug(self.name, "air", mx, my, mz)
             end
+            Logger.logDebug(self.name, "out of range", mx, my, mz)
         end
 
         -- 上下移動
@@ -439,6 +441,8 @@ Rules.add {
                 if not ok then return removeMiningRequest(self.name, reason) end
 
                 request.mineY = request.mineY + request.normalY
+
+                Logger.logDebug(self.name, "down", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
             end
         else
             -- request.normalY == 1
@@ -450,6 +454,7 @@ Rules.add {
                 local ok, reason = M.mineTo(1, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
                 if not ok then return removeMiningRequest(self.name, reason) end
                 request.mineY = request.mineY + request.normalY
+                Logger.logDebug(self.name, "up", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
             else
                 -- チェストの高さを超えたのになにもぶつからなかった
                 -- 次の直下掘りに移動
@@ -478,6 +483,8 @@ Rules.add {
                         request.mineX = request.mineX + request.normalX * 2
                     end
                 end
+
+                Logger.logDebug(self.name, "next", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
 
                 -- 目標へ移動
                 local ok, reason = M.mineTo(20, request.mineX, request.mineY, request.mineZ, EnableDig, EnableAttack)
