@@ -424,14 +424,13 @@ Rules.add {
         for d = 1, 4 do
             local mx, my, mz = globalDirectionToPosition(d)
             if Box3.vsPoint(request.range, mx, my, mz) then
-                local location = Memoried.getLocation(mx, my, mz)
-                if not maybeAir(location) then
+                -- local location = Memoried.getLocation(mx, my, mz)
+                -- if not maybeAir(location) then       
                     local ok, reason = limitedDig(d)
                     if not ok then Logger.logDebug(self.name, reason) end
-                end
+                -- end
                 Logger.logDebug(self.name, "air", mx, my, mz)
             end
-            Logger.logDebug(self.name, "out of range", mx, my, mz)
         end
 
         -- 上下移動
