@@ -1037,7 +1037,7 @@ end
 
 local Torch = "minecraft:torch"
 local CraftingTable = "minecraft:crafting_table"
-local Stick = "minecraft:crafting_table"
+local Stick = "minecraft:stick"
 local Coal = "minecraft:coal"
 local Planks = "minecraft:planks"
 local Log = "minecraft:log"
