@@ -1057,11 +1057,15 @@ local recipes = {
 }
 local function createCraftTree(hasItemByName, itemName)
     if hasItemByName(itemName) then
+        Logger.logDebug("find", itemName)
         return { item = itemName }
     end
 
     local recipe = recipes[itemName]
-    if not recipe then return end
+    if not recipe then
+        Logger.logDebug("recipe not found", itemName)
+        return
+    end
 
     local tag = recipe.tag
     if tag == "simple" then
@@ -1072,6 +1076,7 @@ local function createCraftTree(hasItemByName, itemName)
             materials = {},
         }
         for i = 1, #names do
+            Logger.logDebug("finding material", names[i])
             local t = createCraftTree(hasItemByName, names[i])
             if not t then return end
 
