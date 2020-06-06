@@ -157,6 +157,10 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
             end
             retryCount = retryCount + 1
         else
+            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack)
+            if ok then return direction end
+
+            lastReason = reason
             retryCount = retryCount + 1
         end
     end
