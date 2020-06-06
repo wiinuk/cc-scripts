@@ -16,6 +16,15 @@ local Right = Memoried.Right
 local Down = Memoried.Down
 local Up = Memoried.Up
 
+local DiamondPickaxe = "minecraft:diamond_pickaxe"
+local Torch = "minecraft:torch"
+local CraftingTable = "minecraft:crafting_table"
+local Stick = "minecraft:stick"
+local Coal = "minecraft:coal"
+local Planks = "minecraft:planks"
+local Log = "minecraft:log"
+local Chest = "minecraft:chest"
+
 local mainLogger = Logger.create("main")
 
 
@@ -51,10 +60,7 @@ local function limitedDig(globalDirection)
     if not ok then return false, info end
 
     local name = info.name
-    if
-        name == "minecraft:chest" or
-        name == "minecraft:torch"
-    then
+    if name == Chest or name == Torch then
         return false, "important item"
     end
     return Memoried.getOperationAt(globalDirection).dig()
@@ -297,10 +303,9 @@ local function whenMine(priority, request, globalDirection)
         local name = info.name
 
         -- TODO: アイテム名をハードコードせずに判断したい
-        if
-            name == "minecraft:chest" or
-            name == "minecraft:torch"
-        then return priority end
+        if name == Chest or name == Torch then
+            return priority
+        end
     end
 
     local p = Memoried.memory.requestPriority or defaultRequestPriority
@@ -618,10 +623,9 @@ Rules.add {
     end,
 }
 
-local miningToolName = "minecraft:diamond_pickaxe"
 ---@param item ItemDetail
 local function isMiningTool(item)
-    return item.name == miningToolName and item.damage == 0
+    return item.name == DiamondPickaxe and item.damage == 0
 end
 local function findItemInInventory(predicate)
     for i = 1, 16 do
@@ -687,8 +691,8 @@ Rules.add {
     when = function()
         if not Memoried.hasRequest("mining") then return false end
         if
-            Memoried.equippedItemName(Left) == miningToolName or
-            Memoried.equippedItemName(Right) == miningToolName
+            Memoried.equippedItemName(Left) == DiamondPickaxe or
+            Memoried.equippedItemName(Right) == DiamondPickaxe
         then
             return false
         end
@@ -784,7 +788,7 @@ local function locationIsChest(x, y, z)
 
     -- チェスト
     local inspect = location.inspect
-    if inspect and inspect.name == "minecraft:chest" then return true end
+    if inspect and inspect.name == Chest then return true end
 
     -- 触ったことがあって、捨てたことがあるならチェスト?
     if location.detect then
@@ -901,17 +905,22 @@ Rules.add {
         local needFuelLevel = getNeedFuelLevel()
 
         -- ドロップ
+        local count = 64
+        if 95 < math.random(1, 100) then
+            d = Up
+            count = 1
+        end
         for i = 1, 16 do
             if 0 < turtle.getItemCount(i) then
                 local item = turtle.getItemDetail(i)
                 local name = item.name
-                if name ~= "minecraft:torch" then
+                if name ~= Torch then
                     local level = Memoried.memory.itemToFuelLevel[name]
                     if level and 0 < needFuelLevel then
                         needFuelLevel = needFuelLevel - (item.count * level)
                     else
                         turtle.select(i)
-                        Memoried.getOperationAt(d).drop()
+                        Memoried.getOperationAt(d).drop(count)
                     end
                 end
             end
@@ -926,7 +935,7 @@ local function isMined(x, y, z)
     if location.move == true or inspect == false then return true end
     if inspect == nil then return false end
     local name = inspect.name
-    if name == "minecraft:chest" or name == "minecraft:torch" then return true end
+    if name == Chest or name == Torch then return true end
     return false
 end
 
@@ -1035,13 +1044,6 @@ local function findItemSlotBy(predicate)
     return
 end
 
-local Torch = "minecraft:torch"
-local CraftingTable = "minecraft:crafting_table"
-local Stick = "minecraft:stick"
-local Coal = "minecraft:coal"
-local Planks = "minecraft:planks"
-local Log = "minecraft:log"
-
 ---@class Recipe
 ---@field public tag string
 ---@field public width integer simple
@@ -1099,32 +1101,17 @@ local function createCraftTree(itemName)
     Logger.logDebug("unknown recipe tag: ", tag)
     return
 end
-local function findNearCanDropPath()
-    local cx, cy, cz = Memoried.currentPosition()
-    for dx = -2, 2 do
-        for dy = -2, 2 do
-            for dz = -2, 2 do
-                local bx, by, bz = cx + dx, cy + dy, cz + dz
-                local l = Memoried.getLocation(bx, by, bz)
-                -- 自分の周りで
-
-                if l and l.detect == true then
-                    -- アイテムを置けるブロックがあり
-
-                    local ax, ay, az = bx, by + 1, bz
-                    local l = Memoried.getLocation(ax, ay, az)
-                    if l and (l.detect == false or l.move == true or l.inspect == false) then
-                        -- その上が空気
-
-                        local complete, path, d = findNearMovablePath(ax, ay, az)
-                        if path then
-                            -- 移動可能
-
-                            return complete, path, d
-                        end
-                    end
-                end
-            end
+local function maybeAir(location)
+    return location and
+        (location.detect == false or location.move == true or location.inspect == false)
+end
+local function findCanDropDirection()
+    -- 自分の周り
+    for d = 1, 6 do
+        local tx, ty, tz = globalDirectionToPosition(d)
+        if maybeAir(Memoried.getLocation(tx, ty, tz)) then
+            -- 空気
+            return d
         end
     end
 end
@@ -1166,11 +1153,14 @@ local function createCraftInfo(itemName)
     -- 多段クラフトが必要なく、その原料のほかにアイテムを持っていないときは、アイテムを捨てる必要がない
     if canSingleCraft(tree) then return tree end
 
-    -- 安全に捨てられる場所に移動する必要がある
-    local completePath, path, d = findNearCanDropPath()
-    if not path then return false end
+    -- チェストを持ってない
+    if not findSlotByName(Chest) then return false end
 
-    return tree, completePath, path, d
+    -- チェストを置ける場所を検索
+    local direction = findCanDropDirection()
+    if not direction then return false end
+
+    return tree, direction
 end
 
 ---@param materials table<integer, CraftTree>
@@ -1308,33 +1298,43 @@ Rules.add {
     when = function()
         if findSlotByName(Torch) then return false end
 
-        local tree, completePath, path, direction = createCraftInfo(Torch)
+        local tree, direction = createCraftInfo(Torch)
         if not tree then return false end
-        return 1, tree, completePath, path, direction
+        return 1, tree, direction
     end,
-    action = function(self, tree, completePath, path, direction)
+    action = function(self, tree, direction)
 
-        -- アイテム置き場まで移動
-        if path then
-            local ok, reason = goToGoal(20, path, DisableDig, DisableAttack)
-            if not ok then
-                Logger.logDebug(self.name, "goToGoal", reason)
+        -- チェストを設置
+        if direction then
+            local slot = findSlotByName(Chest)
+            if not slot then
+                Logger.logDebug(self.name, "chest not found in inventory")
                 return
             end
-        end
-        if not completePath then
-            Logger.logDebug(self.name, "complete path", completePath)
-            return
+
+            turtle.select(slot)
+            Memoried.getOperationAt(direction).place()
         end
 
         -- 装備
         local ok, reason = equipByName(CraftingTable)
-        if not ok then Logger.logDebug(self.name, "equip", reason) end
+        if not ok then
+            Logger.logDebug(self.name, "equip", reason)
+
+            -- チェストを撤去
+            Memoried.getOperationAt(direction).dig()
+            Memoried.getOperationAt(direction).suck()
+            return
+        end
 
         -- クラフト
         compactItems()
         local ok, reason = craftOfTree(tree, direction)
         if not ok then Logger.logDebug(self.name, "craftOfTree", reason) end
+
+        -- チェストを撤去
+        Memoried.getOperationAt(direction).dig()
+        Memoried.getOperationAt(direction).suck()
     end
 }
 Rules.add {
@@ -1342,7 +1342,7 @@ Rules.add {
     when = function()
 
         -- トーチを持っていて
-        local slot = findSlotByName("minecraft:torch")
+        local slot = findSlotByName(Torch)
         if not slot then return false end
 
         -- 近くにトーチを置いたことがなく
@@ -1352,7 +1352,7 @@ Rules.add {
             local p = history[i]
             local tx, ty, tz = p[1], p[2], p[3]
             local location = Memoried.getLocation(tx, ty, tz)
-            if location and (location.move == true or (location.inspect and location.inspect.name ~= "minecraft:torch")) then
+            if location and (location.move == true or (location.inspect and location.inspect.name ~= Torch)) then
                 -- トーチでないので削除
                 table.remove(history, i)
                 Logger.logInfo("remove torch history", tx, ty, tz)
