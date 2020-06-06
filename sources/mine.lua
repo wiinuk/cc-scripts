@@ -88,6 +88,12 @@ local function locationIsChest(x, y, z)
 end
 local function findChestInMemory()
 
+    -- リクエストから検索
+    local request = Memoried.getRequest "mining"
+    if request and request.chestX then
+        return request.chestX, request.chestY, request.chestZ
+    end
+
     -- チェスト履歴から検索
     local maxSearchCount = 20
     local chestHistory = Memoried.memory.chestHistory
