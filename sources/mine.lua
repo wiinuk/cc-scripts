@@ -672,6 +672,14 @@ Rules.add {
         local nx, ny, nz = directionToNormal(d)
         local tx, ty, tz = cx + nx, cy + ny, cz + nz
         if not locationIsChest(tx, ty, tz) then
+            local chestHistory = Memoried.memory.chestHistory
+            for i = #chestHistory, 1, -1 do
+                local h = chestHistory[i]
+                if tx == h[1] and ty == h[2] and tz == h[3] then
+                    table.remove(chestHistory, i)
+                    Logger.logInfo("remove chest history", tx, ty, tz)
+                end
+            end
             return Logger.logInfo("["..self.name.."]", tx, ty, tz, "is not chest")
         end
 
