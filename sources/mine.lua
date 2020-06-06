@@ -1449,11 +1449,12 @@ Rules.add {
 Rules.add {
     name = "go home",
     when = function()
-        if not Memoried.anyRequest() then
-            local _, path = findNearMovablePath(0, 0, 0)
-            if not path then return false end
-            return 1, path
-        end
+        if Memoried.anyRequest() then return end
+        if distanceToHome() < 10 then return end
+
+        local _, path = findNearMovablePath(0, 0, 0)
+        if not path then return false end
+        return 1, path
     end,
     action = function(self, path)
         local ok, reason = goToGoal(100, path, DisableDig, EnableAttack)
