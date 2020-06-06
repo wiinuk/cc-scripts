@@ -378,6 +378,18 @@ local function detectAnyAround()
     end
     return false
 end
+local function isMinYBound(minY, y)
+    if y <= minY then return true end
+
+    local ok, info = Memoried.getOperationAt(Down).inspect()
+    if ok then
+        return
+            info.name == "minecraft:bedrock" or
+            info.name == "minecraft:lava" or
+            info.name == "minecraft:flowing_lava"
+    end
+    return false
+end
 Rules.add {
     name = "mine: core",
     when = function()
@@ -425,14 +437,8 @@ Rules.add {
         -- 上下移動
         if request.normalY == -1 then
             -- 下に掘っているとき
-            local ok, info = Memoried.getOperationAt(Down).inspect()
-            if ok and
-                (
-                    info.name == "minecraft:bedrock" or
-                    info.name == "minecraft:lava" or
-                    info.name == "minecraft:flowing_lava"
-                )
-            then
+
+            if isMinYBound(request.range.minX, cy) then
                 -- 掘らないブロックなら反転
                 request.normalY = -1 * request.normalY
             else
@@ -450,7 +456,13 @@ Rules.add {
 
             -- 上がぶつかったなら掘れる
             -- 上がぶつからなかったときも、チェストの高さまでは周りを確認しないで上に移動
-            if Memoried.getOperationAt(Up).detect() or request.mineY <= request.chestY or detectAnyAround() then
+            if
+                cy < request.range.maxY and (
+                    Memoried.getOperationAt(Up).detect() or
+                    request.mineY <= request.chestY or
+                    detectAnyAround()
+                )
+            then
                 local ok, reason = M.mineTo(1, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
                 if not ok then return removeMiningRequest(self.name, reason) end
                 request.mineY = request.mineY + request.normalY
@@ -468,12 +480,6 @@ Rules.add {
                     -- x座標が範囲外に行ったので次のz座標に移動
                     request.mineZ = request.mineZ + 2
 
-                    if request.range.maxZ < request.mineZ then
-                        -- z座標が範囲外に行ったら終わり
-                        request.step = "goto-chest"
-                        return
-                    end
-
                     -- x方向の移動方向は反転
                     request.normalX = -1 * request.normalX
 
@@ -482,6 +488,12 @@ Rules.add {
                     if request.mineX < request.range.minX or request.range.maxX < request.mineX then
                         request.mineX = request.mineX + request.normalX * 2
                     end
+                end
+
+                if request.range.maxZ < request.mineZ then
+                    -- z座標が範囲外に行ったら終わり
+                    request.step = "goto-chest"
+                    return
                 end
 
                 Logger.logDebug(self.name, "next", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
