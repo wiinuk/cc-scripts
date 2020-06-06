@@ -530,6 +530,21 @@ Rules.add {
     end
 }
 Rules.add {
+    name = "mine: go to chest",
+    when = function()
+        local request = Memoried.getRequest "mining"
+        if not request or request.step ~= "goto-chest" then return false end
+        return defaultRequestPriority
+    end,
+    action = function()
+        local request = Memoried.getRequest "mining"
+        local direction, reason = mineToNear(20, request.chestX, request.chestY, request.chestZ, DisableDig, EnableAttack)
+        if not direction then
+            return removeMiningRequest("go to chest failed:", reason)
+        end
+    end,
+}
+Rules.add {
     name = "mine: get and equip pickaxe",
     when = function()
         if not Memoried.hasRequest("mining") then return false end
