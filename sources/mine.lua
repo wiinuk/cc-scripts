@@ -1207,9 +1207,10 @@ local function transferItemsOfRecipe(recipe)
     for sy = 1, recipe.height do
         for sx = 1, recipe.width do
             local slot = 4 * (sy - 1) + sx
+            local item = turtle.getItemDetail(slot)
             local name = recipe.names[recipe.width * (sy - 1) + sx]
 
-            if turtle.getItemDetail(slot).name ~= name then
+            if (item and item.name) ~= name then
 
                 -- 空きを作る
                 local emptySlot = findEmptySlot()
