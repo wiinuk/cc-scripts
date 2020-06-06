@@ -436,10 +436,10 @@ Rules.add {
         if request.normalY == -1 then
             -- 下に掘っているとき
 
-            if isMinYBound(request.range.minX, request.mineX) then
+            if isMinYBound(request.range.minY, request.mineY) then
                 -- 掘らないブロックなら反転
                 request.normalY = -1 * request.normalY
-                Logger.logDebug(self.name, "rev y", request.normalY, "minX:", request.range.minX, "mineX:", request.mineX)
+                Logger.logDebug(self.name, "rev y", request.normalY, "minY:", request.range.minY, "mineY:", request.mineY)
             else
                 -- 掘る
                 local ok, reason = M.mineTo(1, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
