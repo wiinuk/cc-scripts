@@ -217,7 +217,7 @@ local function measureBlockLine()
     local blocks = {}
     for d = 1, 4 do
         local ok, info = Memoried.getOperationAt(d).inspect()
-        if ok then blocks[#blocks+1] = { direction = d, info = info } end
+        if ok then blocks[#blocks+1] = { direction = d, block = info } end
     end
     if #blocks == 0 then return nil, "start block not found" end
 
