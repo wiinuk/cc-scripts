@@ -198,7 +198,8 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
     local ex, ey, ez = bx + normalX, by, bz + normalZ
     while true do
         local tx, ty, tz = ex + normalX, ey, ez + normalX
-        local direction, reason = mineTo(20, tx, ty, tz, DisableDig, EnableAttack)
+        Logger.logDebug("measureEndBlock", bx, by, bz, "e", ex, ey, ez)
+        local direction = mineTo(20, tx, ty, tz, DisableDig, EnableAttack)
         if direction then
             -- 次のブロックに移動できた
 
@@ -210,7 +211,7 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
             ex, ey, ez = tx, ty, tz
         else
             -- 移動できなかった
-            return nil, reason
+            return ex, ey, ez
         end
     end
 end
