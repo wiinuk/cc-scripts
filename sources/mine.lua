@@ -1184,7 +1184,8 @@ local function dropWithoutNeededMaterials(materials, dropDirection)
             local remainingCount = currentCount - (neededItemCounts[name] or 0)
             if 0 < remainingCount then
                 turtle.select(slot)
-                local ok, reason = Memoried.getOperationAt(dropDirection).drop(remainingCount)
+                local dropCount = math.min(remainingCount, turtle.getItemCount(slot))
+                local ok, reason = Memoried.getOperationAt(dropDirection).drop(dropCount)
                 if not ok then return ok, reason end
             end
         end
