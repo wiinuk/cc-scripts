@@ -188,6 +188,7 @@ end
 local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
     local retryCount = 0
     local lastReason = nil
+    Logger.logDebug("mineToNear", x, y, z)
     while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
