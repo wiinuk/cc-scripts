@@ -151,7 +151,7 @@ local function craftAndPutChest()
     turtle.select(slot)
     turtle.transferTo(2, breadCount)
     turtle.select(slot)
-    turtle.transferTo(3, breadCount - breadCount * 2)
+    turtle.transferTo(3, wheatCount - breadCount * 2)
 
     -- クラフト
     turtle.craft()
