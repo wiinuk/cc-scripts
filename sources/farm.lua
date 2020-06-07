@@ -1,3 +1,5 @@
+local w = io.open("./logs/farm.lua", "w+")
+
 local function findItem(predicate)
     for i = 1, 16 do
         local item = turtle.getItemDetail(i)
@@ -74,14 +76,22 @@ local function isSeed(item)
     return contains(seedNames, item.name)
 end
 
-while downIsPlant() do
-    if not findItem(isSeed) then
-        error("requires: "..table.concat(seedNames, " or "))
+local function main()
+    while downIsPlant() do
+        if not findItem(isSeed) then
+            error("requires: "..table.concat(seedNames, " or "))
+        end
+        dig()
+        selectItem(isSeed)
+        turtle.placeDown()
+        turtle.forward()
     end
-    dig()
-    selectItem(isSeed)
-    turtle.placeDown()
-    turtle.forward()
+
+    print("end")
 end
 
-print("end")
+local ok, error = pcall(main)
+if not ok then
+    w:write(tostring(error))
+    w:flush()
+end
