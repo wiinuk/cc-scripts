@@ -57,13 +57,16 @@ local slipMoveCount = 0
 local minSleepClock = 10
 local sleepClock = minSleepClock
 
+local function isDigAtDown()
+    local ok, item = turtle.inspectDown()
+    return ok and isDig(item)
+end
 local function dig()
     if not findItem(isSeed) then
         error("requires: "..table.concat(seedNames, " or "))
     end
 
-    local ok, item = turtle.inspectDown()
-    if ok and isDig(item) then
+    if isDigAtDown() then
         turtle.digDown()
         selectItem(isSeed)
         turtle.placeDown()
@@ -80,7 +83,7 @@ local function dig()
     end
 end
 
-local function onPlant()
+local function isPlantAtDown()
     local ok, item = turtle.inspectDown()
     return ok and isPlant(item)
 end
@@ -170,12 +173,12 @@ local function forwardOnPlant()
         fuelCheck()
         return false
     end
-    if not onPlant() then
+    if not isPlantAtDown() then
         craftAndPutChest()
         if not turtle.back() then fuelCheck() end
         return false
     else
-        if not isDig() then
+        if not isDigAtDown() then
             slipMoveCount = slipMoveCount + 1
         end
     end
