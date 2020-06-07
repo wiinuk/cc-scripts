@@ -70,11 +70,13 @@ local function downIsPlant()
     return ok and isPlant(item)
 end
 
-local function isSeed(i) return contains(seedNames, i) end
+local function isSeed(item)
+    return contains(seedNames, item.name)
+end
 
 while downIsPlant() do
     if not findItem(isSeed) then
-        error("requires: ", table.concat(seedNames, " or "))
+        error("requires: "..table.concat(seedNames, " or "))
     end
     dig()
     selectItem(isSeed)
