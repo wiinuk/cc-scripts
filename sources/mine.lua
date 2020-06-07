@@ -201,7 +201,8 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
         else
             lastReason = "path not found"
             Logger.logDebug("mineToNear: not found: ", retryCount, "/", maxRetryCount)
-            collectMap()
+            local c, m = collectMap()
+            Logger.logDebug("mineToNear: collect: ", c, "/", m)
         end
         retryCount = retryCount + 1
     end
