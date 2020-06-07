@@ -43,9 +43,20 @@ local function isDig(item)
     return isPlant(item) and 7 <= item.state.age
 end
 
+local function isSeed(item)
+    return contains(seedNames, item.name)
+end
+
 local function dig()
+    if not findItem(isSeed) then
+        error("requires: "..table.concat(seedNames, " or "))
+    end
     local ok, item = turtle.inspectDown()
-    if ok and isDig(item) then turtle.digDown() end
+    if ok and isDig(item) then
+        turtle.digDown()
+        selectItem(isSeed)
+        turtle.placeDown()
+    end
 end
 
 local function isFarm()
@@ -73,26 +84,18 @@ local function downIsPlant()
     return ok and isPlant(item)
 end
 
-local function isSeed(item)
-    return contains(seedNames, item.name)
-end
-
 local function digLine()
     while true do
         if not downIsPlant() then
-            while not turtle.back() do end
-        end
-        if not findItem(isSeed) then
-            error("requires: "..table.concat(seedNames, " or "))
+            turtle.back()
         end
         dig()
-        selectItem(isSeed)
-        turtle.placeDown()
         if not turtle.forward() then return end
     end
 end
 
 local function main()
+    print("staring")
     local isLeft = true
     while true do
         digLine()
