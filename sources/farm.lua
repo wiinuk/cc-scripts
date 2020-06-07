@@ -1,3 +1,7 @@
+
+local Chest = "minecraft:chest"
+local Coal = "minecraft:coal"
+
 local w = io.open("./logs/farm.log", "w+")
 
 local function findItem(predicate)
@@ -108,7 +112,6 @@ local function fuelCheck()
     end
 end
 
-local Chest = "minecraft:chest"
 local down = {
     drop = turtle.dropDown,
     suck = turtle.suckDown,
@@ -162,7 +165,7 @@ local function craftAndPutChest()
 
     -- 種以外をチェストに返す
     eachItem(function (i, s)
-        if not isSeed(i) then
+        if not isSeed(i) or not i.name == Coal then
             turtle.select(s)
             chestOp.drop()
         end
