@@ -241,21 +241,39 @@ local function mineTo(maxRetryCount, targetX, targetY, targetZ, disableDig, disa
     while true do
         if maxRetryCount < retryCount then return false, lastReason end
 
-        local currentX, currentY, currentZ = Memoried.currentPosition()
+        local cx, cy, cz = Memoried.currentPosition()
 
-        if currentX == targetX and currentY == targetY and currentZ == targetZ then return true end
+        if cx == targetX and cy == targetY and cz == targetZ then return true end
 
-        local ok, reason = false, nil
-        if targetX < currentX then ok, reason = mineMove1(Left, disableDig, disableAttack, isUnlimited)
-        elseif currentX < targetX then ok, reason = mineMove1(Right, disableDig, disableAttack, isUnlimited)
-        elseif targetZ < currentZ then ok, reason = mineMove1(Back, disableDig, disableAttack, isUnlimited)
-        elseif currentZ < targetZ then ok, reason = mineMove1(Forward, disableDig, disableAttack, isUnlimited)
-
-        elseif currentY < targetY then ok, reason = mineMove1(Up, disableDig, disableAttack, isUnlimited)
-        elseif targetY < currentY then ok, reason = mineMove1(Down, disableDig, disableAttack, isUnlimited)
+        if targetX < cx then
+            local ok, reason = mineMove1(Left, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
         end
-        if not ok then
-            lastReason = reason
+        if cx < targetX then
+            local ok, reason = mineMove1(Right, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
+        end
+        if targetZ < cz then
+            local ok, reason = mineMove1(Back, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
+        end
+        if cz < targetZ then
+            local ok, reason = mineMove1(Forward, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
+        end
+        if cy < targetY then
+            local ok, reason = mineMove1(Up, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
+        end
+        if targetY < cy then
+            local ok, reason = mineMove1(Down, disableDig, disableAttack, isUnlimited)
+            if not ok then lastReason = reason end
+        end
+
+        local d1 = Vec3.manhattanDistance(cx, cy, cz, targetX, targetY, targetZ)
+        local c2x, c2y, c2z = Memoried.currentPosition()
+        local d2 = Vec3.manhattanDistance(c2x, c2y, c2z, targetX, targetY, targetZ)
+        if d1 <= d2 then
             retryCount = retryCount + 1
         end
     end

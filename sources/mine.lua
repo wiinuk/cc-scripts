@@ -177,7 +177,7 @@ end
 
 ---@return number|nil direction
 ---@return any reason
-local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
+local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
     local retryCount = 0
     local lastReason = nil
     Logger.logDebug("mineToNear", x, y, z)
@@ -185,17 +185,23 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
             Logger.logDebug("mineToNear: found:", retryCount, "/", maxRetryCount, ",", complete, "to", x, y, z, path)
-            local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
+            local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack, unlimited)
             if ok and complete then
                 Logger.logDebug("mineToNear: moved:", retryCount, "/", maxRetryCount, ", direction:", direction)
                 return direction
             end
             if not ok then lastReason = reason end
         else
-            lastReason = "path not found"
             Logger.logDebug("mineToNear: not found: ", retryCount, "/", maxRetryCount)
-            local c, m = collectMap()
-            Logger.logDebug("mineToNear: collect: ", c, "/", m)
+
+            local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
+            if ok then
+                Logger.logDebug("mineToNear: buggy success")
+            else
+                lastReason = reason
+                local c, m = collectMap()
+                Logger.logDebug("mineToNear: collect: ", c, "/", m)
+            end
         end
         retryCount = retryCount + 1
     end
