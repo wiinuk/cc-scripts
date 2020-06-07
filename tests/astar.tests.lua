@@ -29,6 +29,29 @@ function tests.findPath()
     Assert.equals(path, { 1,1,0, 1,2,0, 0,2,0, 0,3,0, 0,4,0, 1,4,0, 2,4,0, 3,4,0, 4,4,0, })
 end
 
+
+local function isMovableXZ(x, y, z)
+    if y ~= 0 then return false end
+    if x < 0 or 4 < x then return false end
+    if z < 0 or 4 < z then return false end
+    return map[z+1][x+1] % 2 == 0
+end
+function tests.findPathXZ()
+    local path = AStar.findPath(isMovableXZ, 1,0,1, 4,0,4)
+    Assert.equals(path, { 1,0,1, 1,0,2, 0,0,2, 0,0,3, 0,0,4, 1,0,4, 2,0,4, 3,0,4, 4,0,4, })
+end
+
+local function isMovableYZ(x, y, z)
+    if x ~= 0 then return false end
+    if y < 0 or 4 < y then return false end
+    if z < 0 or 4 < z then return false end
+    return map[z+1][y+1] % 2 == 0
+end
+function tests.findPathYZ()
+    local path = AStar.findPath(isMovableYZ, 0,1,1, 0,4,4)
+    Assert.equals(path, { 0,1,1, 0,1,2, 0,0,2, 0,0,3, 0,0,4, 0,1,4, 0,2,4, 0,3,4, 0,4,4, })
+end
+
 function tests.startAndResumeSimple()
     local finder = AStar.newFinder(isMovable)
     AStar.initialize(finder, 1,1,0, 1,2,0)
@@ -141,6 +164,16 @@ function tests.findPathEqualsProperty()
         Assert.equals(state, "ready")
         Assert.equals(path, expected, "second\n"..prettyMap(isMovable, startX, startY, goalX, goalY, expected))
     end)
+end
+
+function tests.negativePosition()
+    local function movable() return true end
+
+    local f = AStar.newFinder(movable)
+    f._debug = true
+    AStar.initialize(f, 0, 0, 0, 0, -5, 0)
+    local path = AStar.resume(f, 99999)
+    Assert.equals(path, { 0,0,0, 0,-1,0, 0,-2,0, 0,-3,0, 0,-4,0, 0,-5,0 })
 end
 
 Assert.runTests(tests)

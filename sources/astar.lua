@@ -19,8 +19,11 @@ local Heap = require "heap"
 local Open = 1
 local Closed = -1
 
+local abs = math.abs
+local modf = math.modf
+
 local function isInt17(x)
-    return -65536 <= x and x <= 65535 and math.modf(x) == x
+    return -65536 <= x and x <= 65535 and modf(x) == x
 end
 
 ---@param x integer
@@ -43,8 +46,8 @@ end
 
 --- double に格納された3要素の整数ベクトルを取り出す
 local function keyToPosition(key)
-    local x = math.modf(key / 17179869184 --[[ 0x400000000 ]]) % 131072 --[[ 0x20000 ]] - 65536 --[[ 0x10000 ]]
-    local y = math.modf(key / 131072 --[[ 0x20000 ]]) % 131072 - 65536
+    local x = modf(key / 17179869184 --[[ 0x400000000 ]]) % 131072 --[[ 0x20000 ]] - 65536 --[[ 0x10000 ]]
+    local y = modf(key / 131072 --[[ 0x20000 ]]) % 131072 - 65536
     local z = key % 131072 - 65536
     return x, y, z
 end
@@ -66,7 +69,7 @@ local function open(self, key, parentKey)
     local x, y, z = keyToPosition(key)
 
     -- static weighing
-    local hCost = (self.goalX - x) + (self.goalY - y) + (self.goalZ - z)
+    local hCost = abs(self.goalX - x) + abs(self.goalY - y) + abs(self.goalZ - z)
     self.positionToScore[key] = cost + hCost * 5
 
     Heap.push(self.opens, key, self.compareNodeOfCost)
