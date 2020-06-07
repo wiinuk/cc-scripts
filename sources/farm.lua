@@ -84,19 +84,23 @@ local function downIsPlant()
     return ok and isPlant(item)
 end
 
+local function fuelCheck()
+    local level = turtle.getFuelLevel()
+    if level ~= "unlimited" and level <= 0 then
+        error("empty fuel")
+    end
+end
+
 local function digLine()
     while true do
         if not downIsPlant() then
             print("down is not plant")
-            turtle.back()
+            if not turtle.back() then fuelCheck() end
             return
         end
         dig()
         if not turtle.forward() then
-            local level = turtle.getFuelLevel()
-            if level ~= "unlimited" and level <= 0 then
-                error("empty fuel")
-            end
+            fuelCheck()
             print("move to forward failed")
             return
         end
@@ -115,6 +119,7 @@ local function main()
         end
 
         if not turtle.forward() then
+            fuelCheck()
             if isLeft then
                 turtle.turnLeft()
             else
