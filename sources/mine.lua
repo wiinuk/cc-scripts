@@ -11,12 +11,10 @@ local findNearMovablePath = M.findNearMovablePath
 local findPath = M.findPath
 local goToGoal = M.goToGoal
 local suckIf = M.suckIf
-local directionToNormal = M.directionToNormal
 local getNeedFuelLevel = M.getNeedFuelLevel
 local isImportantItem = M.isImportantItem
 local globalDirectionToPosition = M.globalDirectionToPosition
 local limitedDig = M.limitedDig
-local maybeAir = M.maybeAir
 local isMapMissing = M.isMapMissing
 local collectMissingMapAt = M.collectMissingMapAt
 
