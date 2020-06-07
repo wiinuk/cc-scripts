@@ -79,7 +79,7 @@ local function isFarm()
     end
 end
 
-local function downIsPlant()
+local function onPlant()
     local ok, item = turtle.inspectDown()
     return ok and isPlant(item)
 end
@@ -91,19 +91,21 @@ local function fuelCheck()
     end
 end
 
+local function forwardOnPlant()
+    if not turtle.forward() then
+        fuelCheck()
+        return false
+    end
+    if not onPlant() then
+        if not turtle.back() then fuelCheck() end
+        return false
+    end
+    return true
+end
+
 local function digLine()
-    while true do
-        if not downIsPlant() then
-            print("down is not plant")
-            if not turtle.back() then fuelCheck() end
-            return
-        end
+    while forwardOnPlant() do
         dig()
-        if not turtle.forward() then
-            fuelCheck()
-            print("move to forward failed")
-            return
-        end
     end
 end
 
@@ -115,12 +117,11 @@ local function main()
         digLine()
         turn()
 
-        if not turtle.forward() then
-            fuelCheck()
+        if not forwardOnPlant() then
             turn, turnInv = turnInv, turn
             turn()
             turn()
-            if not turtle.forward() then
+            if not forwardOnPlant() then
                 turn()
             end
         else
