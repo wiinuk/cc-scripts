@@ -100,17 +100,26 @@ local function isEmptyFuel()
     local level = turtle.getFuelLevel()
     return level ~= "unlimited" and level <= 0
 end
+local function refuel()
+    eachItem(function (item, index)
+        turtle.select(index)
+        turtle.refuel(1)
+        return item
+    end)
+end
 local function fuelCheck()
     if isEmptyFuel() then
-        print("empty fuel")
-        while isEmptyFuel() do
-            eachItem(function (item, index)
-                turtle.select(index)
-                turtle.refuel(1)
-                return item
-            end)
+        refuel()
+        if isEmptyFuel() then
+            print("empty fuel")
+            while isEmptyFuel() do
+                local turn = turtle.turnLeft
+                if math.random(1,2) == 1 then turn = turtle.turnRight end
+                for _ = 1, 4 do turn() end
+                refuel()
+            end
+            print("replenished", turtle.getFuelLevel(), "fuels")
         end
-        print("replenished", turtle.getFuelLevel(), "fuels")
     end
 end
 
