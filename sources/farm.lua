@@ -77,15 +77,45 @@ local function isSeed(item)
     return contains(seedNames, item.name)
 end
 
-local function main()
-    while downIsPlant() do
+local function digLine()
+    while true do
+        if not downIsPlant() then
+            while not turtle.back() do end
+        end
         if not findItem(isSeed) then
             error("requires: "..table.concat(seedNames, " or "))
         end
         dig()
         selectItem(isSeed)
         turtle.placeDown()
-        turtle.forward()
+        if not turtle.forward() then return end
+    end
+end
+
+local function main()
+    local isLeft = true
+    while true do
+        digLine()
+        if isLeft then
+            turtle.turnLeft()
+        else
+            turtle.turnRight()
+        end
+
+        if not turtle.forward() then
+            if isLeft then
+                turtle.turnLeft()
+            else
+                turtle.turnRight()
+            end
+        else
+            if isLeft then
+                turtle.turnLeft()
+            else
+                turtle.turnRight()
+            end
+        end
+        isLeft = not isLeft
     end
 
     print("end")
