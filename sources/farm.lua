@@ -93,6 +93,10 @@ local function digLine()
         end
         dig()
         if not turtle.forward() then
+            local level = turtle.getFuelLevel()
+            if level ~= "unlimited" and level <= 0 then
+                error("empty fuel")
+            end
             print("move to forward failed")
             return
         end
