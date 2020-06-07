@@ -182,12 +182,12 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack, unl
     local lastReason = nil
     Logger.logDebug("mineToNear", x, y, z)
 
-    local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
-    if ok then
-        Logger.logDebug("mineToNear: buggy success")
-    else
-        lastReason = reason
-    end
+    -- local ok, reason = M.mineTo(maxRetryCount, x, y, z, disableDig, disableAttack, unlimited)
+    -- if ok then
+    --     Logger.logDebug("mineToNear: buggy success")
+    -- else
+    --     lastReason = reason
+    -- end
 
     while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)

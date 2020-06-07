@@ -46,9 +46,7 @@ end
 
 local function isMovableInMemory(x, y, z)
     local location = Memoried.getLocation(x, y, z)
-    local m = location and (location.detect == false or location.move == true)
-    Logger.logDebug("check movable", x, y, z, m)
-    return m
+    return location and (location.detect == false or location.move == true)
 end
 
 local finderMaxStep = 100
