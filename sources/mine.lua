@@ -226,42 +226,50 @@ local normals = {
     1,-1,
     -1,-1,
 }
+local function measureBlockNormal1(block, bx, by, bz)
+    local lastReason = nil
+    for ni = 1, #normals, 2 do
+        -- 始点ブロックの次のブロックの座標から、ブロック線の方向を求める
+        -- [n]   [n]
+        --    [b]
+        -- [n]   [n]
+
+        local normalX, normalZ = normals[ni], normals[ni + 1]
+        local nx, ny, nz = bx + normalX, by, bz + normalZ
+
+        Logger.logDebug("moving to next", block.name, nx, ny, nz, "@measureBlockNormal1")
+        local direction, reason = mineToNear(10, nx, ny, nz, DisableDig, EnableAttack)
+        if direction then
+            -- 次のブロックに移動できた
+
+            local ok, nextBlock = Memoried.getOperationAt(direction).inspect()
+            if ok and block.name == nextBlock.name then
+                -- 前のブロックと次のブロックが同じ
+                return normalX, normalZ
+            else
+                lastReason = reason
+            end
+        end
+    end
+    return false, lastReason
+end
 local function measureBlockNormal(baseBlocks)
     local lastReason = nil
     for bi = 1, #baseBlocks do
         local bp = baseBlocks[bi].position
         local bx, by, bz = bp[1], bp[2], bp[3]
+        local block = baseBlocks[bi].block
+        Logger.logDebug("moving to base", block.name, bx, by, bz, "@measureBlockNormal")
+
         local bd, reason = mineToNear(10, bx, by, bz, DisableDig, EnableAttack)
         if not bd then
             lastReason = reason
         else
-            local block = baseBlocks[bi].block
-
-            -- 始点となるブロックの座標
-            --    [b]
-            -- [b][T][b]
-            --    [b]
-
-            for ni = 1, #normals, 2 do
-                -- 始点ブロックの次のブロックの座標から、ブロック線の方向を求める
-                -- [n]   [n]
-                --    [b]
-                -- [n]   [n]
-
-                local normalX, normalZ = normals[ni], normals[ni + 1]
-                local nx, ny, nz = bx + normalX, by, bz + normalZ
-                local direction, reason = mineToNear(10, nx, ny, nz, DisableDig, EnableAttack)
-                if direction then
-                    -- 次のブロックに移動できた
-
-                    local ok, nextBlock = Memoried.getOperationAt(direction).inspect()
-                    if ok and block.name == nextBlock.name then
-                        -- 前のブロックと次のブロックが同じ
-                        return block, bx, by, bz, normalX, normalZ
-                    end
-                else
-                    lastReason = reason
-                end
+            local normalX, normalZ = measureBlockNormal1(block, bx, by, bz)
+            if not normalX then
+                lastReason = normalZ
+            else
+                return block, bx, by, bz, normalX, normalZ
             end
         end
     end
