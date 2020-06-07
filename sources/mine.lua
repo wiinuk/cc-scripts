@@ -191,7 +191,7 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
     while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
-            Logger.logDebug("mineToNear: found:", retryCount, "/", maxRetryCount, ",", complete, path)
+            Logger.logDebug("mineToNear: found:", retryCount, "/", maxRetryCount, ",", complete, "to", x, y, z, path)
             local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
             if ok and complete then
                 Logger.logDebug("mineToNear: moved:", retryCount, "/", maxRetryCount, ", direction:", direction)

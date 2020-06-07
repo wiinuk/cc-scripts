@@ -29,7 +29,7 @@ local function ruleThread()
     Rules.add(
         BasicRules.collectAroundMapRule,
         BasicRules.craftTorchRule,
-        BasicRules.setTorchRule,
+        -- BasicRules.setTorchRule,
         BasicRules.refuelRule,
         BasicRules.goHomeRule
     )
