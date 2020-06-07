@@ -417,6 +417,16 @@ local function isMinYBound(minY, y)
         info.name == "minecraft:lava" or
         info.name == "minecraft:flowing_lava"
 end
+local function isUpDig(request, y)
+    if request.options.up then
+        return y < request.range.maxY
+    else
+        return
+            Memoried.getOperationAt(Up).detect() or
+            request.mineY <= request.chestY or
+            detectAnyAround()
+    end
+end
 Rules.add {
     name = "mine: core",
     when = function()
@@ -451,12 +461,14 @@ Rules.add {
         for d = 1, 4 do
             local mx, my, mz = globalDirectionToPosition(d)
             if Box3.vsPoint(request.range, mx, my, mz) then
-                -- local location = Memoried.getLocation(mx, my, mz)
-                -- if not maybeAir(location) then       
-                    local ok, reason = limitedDig(d)
-                    -- if not ok then Logger.logDebug(self.name, reason) end
-                -- end
-                -- Logger.logDebug(self.name, "air", mx, my, mz)
+                local location = Memoried.getLocation(mx, my, mz)
+                if not location or
+                    location.detect ~= false or
+                    location.move ~= true or
+                    location.inspect ~= false
+                then
+                    limitedDig(d)
+                end
             end
         end
 
@@ -483,13 +495,7 @@ Rules.add {
 
             -- 上がぶつかったなら掘れる
             -- 上がぶつからなかったときも、チェストの高さまでは周りを確認しないで上に移動
-            if
-                cy < request.range.maxY and (
-                    Memoried.getOperationAt(Up).detect() or
-                    request.mineY <= request.chestY or
-                    detectAnyAround()
-                )
-            then
+            if isUpDig(request, cy) then
                 local ok, reason = M.mineTo(5, cx, cy + request.normalY, cz, EnableDig, EnableAttack, Unlimited)
                 if not ok then return removeMiningRequest(self.name, reason) end
                 request.mineY = request.mineY + request.normalY
@@ -526,7 +532,7 @@ Rules.add {
                 mainLogger.logInfo(self.name, "line", request.mineX, request.mineY, request.mineZ, "normal:", request.normalX, request.normalY)
 
                 -- 目標へ移動
-                local ok, reason = M.mineTo(20, request.mineX, request.mineY, request.mineZ, EnableDig, EnableAttack)
+                local ok, reason = M.mineTo(20, request.mineX, request.mineY, request.mineZ, EnableDig, EnableAttack, Unlimited)
                 if not ok then return removeMiningRequest(self.name, reason) end
             end
         end
