@@ -128,6 +128,7 @@ end
 local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
     local lastBestPath = nil
     local lastBestPathDirection = nil
+    local lastBestScore = 1/0
     for globalDirection = 1, 6 do
         -- ゴール候補の移動可能な場所をさがす
 
@@ -137,11 +138,12 @@ local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
         -- パスのゴールとなる移動先は、移動可能な場所を選ぶ必要がある
         if enableNoMovableGoal or isMovableInMemory(mx, my, mz) then
             local cx, cy, cz = Memoried.currentPosition()
-            local path, bestPath = getPath(cx, cy, cz, mx, my, mz)
+            local path, bestPath, bestScore = getPath(cx, cy, cz, mx, my, mz)
             if path then return true, path, globalDirection end
-            if bestPath then
+            if bestPath and bestScore <= lastBestScore then
                 lastBestPath = bestPath
                 lastBestPathDirection = globalDirection
+                lastBestScore = bestScore
             end
         end
     end
