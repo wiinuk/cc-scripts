@@ -109,30 +109,24 @@ end
 
 local function main()
     print("starting")
-    local isLeft = true
+    local turn = turtle.turnLeft
+    local turnInv = turtle.turnRight
     while true do
         digLine()
-        if isLeft then
-            turtle.turnLeft()
-        else
-            turtle.turnRight()
-        end
+        turn()
 
         if not turtle.forward() then
             fuelCheck()
-            if isLeft then
-                turtle.turnLeft()
-            else
-                turtle.turnRight()
+            turn, turnInv = turnInv, turn
+            turn()
+            turn()
+            if not turtle.forward() then
+                turn()
             end
         else
-            if isLeft then
-                turtle.turnLeft()
-            else
-                turtle.turnRight()
-            end
+            turn()
+            turn, turnInv = turnInv, turn
         end
-        isLeft = not isLeft
     end
 
     print("end")
