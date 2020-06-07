@@ -188,7 +188,7 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack, unl
     else
         lastReason = reason
     end
-    
+
     while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
