@@ -17,6 +17,12 @@ local function selectItem(predicate)
     end
 end
 
+local function eachItem(action)
+    for i = 1, 16 do
+        action(turtle.getItemDetail(i), i)
+    end
+end
+
 local seedNames = {
     "minecraft:carrot",
     "minecraft:wheat_seeds",
@@ -47,34 +53,29 @@ local function isSeed(item)
     return contains(seedNames, item.name)
 end
 
+local lastDigClock = 0
+local minSleepClock = 10
+local sleepClock = minSleepClock
+
 local function dig()
     if not findItem(isSeed) then
         error("requires: "..table.concat(seedNames, " or "))
     end
+
     local ok, item = turtle.inspectDown()
     if ok and isDig(item) then
         turtle.digDown()
         selectItem(isSeed)
         turtle.placeDown()
-    end
-end
 
-local function isFarm()
-    local ok, item = turtle.inspectDown()
-    if ok and isPlant(item) then return true end
-
-    if not ok then
-        if not findItem(function (i) return i.name:match("minecraft:[%w_]*hoe") end)
-        then
-            error("requires: hoe")
-        end
-
-        turtle.down()
-        local ok, item = turtle.inspectDown()
-        if ok and item.name == "minecraft:dirt" then
-            turtle.up()
-            turtle.equipRight()
-            return
+        lastDigClock = os.clock()
+        sleepClock = minSleepClock
+    else
+        local clock = os.clock()
+        if 30 < clock - lastDigClock then
+            print("sleeping", sleepClock, "s")
+            os.sleep(sleepClock)
+            sleepClock = sleepClock * 2
         end
     end
 end
@@ -84,19 +85,94 @@ local function onPlant()
     return ok and isPlant(item)
 end
 
-local function fuelCheck()
+local function isEmptyFuel()
     local level = turtle.getFuelLevel()
-    if level ~= "unlimited" and level <= 0 then
-        error("empty fuel")
+    return level ~= "unlimited" and level <= 0
+end
+local function fuelCheck()
+    if isEmptyFuel() then
+        print("empty fuel")
+        while isEmptyFuel() do
+            eachItem(function (item, index)
+                turtle.select(index)
+                turtle.refuel(1)
+                return item
+            end)
+        end
+        print("replenished", turtle.getFuelLevel(), "fuels")
     end
+end
+
+
+
+local Chest = "minecraft:chest"
+local down = {
+    drop = turtle.dropDown,
+    suck = turtle.suckDown,
+}
+local forward = {
+    drop = turtle.drop,
+    suck = turtle.suck,
+}
+local function getNeighborChestOps()
+    local ok, item = turtle.inspectDown()
+    if ok and item.name == Chest then return down end
+    local ok, item = turtle.inspect()
+    if ok and item.name == Chest then return forward end
+    return
+end
+local function craftAndPutChest()
+    -- チェストがあるか
+    local chestOp = getNeighborChestOps()
+    if not chestOp then return end
+
+    -- 小麦のスロットを検索
+    local slot = findItem(function (i) return i.name == "minecraft:wheat" end)
+    if not slot then return end
+    if turtle.getItemCount(slot) < 3 then return end
+
+    -- 小麦の他のアイテムはチェストに入れる
+    local drop = chestOp.drop
+    eachItem(function (_, s)
+        if s ~= slot then
+            turtle.select(s)
+            drop()
+        end
+    end)
+
+    -- 小麦をスロットに均等に配置
+    local wheatCount = turtle.getItemCount(slot)
+    local breadCount = math.modf(wheatCount / 3)
+    turtle.select(slot)
+    turtle.transferTo(1, breadCount)
+    turtle.select(slot)
+    turtle.transferTo(2, breadCount)
+    turtle.select(slot)
+    turtle.transferTo(3, breadCount - breadCount * 2)
+
+    -- クラフト
+    turtle.craft()
+
+    -- チェストから種を含むアイテムを全てとる
+    while chestOp.suck() do end
+
+    -- 種以外をチェストに返す
+    eachItem(function (i, s)
+        if not isSeed(i) then
+            turtle.select(s)
+            chestOp.drop()
+        end
+    end)
 end
 
 local function forwardOnPlant()
     if not turtle.forward() then
+        craftAndPutChest()
         fuelCheck()
         return false
     end
     if not onPlant() then
+        craftAndPutChest()
         if not turtle.back() then fuelCheck() end
         return false
     end
