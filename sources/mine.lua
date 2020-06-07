@@ -78,12 +78,6 @@ local function locationIsChest(x, y, z)
     local inspect = location.inspect
     if inspect and inspect.name == Chest then return true end
 
-    -- 触ったことがあって、捨てたことがあるならチェスト?
-    if location.detect then
-        local drops = location.drops
-        if drops and 1 < #drops then return true end
-    end
-
     return false
 end
 local function findChestInMemory()
