@@ -54,7 +54,8 @@ local function isSeed(item)
 end
 
 local slipMoveCount = 0
-local minSleepClock = 10
+local maxSlipCount = 10
+local minSleepClock = 8
 local sleepClock = minSleepClock
 
 local function isDigAtDown()
@@ -74,7 +75,7 @@ local function dig()
         slipMoveCount = 0
         sleepClock = minSleepClock
     else
-        if 30 < slipMoveCount then
+        if maxSlipCount < slipMoveCount then
             print("sleeping", sleepClock, "s")
             os.sleep(sleepClock)
             sleepClock = sleepClock * 2
