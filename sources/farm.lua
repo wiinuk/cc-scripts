@@ -88,6 +88,7 @@ local function digLine()
     while true do
         if not downIsPlant() then
             turtle.back()
+            return
         end
         dig()
         if not turtle.forward() then return end
@@ -95,7 +96,7 @@ local function digLine()
 end
 
 local function main()
-    print("staring")
+    print("starting")
     local isLeft = true
     while true do
         digLine()
