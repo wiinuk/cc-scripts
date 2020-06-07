@@ -1,4 +1,4 @@
-local w = io.open("./logs/farm.lua", "w+")
+local w = io.open("./logs/farm.log", "w+")
 
 local function findItem(predicate)
     for i = 1, 16 do
@@ -12,8 +12,9 @@ local function selectItem(predicate)
     if slot then
         local ok, reason = turtle.select(slot)
         if not ok then error(reason) end
+    else
+        error("item not found:"..debug.traceback())
     end
-    error("item not found:"..debug.traceback())
 end
 
 local seedNames = {
@@ -90,8 +91,9 @@ local function main()
     print("end")
 end
 
-local ok, error = pcall(main)
+local ok, reason = pcall(main)
 if not ok then
-    w:write(tostring(error))
+    w:write(tostring(reason))
     w:flush()
+    error(reason)
 end
