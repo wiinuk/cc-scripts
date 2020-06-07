@@ -87,11 +87,15 @@ end
 local function digLine()
     while true do
         if not downIsPlant() then
+            print("down is not plant")
             turtle.back()
             return
         end
         dig()
-        if not turtle.forward() then return end
+        if not turtle.forward() then
+            print("move to forward failed")
+            return
+        end
     end
 end
 
