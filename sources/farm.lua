@@ -22,18 +22,18 @@ local plantNames = {
     "minecraft:wheat",
     "minecraft:carrots",
 }
-function exists(array, predicate)
+local function exists(array, predicate)
     for _, v in ipairs(array) do
         if predicate(v) then return true end
     end
     return false
 end
-function contains(array, item)
-    return exists(array, function (x) return x == item end)
+local function contains(array, target)
+    return exists(array, function (x) return x == target end)
 end
 
 local function isPlant(item)
-    return contains(plantNames, item)
+    return contains(plantNames, item.name)
 end
 
 local function isDig(item)
@@ -76,3 +76,5 @@ while isPlant() do
     turtle.placeDown()
     turtle.forward()
 end
+
+print("end")
