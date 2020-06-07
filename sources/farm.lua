@@ -179,6 +179,7 @@ local function forwardOnPlant()
         return false
     else
         if not isDigAtDown() then
+            print("slip")
             slipMoveCount = slipMoveCount + 1
         end
     end
