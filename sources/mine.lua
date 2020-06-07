@@ -295,8 +295,12 @@ local function measureBlockLine()
     end
     if #blocks == 0 then return nil, "start block not found" end
 
+    Logger.logDebug("measureBlockLine: baseBlocks", blocks)
+
     local block, bx, by, bz, normalX, normalZ = measureBlockNormal(blocks)
     if not block then return nil, "next block not found: "..tostring(bx) end
+
+    Logger.logDebug("measureBlockLine: normal", block, bx, by, bz, normalX, normalZ)
 
     local ex, ey, ez = measureEndBlock(block, bx, by, bz, normalX, normalZ)
     if not ex then return nil, "end block not found: "..tostring(ey) end
