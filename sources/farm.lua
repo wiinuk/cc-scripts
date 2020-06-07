@@ -11,7 +11,7 @@ local function selectItem(predicate)
         local ok, reason = turtle.select(slot)
         if not ok then error(reason) end
     end
-    error("slot not found")
+    error("item not found:"..debug.traceback())
 end
 
 local seedNames = {
