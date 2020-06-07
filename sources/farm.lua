@@ -30,13 +30,13 @@ end
 
 local plantNames = {
     "minecraft:wheat",
-    "minecraft:carrot",
-    "minecraft:potato",
+    "minecraft:carrots",
+    "minecraft:potatoes",
 }
 local seedNames = {
     "minecraft:wheat_seeds",
-    "minecraft:carrots",
-    "minecraft:potatoes",
+    "minecraft:carrot",
+    "minecraft:potato",
 }
 local function exists(array, predicate)
     for _, v in ipairs(array) do
