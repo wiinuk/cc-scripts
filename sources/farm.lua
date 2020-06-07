@@ -28,13 +28,15 @@ local function eachItem(action)
     end
 end
 
-local seedNames = {
-    "minecraft:carrot",
-    "minecraft:wheat_seeds",
-}
 local plantNames = {
     "minecraft:wheat",
+    "minecraft:carrot",
+    "minecraft:potato",
+}
+local seedNames = {
+    "minecraft:wheat_seeds",
     "minecraft:carrots",
+    "minecraft:potatoes",
 }
 local function exists(array, predicate)
     for _, v in ipairs(array) do
