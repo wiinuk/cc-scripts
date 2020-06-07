@@ -53,7 +53,7 @@ local function isSeed(item)
     return contains(seedNames, item.name)
 end
 
-local lastDigClock = 0
+local slipMoveCount = 0
 local minSleepClock = 10
 local sleepClock = minSleepClock
 
@@ -68,14 +68,14 @@ local function dig()
         selectItem(isSeed)
         turtle.placeDown()
 
-        lastDigClock = os.clock()
+        slipMoveCount = 0
         sleepClock = minSleepClock
     else
-        local clock = os.clock()
-        if 30 < clock - lastDigClock then
+        if 30 < slipMoveCount then
             print("sleeping", sleepClock, "s")
             os.sleep(sleepClock)
             sleepClock = sleepClock * 2
+            slipMoveCount = 0
         end
     end
 end
@@ -103,8 +103,6 @@ local function fuelCheck()
     end
 end
 
-
-
 local Chest = "minecraft:chest"
 local down = {
     drop = turtle.dropDown,
@@ -122,6 +120,7 @@ local function getNeighborChestOps()
     return
 end
 local function craftAndPutChest()
+
     -- チェストがあるか
     local chestOp = getNeighborChestOps()
     if not chestOp then return end
@@ -175,6 +174,10 @@ local function forwardOnPlant()
         craftAndPutChest()
         if not turtle.back() then fuelCheck() end
         return false
+    else
+        if not isDig() then
+            slipMoveCount = slipMoveCount + 1
+        end
     end
     return true
 end
