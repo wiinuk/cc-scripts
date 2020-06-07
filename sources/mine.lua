@@ -709,33 +709,22 @@ Rules.add {
         if not x then return false end
 
         -- チェストに到達できない
-        local complete, path, direction = findNearMovablePath(x, y, z)
+        local complete, path = findNearMovablePath(x, y, z)
         if not path then return false end
 
         if not complete then ratio = ratio * 0.9 end
         local priority = defaultDropChestPriority * ratio
-        return priority, direction, path
+        return priority, x, y, z
     end,
-    action = function(self, d, path)
+    action = function(self, tx, ty, tz)
 
         -- 移動
-        local ok, reason = goToGoal(20, path, DisableDig, EnableAttack)
-        if not ok then return Logger.logInfo("["..self.name.."]", reason) end
+        local d, reason = mineToNear(5, tx, ty, tz, DisableDig, EnableAttack)
+        if not d then return Logger.logInfo("["..self.name.."]", reason) end
 
         -- 改めてチェストか確認
         Memoried.getOperationAt(d).inspect()
-        local cx, cy, cz = Memoried.currentPosition()
-        local nx, ny, nz = directionToNormal(d)
-        local tx, ty, tz = cx + nx, cy + ny, cz + nz
         if not locationIsChest(tx, ty, tz) then
-            local chestHistory = Memoried.memory.chestHistory
-            for i = #chestHistory, 1, -1 do
-                local h = chestHistory[i]
-                if tx == h[1] and ty == h[2] and tz == h[3] then
-                    table.remove(chestHistory, i)
-                    Logger.logInfo("remove chest history", tx, ty, tz)
-                end
-            end
             return Logger.logInfo("["..self.name.."]", tx, ty, tz, "is not chest")
         end
 
