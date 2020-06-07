@@ -273,7 +273,7 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
     while true do
         Logger.logDebug("measureEndBlock", bx, by, bz, "to", ex, ey, ez)
 
-        local tx, ty, tz = ex + normalX, ey, ez + normalX
+        local tx, ty, tz = ex + normalX, ey, ez + normalZ
         local direction = mineToNear(20, tx, ty, tz, DisableDig, EnableAttack)
         if direction then
             -- 次のブロックに移動できた
