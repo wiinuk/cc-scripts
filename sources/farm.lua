@@ -19,7 +19,8 @@ end
 
 local function eachItem(action)
     for i = 1, 16 do
-        action(turtle.getItemDetail(i), i)
+        local item = turtle.getItemDetail(i)
+        if item then action(item, i) end
     end
 end
 
