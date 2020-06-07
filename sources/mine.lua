@@ -191,9 +191,12 @@ local function mineToNear(maxRetryCount, x, y, z, disableDig, disableAttack)
     while retryCount <= maxRetryCount do
         local complete, path, direction = findNearMovablePath(x, y, z, true)
         if path then
-            Logger.logDebug("mineToNear: found: ", retryCount, "/", maxRetryCount, ",", complete, path)
+            Logger.logDebug("mineToNear: found:", retryCount, "/", maxRetryCount, ",", complete, path)
             local ok, reason = goToGoal(maxRetryCount, path, disableDig, disableAttack)
-            if ok and complete then return direction end
+            if ok and complete then
+                Logger.logDebug("mineToNear: moved:", retryCount, "/", maxRetryCount, ", direction:", direction)
+                return direction
+            end
             if not ok then lastReason = reason end
         else
             lastReason = "path not found"
@@ -268,8 +271,9 @@ local function measureEndBlock(block, bx, by, bz, normalX, normalZ)
     -- 現在の終点座標
     local ex, ey, ez = bx + normalX, by, bz + normalZ
     while true do
+        Logger.logDebug("measureEndBlock", bx, by, bz, "to", ex, ey, ez)
+
         local tx, ty, tz = ex + normalX, ey, ez + normalX
-        Logger.logDebug("measureEndBlock", bx, by, bz, "e", ex, ey, ez)
         local direction = mineToNear(20, tx, ty, tz, DisableDig, EnableAttack)
         if direction then
             -- 次のブロックに移動できた
