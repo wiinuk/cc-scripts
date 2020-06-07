@@ -65,9 +65,14 @@ local function isFarm()
     end
 end
 
+local function downIsPlant()
+    local ok, item = turtle.inspectDown()
+    return ok and isPlant(item)
+end
+
 local function isSeed(i) return contains(seedNames, i) end
 
-while isPlant() do
+while downIsPlant() do
     if not findItem(isSeed) then
         error("requires: ", table.concat(seedNames, " or "))
     end
