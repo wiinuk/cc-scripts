@@ -163,6 +163,7 @@ local function runTests(tests)
     print("Total tests: "..totalCount..",", "Passed: "..totalCount - #failures..",", "Failed: "..#failures)
     if #failures ~= 0 then
         print "Test Run Failed."
+        os.exit(-1)
     else
         print "Test Run Successful."
     end
