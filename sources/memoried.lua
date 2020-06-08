@@ -35,7 +35,7 @@ local memory = {
     chestHistory = {},
     -- { { name = "mining", options = ... }, { name = "attack" } }
     requests = {},
-    -- { "0,0,0" = ..., "0,0,-1" = ... }
+    -- { [positionToKey(0,0,0)] = ..., [positionToKey(0,0,-1)] = ... }
     map = {},
     -- { nil, "minecraft:diamond_pickaxe", ... }
     equippedItemNames = {}
@@ -69,12 +69,13 @@ local function addRequest(request)
     return true
 end
 
---- -9999 … 9999
----@param x number
----@param y number
----@param z number
-local function locationKey(x, y, z)
-    return tostring(x)..","..tostring(y)..","..tostring(z)
+--- 3要素の整数ベクトルを1つの成分当たり 17bit づつ使って double に格納する
+--- -65536 <= x <= 65535
+local function positionToKey(x, y, z)
+    return
+        (x + 65536 --[[ 0x10000 ]]) * 17179869184 --[[ 0x400000000 ]] +
+        (y + 65536) * 131072 --[[ 0x20000 ]] +
+        (z + 65536)
 end
 
 ---@class InspectResult
@@ -99,7 +100,7 @@ end
 ---@param z number
 ---@return Location|nil
 local function getLocation(x, y, z)
-    return memory.map[locationKey(x, y, z)]
+    return memory.map[positionToKey(x, y, z)]
 end
 
 ---@param x number
@@ -107,7 +108,7 @@ end
 ---@param z number
 ---@return Location
 local function getOrMakeLocation(x, y, z)
-    local key = locationKey(x, y, z)
+    local key = positionToKey(x, y, z)
     local map = memory.map
     local l = map[key]
     if l then return l end
