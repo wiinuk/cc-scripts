@@ -707,6 +707,10 @@ let writeDeclarationFiles settings declares = async {
                 Path.ChangeExtension(name, ".html")
             | p -> p
         let p = { p with path = settings.cacheDir/path }
+
+        if not <| Directory.Exists settings.outDir then
+            Directory.CreateDirectory settings.outDir |> ignore
+
         let path = settings.outDir/settings.getName s.thisName
         do! async {
             use w = new StreamWriter(path)
