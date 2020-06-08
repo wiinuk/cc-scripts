@@ -1,4 +1,5 @@
 turtle = {}
 if not os.sleep then
-    function os.sleep() end
+    ---@param seconds number
+    function os.sleep(seconds) local _ = { seconds } end
 end
