@@ -41,14 +41,25 @@ local function selectEmptySlot()
     return false, "empty slot not found"
 end
 
-local function selectNoTorch()
-    if selectItem(function (item) return item.name ~= Torch end) then return end
+local function isRoadBlock(item)
+    return item.name ~= Torch and not string.find(item.name, "bucket")
+end
+
+local function selectRoadBlock()
+    if selectItem(isRoadBlock) then return end
     selectEmptySlot()
 end
 
+local function blockIsLava(info)
+    return info and info.name == Lava or info.name == FlowingLava
+end
 local function downIsLava()
     local ok, info = turtle.inspectDown()
-    return ok and info.name == Lava or info.name == FlowingLava
+    return ok and blockIsLava(info)
+end
+local function upIsLava()
+    local ok, info = turtle.inspectUp()
+    return ok and blockIsLava(info)
 end
 
 local function makeRoad()
@@ -58,13 +69,20 @@ local function makeRoad()
             turtle.up()
             turtle.select(slot)
             turtle.placeDown()
+            os.sleep(0.5)
             turtle.placeDown()
             turtle.down()
-            return
         end
     end
-    selectNoTorch()
+    selectRoadBlock()
     turtle.placeDown()
+
+    if upIsLava() then
+        turtle.up()
+        selectRoadBlock()
+        turtle.placeUp()
+        turtle.down()
+    end
 end
 
 local function isEmptyFuel()
@@ -117,7 +135,8 @@ local function refuel()
     return true
 end
 
-local function forwardOrRefuel()
+local forwardCount = 0
+local function goForwardAndRefuel()
     if isEmptyFuel() then
         refuel()
         if isEmptyFuel() then
@@ -127,10 +146,12 @@ local function forwardOrRefuel()
                 emptyFuelMessage()
                 os.sleep(math.random() * 1)
             end
-            print("yummy!")
+            print("tasty!")
         end
     end
-    turtle.forward()
+    if turtle.forward() then
+        forwardCount = forwardCount + 1
+    end
 end
 
 local function pumpToBucket(bucketName, liquidName, flowingLiquidName)
@@ -153,17 +174,26 @@ end
 
 local function placeTorch()
     if selectItem(function (item) return item.name == Torch end) then
-        turtle.placeUp()
+        turtle.turnRight()
+        turtle.turnRight()
+        turtle.place()
+        turtle.turnLeft()
+        turtle.turnLeft()
     end
 end
 
-for i in ({...})[1] do
+local length = tonumber(({...})[1])
+while forwardCount < length do
     turtle.digUp()
 
     pumpDown()
     makeRoad()
-    if i % 6 == 0 then placeTorch() end
 
     turtle.dig()
-    forwardOrRefuel()
+    goForwardAndRefuel()
+
+    if forwardCount % 7 == 3 then
+        placeTorch()
+    end
 end
+turtle.digUp()
