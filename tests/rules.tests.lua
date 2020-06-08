@@ -1,4 +1,5 @@
 package.path = package.path..";../sources/?.lua"
+require "cc_mock"
 local Assert = require "assert"
 local Rules = require "rules"
 local tests = {}
