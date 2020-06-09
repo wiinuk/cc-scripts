@@ -6,6 +6,7 @@ for _ = 1, ({...})[1] do
     turtle.turnLeft()
     turtle.turnLeft()
     turtle.place()
+    turtle.turnRight()
     refuel()
     turtle.up()
     turtle.placeDown()
