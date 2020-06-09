@@ -133,7 +133,18 @@ local function parseNamedOption(arguments, key, shortKey, options, parseValue)
     return true
 end
 
+---@return string|nil loweredSubCommand
+local function parseSubCommand(arguments)
+    if #arguments < 1 then return nil end
+
+    local subCommand = string.lower(arguments[1])
+    local subArguments = {unpack(arguments)}
+    table.remove(subArguments, 1)
+    return subCommand, subArguments
+end
+
 return {
     parseNamedOption = parseNamedOption,
     splitCommand = tokenize,
+    parseSubCommand = parseSubCommand,
 }

@@ -2,6 +2,7 @@ local Rules = require "rules"
 local Mine = require "mine"
 local Logger = require "logger"
 local ArgP = require "arg-parser"
+local parseSubCommand = ArgP.parseSubCommand
 local BasicRules = require "basic_rules"
 
 ---@class Window : Terminal
@@ -34,16 +35,6 @@ local function ruleThread()
         BasicRules.goHomeRule
     )
     Rules.evaluate()
-end
-
----@return string|nil loweredSubCommand
-local function parseSubCommand(arguments)
-    if #arguments < 1 then return nil end
-
-    local subCommand = string.lower(arguments[1])
-    local subArguments = {unpack(arguments)}
-    table.remove(subArguments, 1)
-    return subCommand, subArguments
 end
 
 local function logCommand(arguments)
