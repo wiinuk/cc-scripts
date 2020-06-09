@@ -30,14 +30,15 @@ end
 ---@param array2 table<integer, T>
 ---@return table<integer, T>
 local function appendArray(array1, array2)
-    if not array1 and not array2 then return nil end
-
-    array1 = array1 or {}
-    array2 = array2 or {}
+    if (not array1 or #array1 == 0) and (not array2 or #array2 == 0) then return nil end
 
     local result = {}
-    for i = 1, #array1 do result[#result+1] = array1[i] end
-    for i = 1, #array2 do result[#result+1] = array2[i] end
+    if array1 then
+        for i = 1, #array1 do result[#result+1] = array1[i] end
+    end
+    if array2 then
+        for i = 1, #array2 do result[#result+1] = array2[i] end
+    end
     return result
 end
 
