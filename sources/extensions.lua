@@ -42,11 +42,23 @@ local function appendArray(array1, array2)
     return result
 end
 
+local function existsArray(array, predicate)
+    for _, v in ipairs(array) do
+        if predicate(v) then return true end
+    end
+    return false
+end
+local function containsArray(array, target)
+    return existsArray(array, function (x) return x == target end)
+end
+
 return {
     printError = printError,
     clearTable = clearTable,
     clearArray = clearArray,
     appendArray = appendArray,
+    containsArray = containsArray,
+    existsArray = existsArray,
     noop = noop,
     clamp = clamp,
 }
