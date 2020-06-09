@@ -12,9 +12,9 @@ for _ = 1, count do
     turtle.dig()
     turtle.turnLeft()
     turtle.dig()
-    while turtle.digUp() do end
+    turtle.digUp()
     refuel()
-    while not turtle.up() do end
+    turtle.up()
 end
 
 for _ = 1, count do
