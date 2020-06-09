@@ -14,7 +14,7 @@ for _ = 1, count do
     turtle.dig()
     while turtle.digUp() do end
     refuel()
-    while turtle.up() do end
+    while not turtle.up() do end
 end
 
 for _ = 1, count do turtle.down() end
