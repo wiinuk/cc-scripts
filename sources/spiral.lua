@@ -32,3 +32,9 @@ for _ = 1, count do
     refuel()
     turtle.down()
 end
+
+for _ = 1, 2 do
+    turtle.dig()
+    refuel()
+    turtle.forward()
+end
