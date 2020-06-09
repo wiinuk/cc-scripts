@@ -17,4 +17,12 @@ for _ = 1, count do
     while not turtle.up() do end
 end
 
-for _ = 1, count do turtle.down() end
+for _ = 1, count do
+    refuel()
+    turtle.down()
+end
+
+for _ = 1, 2 do
+    refuel()
+    turtle.forward()
+end
