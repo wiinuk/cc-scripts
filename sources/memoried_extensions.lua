@@ -51,9 +51,11 @@ end
 
 local finderMaxStep = 100
 -- TODO: 探索器や経路をキャッシュする
-local function getPath(sx, sy, sz, gx, gy, gz)
 
-    local finder = AStar.newFinder(isMovableInMemory)
+---@param isMovable fun(x: integer, y: integer, z: integer): boolean
+local function getPath(sx, sy, sz, gx, gy, gz, isMovable)
+
+    local finder = AStar.newFinder(isMovable or isMovableInMemory)
     AStar.initialize(finder, sx, sy, sz, gx, gy, gz)
 
     local path, state = AStar.resume(finder, finderMaxStep)
@@ -122,13 +124,15 @@ end
 ---@param ty integer
 ---@param tz integer
 ---@param enableNoMovableGoal boolean|nil
+---@param isMovable fun(x: integer, y: integer, z: integer): boolean
 ---@return boolean findCompletePath
 ---@return integer[] path
 ---@return integer globalDirection
-local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
+local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal, isMovable)
     local lastBestPath = nil
     local lastBestPathDirection = nil
     local lastBestScore = 1/0
+    local isMovable = isMovable or isMovableInMemory
     for globalDirection = 1, 6 do
         -- ゴール候補の移動可能な場所をさがす
 
@@ -136,9 +140,9 @@ local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal)
         local mx, my, mz = tx - nx, ty - ny, tz - nz
 
         -- パスのゴールとなる移動先は、移動可能な場所を選ぶ必要がある
-        if enableNoMovableGoal or isMovableInMemory(mx, my, mz) then
+        if enableNoMovableGoal or isMovable(mx, my, mz) then
             local cx, cy, cz = Memoried.currentPosition()
-            local path, bestPath, bestScore = getPath(cx, cy, cz, mx, my, mz)
+            local path, bestPath, bestScore = getPath(cx, cy, cz, mx, my, mz, isMovable)
             if path then return true, path, globalDirection end
             if bestPath and bestScore <= lastBestScore then
                 lastBestPath = bestPath
