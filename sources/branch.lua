@@ -1,4 +1,8 @@
 local refuel = require "refuel"
+local Tex = require "turtle_extensions"
+local findItemSlot = Tex.findItemSlot
+local selectItem = Tex.selectItem
+
 local Bucket = "minecraft:bucket"
 local FlowingWater = "minecraft:flowing_water"
 local FlowingLava = "minecraft:flowing_lava"
@@ -9,13 +13,6 @@ local Water = "minecraft:water"
 local WaterBucket = "minecraft:water_bucket"
 
 
-local function findItemSlot(predicate)
-    for slot = 1, 16 do
-        local item = turtle.getItemDetail(slot)
-        if item and predicate(item, slot) then return slot end
-    end
-    return false, "item not found"
-end
 local function findItemSlotByName(name)
     return findItemSlot(function (item) return item.name == name end)
 end
@@ -23,13 +20,6 @@ end
 local function select(slot)
     if turtle.getSelectedSlot() ~= slot then return turtle.select(slot) end
     return true
-end
-
-local function selectItem(predicate)
-    return findItemSlot(function(item, slot)
-        if predicate(item) then return select(slot) end
-        return false
-    end)
 end
 
 local function selectEmptySlot()

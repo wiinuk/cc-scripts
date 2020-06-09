@@ -1,25 +1,11 @@
+local Tex = require "turtle_extensions"
+local findItem = Tex.findItemSlot
+local selectItem = Tex.selectItem
 
 local Chest = "minecraft:chest"
 local Coal = "minecraft:coal"
 
 local w = io.open("./logs/farm.log", "w+")
-
-local function findItem(predicate)
-    for i = 1, 16 do
-        local item = turtle.getItemDetail(i)
-        if item and predicate(item) then return i end
-    end
-    return false
-end
-local function selectItem(predicate)
-    local slot = findItem(predicate)
-    if slot then
-        local ok, reason = turtle.select(slot)
-        if not ok then error(reason) end
-    else
-        error("item not found:"..debug.traceback())
-    end
-end
 
 local function eachItem(action)
     for i = 1, 16 do
