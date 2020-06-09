@@ -57,7 +57,6 @@ return function()
             while isEmptyFuel() do
                 refuel()
                 emptyFuelMessage()
-                os.sleep(math.random() * 1)
             end
             print("tasty!")
         end
