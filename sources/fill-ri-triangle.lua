@@ -1,5 +1,5 @@
 local refuel = require "refuel"
-local size = ({...})[1]
+local size = tonumber(({...})[1])
 
 local height = size
 for _ = 1, size, 2 do
