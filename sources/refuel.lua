@@ -19,7 +19,7 @@ end
 local itemNameToFuelLevel = {}
 
 local function refuel()
-    local slots = {}
+    local slotAndNames = {}
     for slot = 1, 16 do
         local item = turtle.getItemDetail(slot)
         if item then
@@ -27,14 +27,14 @@ local function refuel()
             local level = itemNameToFuelLevel[name]
             if level then
                 if 0 < level then
-                    slots[#slots+1] = slot
+                    slotAndNames[#slotAndNames+1] = { slot = slot, name = name }
                 end
             else
                 turtle.select(slot)
                 local oldLevel = turtle.getFuelLevel()
                 if turtle.refuel(1) then
                     local newLevel = turtle.getFuelLevel()
-                    itemNameToFuelLevel[name] =  newLevel - oldLevel
+                    itemNameToFuelLevel[name] = newLevel - oldLevel
                     return true
                 else
                     itemNameToFuelLevel[name] = 0
@@ -42,11 +42,14 @@ local function refuel()
             end
         end
     end
-    if #slots then return false end
+    if #slotAndNames == 0 then return false end
 
-    turtle.select(math.random(1, #slots))
-    turtle.refuel(1)
-    return true
+    -- 燃料レベルが低いアイテムを優先して消費する
+    table.sort(slotAndNames, function(l, r)
+        return itemNameToFuelLevel[l.name] < itemNameToFuelLevel[r.name]
+    end)
+    turtle.select(slotAndNames[1].slot)
+    return turtle.refuel(1)
 end
 
 return function()
