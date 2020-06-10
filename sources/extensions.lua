@@ -19,7 +19,16 @@ local function clearArray(table)
     end
 end
 
+local function id(...) return ... end
 local function noop() end
+local function const(arg1, ...)
+    if 0 < select("#", ...) then
+        local args = {...}
+        return function() return arg1, unpack(args) end
+    else
+        return function() return arg1 end
+    end
+end
 
 local function clamp(x, minBound, maxBound)
     return math.max(minBound, math.min(maxBound, x))
@@ -60,5 +69,7 @@ return {
     containsArray = containsArray,
     existsArray = existsArray,
     noop = noop,
+    id = id,
+    const = const,
     clamp = clamp,
 }
