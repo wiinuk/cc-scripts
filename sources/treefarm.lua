@@ -153,6 +153,7 @@ local function digUpAndForwardAndRight(downCount)
         turtle.digUp()
         refuel()
         turtle.up()
+        -- 葉も採取
         digAround()
         downCount = downCount - 1
         upCount = upCount + 1
@@ -170,6 +171,12 @@ local function moveToLeftForward()
 end
 local function downDig(upCount)
     for _ = 1, upCount do
+        -- 葉も採取
+        turtle.dig()
+        turtle.turnLeft()
+        turtle.dig()
+        turtle.turnRight()
+
         turtle.digDown()
         refuel()
         turtle.down()
