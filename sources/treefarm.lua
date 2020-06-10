@@ -33,17 +33,39 @@ end
 local function upIsLog()
     return inspectIsLog(turtle.inspectUp)
 end
+local function forwardIsLeaves()
+    local ok, info = turtle.inspect()
+    return ok and info.name == Leaves
+end
 local function upIsLeaves()
     local ok, info = turtle.inspectUp()
     return ok and info.name == Leaves
 end
 
-local function digAndMoveForwardLog()
+local function findAndMoveToLog()
+    -- 周りを見回す
     for _ = 1, 4 do
-        if forwardIsLog() then break end
+        -- 木を発見した
+        if forwardIsLog() then return true end
+
+        -- 草を発見した
+        if forwardIsLeaves() then
+            -- 進む
+            turtle.dig()
+            refuel()
+            turtle.forward()
+
+            -- 見回す
+            if findAndMoveToLog() then return true end
+        end
         turtle.turnRight()
     end
-    if not digForwardLog() then return false end
+    return false
+end
+
+local function digAndMoveForwardLog()
+    if not findAndMoveToLog() then return false end
+    turtle.dig()
 
     -- [L]
     -- [^]
