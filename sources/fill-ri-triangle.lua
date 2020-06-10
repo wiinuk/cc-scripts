@@ -50,6 +50,7 @@ for _ = 1, size, 2 do
     refuel()
     turtle.forward()
     turtle.turnLeft()
+    height = height - 1
     --[[
         size = 3
         [■][ ][ ]
