@@ -1,6 +1,7 @@
 local Vec2 = require "vec2"
 local Ex = require "extensions"
 local Logger = require "logger"
+local refuel = require "refuel"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -295,7 +296,7 @@ end
 local function moveGeneric(move, nx, ny, nz)
     local level = turtle.getFuelLevel()
     if level ~= "unlimited" and level <= 0 then
-        print "empty fuel"
+        refuel()
         return false
     end
 
