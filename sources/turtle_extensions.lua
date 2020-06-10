@@ -17,7 +17,15 @@ local function selectItem(predicate)
     return false, "item not found"
 end
 
+local function eachItem(action)
+    for i = 1, 16 do
+        local item = turtle.getItemDetail(i)
+        if item then action(item, i) end
+    end
+end
+
 return {
     findItemSlot = findItemSlot,
     selectItem = selectItem,
+    eachItem = eachItem,
 }
