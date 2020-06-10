@@ -9,7 +9,6 @@ for _ = 1, size, 2 do
         [ ][ ][ ]
         [^][ ][ ]
     ]]
-    if height <= 0 then break end
     turtle.placeDown()
     for _ = 2, height do
         refuel()
@@ -54,6 +53,7 @@ for _ = 1, size, 2 do
     turtle.forward()
     turtle.turnLeft()
     height = height - 1
+    if height <= 0 then break end
     --[[
         size = 3
         [■][ ][ ]
