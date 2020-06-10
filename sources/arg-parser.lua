@@ -116,6 +116,11 @@ local function tokenize(command)
     return tokens
 end
 
+---@param arguments table<integer, string>
+---@param key string
+---@param shortKey string
+---@param options table<string, any>
+---@param parseValue fun(argument: string): any
 local function parseNamedOption(arguments, key, shortKey, options, parseValue)
     if 0 == #arguments then return false end
 
@@ -127,7 +132,11 @@ local function parseNamedOption(arguments, key, shortKey, options, parseValue)
         return false
     end
 
-    options[key] = parseValue(arguments[2])
+    if parseValue then
+        options[key] = parseValue(arguments[2])
+    else
+        options[key] = arguments[2]
+    end
     table.remove(arguments, 1)
     table.remove(arguments, 1)
     return true
