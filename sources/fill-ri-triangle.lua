@@ -9,24 +9,26 @@ for _ = 1, size, 2 do
         [ ][ ][ ]
         [^][ ][ ]
     ]]
+    if height <= 0 then break end
     turtle.placeDown()
     for _ = 2, height do
         refuel()
         turtle.forward()
         turtle.placeDown()
     end
+
+    turtle.turnRight()
+    refuel()
+    turtle.forward()
+    turtle.turnRight()
+    refuel()
+    turtle.forward()
     --[[
         size = 3
         [■^][ ][ ]
         [■] [ ][ ]
         [■] [ ][ ]
     ]]
-    turtle.turnRight()
-    refuel()
-    turtle.forward()
-    turtle.turnRight()
-    refuel()
-    turtle.forward()
     height = height - 1
     --[[
         size = 3
@@ -34,6 +36,7 @@ for _ = 1, size, 2 do
         [■][v][ ]
         [■][ ][ ]
     ]]
+    if height <= 0 then break end
     turtle.placeDown()
     for _ = 2, height do
         refuel()
