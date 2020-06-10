@@ -39,6 +39,10 @@ local function upIsLeaves()
 end
 
 local function digAndMoveForwardLog()
+    for _ = 1, 4 do
+        if forwardIsLog() then break end
+        turtle.turnRight()
+    end
     if not digForwardLog() then return false end
 
     -- [L]
@@ -219,7 +223,7 @@ local function digHugeTree()
 end
 
 local function digTree()
-    if not digAndMoveForwardLog() then return end
+    if not digAndMoveForwardLog() then return error("log not found") end
 
     -- 巨木
     if forwardIsLog() then
