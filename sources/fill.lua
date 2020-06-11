@@ -77,12 +77,18 @@ if not placeItemSlot then return end
 turtle.select(placeItemSlot)
 local placeItem = turtle.getItemDetail(placeItemSlot)
 
+local needBlockCount =
+    (range.maxX - range.minX + 1) *
+    (range.maxY - range.minY + 1) *
+    (range.maxZ - range.minZ + 1)
+
 while true do
     print("# range")
     print("- min", range.minX, range.minY, range.minZ)
     print("- max", range.maxX, range.maxY, range.maxZ)
     print("# block")
-    print(placeItem.name)
+    print("- "..placeItem.name)
+    print("- total "..tostring(needBlockCount).." blocks")
     print("ok? (yes/no)")
 
     local input = read(nil, { "y", "n" })
