@@ -28,13 +28,13 @@ local options = {}
 if #args == 0 then options = { right = 2, forward = 3 } end
 if not parseArguments(args, options) then return end
 
-local range = Box3.newFromPoint(0, -1, 0)
-if options.left then Box3.expandByPoint(range, -(options.left - 1), -1, 0) end
-if options.right then Box3.expandByPoint(range, options.right - 1, -1, 0) end
-if options.forward then Box3.expandByPoint(range, 0, -1, options.forward - 1) end
-if options.back then Box3.expandByPoint(range, 0, -1, -(options.back - 1)) end
-if options.up then Box3.expandByPoint(range, 0, -1 + (options.up - 1), 0) end
-if options.down then Box3.expandByPoint(range, 0, -1 - (options.down - 1), 0) end
+local range = Box3.newFromPoint(0, 0, 0)
+if options.left then Box3.expandByPoint(range, -(options.left - 1), 0, 0) end
+if options.right then Box3.expandByPoint(range, options.right - 1, 0, 0) end
+if options.forward then Box3.expandByPoint(range, 0, 0, options.forward - 1) end
+if options.back then Box3.expandByPoint(range, 0, 0, -(options.back - 1)) end
+if options.up then Box3.expandByPoint(range, 0, options.up - 1, 0) end
+if options.down then Box3.expandByPoint(range, 0, -(options.down - 1), 0) end
 
 local function getPlaceItemSlot()
 
@@ -85,9 +85,10 @@ while true do
     print(placeItem.name)
     print("ok? (yes/no)")
 
-    local input = read()
-    if input:sub(1,1):lower() == "y" then break end
-    if input:sub(1,1):lower() == "n" then return error "canceled" end
+    local input = read(nil, { "y", "n" })
+    local h = input:sub(1,1)
+    if h and h:lower() == "y" then break end
+    if h and h:lower() == "n" then return error "canceled" end
 end
 
 -- 開始地点の左手前下まで移動
@@ -113,8 +114,11 @@ for y = range.minY, range.maxY do
         for z = range.minZ, range.maxZ do
             moveAndPlace(x, y, z)
         end
-        for z = range.maxZ, range.minZ, -1 do
-            moveAndPlace(x + 1, y, z)
+        local x = x + 1
+        if x <= range.maxX then
+            for z = range.maxZ, range.minZ, -1 do
+                moveAndPlace(x, y, z)
+            end
         end
     end
 end
