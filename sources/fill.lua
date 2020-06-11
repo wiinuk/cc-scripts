@@ -91,7 +91,7 @@ while true do
     print("- total "..tostring(needBlockCount).." blocks")
     print("ok? (yes/no)")
 
-    local input = read(nil, { "yes", "no", "y", "n" })
+    local input = read(nil, { "y", "n", "yes", "no" })
     local h = input:sub(1,1)
     if h and h:lower() == "y" then break end
     if h and h:lower() == "n" then return error "canceled" end
