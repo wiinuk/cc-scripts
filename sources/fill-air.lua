@@ -1,9 +1,7 @@
 local refuel = require "refuel"
 
-local args = {...}
-
-local function digLine(n)
-    for _ = 1, n do
+local function digLine(forward)
+    for _ = 1, forward do
         turtle.dig()
         refuel()
         local ok, reason = turtle.forward()
@@ -11,12 +9,17 @@ local function digLine(n)
     end
 end
 
-for _ = 1, args[2] do
-    digLine(args[1])
-    turtle.digDown()
-    refuel()
-    local ok, reason = turtle.down()
-    if not ok then error(reason) end
-    turtle.turnLeft()
-    turtle.turnLeft()
+local function figWall(forward, down)
+    for _ = 1, down do
+        digLine(forward)
+        turtle.digDown()
+        refuel()
+        local ok, reason = turtle.down()
+        if not ok then error(reason) end
+        turtle.turnLeft()
+        turtle.turnLeft()
+    end
 end
+
+local args = {...}
+figWall(args[1], args[2])
