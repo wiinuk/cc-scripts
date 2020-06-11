@@ -77,11 +77,18 @@ if not placeItemSlot then return end
 turtle.select(placeItemSlot)
 local placeItem = turtle.getItemDetail(placeItemSlot)
 
-print("# range")
-print("- min", range.minX, range.minY, range.minZ)
-print("- max", range.maxX, range.maxY, range.maxZ)
-print("# block")
-print(placeItem.name)
+while true do
+    print("# range")
+    print("- min", range.minX, range.minY, range.minZ)
+    print("- max", range.maxX, range.maxY, range.maxZ)
+    print("# block")
+    print(placeItem.name)
+    print("ok? (yes/no)")
+
+    local input = read()
+    if input:sub(1,1):lower() == "y" then break end
+    if input:sub(1,1):lower() == "n" then return error "canceled" end
+end
 
 -- 開始地点の左手前下まで移動
 local ok, reason = Mex.mineTo(1, range.minX, range.minY + 1, range.minZ, DisableDig, DisableAttack)
