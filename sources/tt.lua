@@ -22,7 +22,8 @@ local function ruleThread()
         BasicRules.refuelRule,
         -- BasicRules.goHomeRule,
         TTBasicRules.checkHomeRule,
-        TTBasicRules.collectMapRule
+        TTBasicRules.collectMapRule,
+        TTBasicRules.treeFarmingRule
     )
     Rules.evaluate()
 end
