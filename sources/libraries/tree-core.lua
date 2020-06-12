@@ -209,18 +209,25 @@ local function downDig(self, upCount)
         moveDown()
     end
 end
-local function plantSapling()
 
-    -- 植えられる巨木の苗木を持っているなら選択して
-    local selected = selectItem(function(item)
+local function findSimpleHugeSaplingSlot()
+    return Tex.findItemSlot(function(item)
         return
             item.name == Sapling and
             treeDamageToIsSimpleHuge[item.damage] and
             4 <= item.count
     end)
+end
+
+local function plantSapling()
+
+    -- 植えられる巨木の苗木を持っているなら選択して
+    local slot = findSimpleHugeSaplingSlot()
 
     -- 4か所に植える
-    if selected then
+    if slot then
+        turtle.select(slot)
+
         moveUp()
         turtle.placeDown()
         moveBack()
@@ -231,7 +238,9 @@ local function plantSapling()
         turtle.placeDown()
         move()
         turtle.placeDown()
+        return true
     end
+    return false
 end
 local function moveToInitialPosition(rightCount, downCount)
     for _ = 1, downCount do
@@ -275,7 +284,10 @@ local function digHugeTree()
     downDig(self, upCount)
 
     -- 苗木を植える
-    plantSapling()
+    if plantSapling() then
+        downCount = downCount - 1
+        rightCount = rightCount + 1
+    end
 
     moveToInitialPosition(rightCount, downCount)
 end
@@ -294,5 +306,6 @@ local function digTree()
 end
 
 return {
+    findSimpleHugeSaplingSlot = findSimpleHugeSaplingSlot,
     digTree = digTree,
 }
