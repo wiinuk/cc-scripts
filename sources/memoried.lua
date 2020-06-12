@@ -725,6 +725,7 @@ return {
     digUp = digUp,
     dig = dig,
 
+    positionToKey = positionToKey,
     getLocation = getLocation,
     clearLocation = clearLocation,
 

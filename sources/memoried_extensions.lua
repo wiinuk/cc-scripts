@@ -154,9 +154,9 @@ local function findNearMovablePath(tx, ty, tz, enableNoMovableGoal, isMovable)
     return false, lastBestPath, lastBestPathDirection
 end
 
-local function findPath(tx, ty, tz)
+local function findPath(tx, ty, tz, isMovable)
     local cx, cy, cz = Memoried.currentPosition()
-    local path, bestPath = getPath(cx, cy, cz, tx, ty, tz)
+    local path, bestPath = getPath(cx, cy, cz, tx, ty, tz, isMovable or isMovableInMemory)
     if path then
         return true, path
     else
