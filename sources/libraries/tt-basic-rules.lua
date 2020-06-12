@@ -3,7 +3,7 @@ package.path = package.path..";../?.lua"
 local Memoried = require "memoried"
 local Down = Memoried.Down
 local Logger = require "logger"
-local Json = require "json"
+-- local Json = require "json"
 local Mex = require "memoried_extensions"
 local Vec3 = require "vec3"
 
@@ -22,7 +22,7 @@ local function isHomeBlock(info)
 end
 
 local function isBranchFloor(info)
-    return info and info.name == StainedGlass and info.state and info.state.color == branchBlockColor
+    return isHomeBlock(info) or (info and info.name == StainedGlass and info.state and info.state.color == branchBlockColor)
 end
 
 local function isAnyEdge(info)
@@ -56,35 +56,37 @@ local function newDefaultPersistentMemory()
         colorToPositions = {},
     }
 end
-local memoryPath = "/settings/tt.json"
+-- local memoryPath = "/settings/tt.json"
 local function loadOrCreatePersistentMemory()
-    local file = io.open(memoryPath, "r+")
-    if not file then
-        Logger.logInfo("new creating memory")
-        return newDefaultPersistentMemory()
-    end
+    return newDefaultPersistentMemory()
 
-    local contents = file:readAll()
-    file:close()
+    -- if not fs.exists(memoryPath) then
+    --     Logger.logInfo("new creating memory")
+    --     return newDefaultPersistentMemory()
+    -- end
 
-    local ok, result = Json.parse(contents)
-    if not ok then return error(result) end
+    -- local file = io.open(memoryPath, "r+")
+    -- local contents = file:read("*a")
+    -- file:close()
 
-    Logger.logInfo("loading memory from", memoryPath)
-    return result
+    -- local ok, result = Json.parse(contents)
+    -- if not ok then return error(result) end
+
+    -- Logger.logInfo("loading memory from", memoryPath)
+    -- return result
 end
 
 local persistentMemory = loadOrCreatePersistentMemory()
 
 local function savePersistentMemory()
-    local json, reason = Json.stringify(persistentMemory, { space = " ", indent = "  ", maxWidth = 0 })
-    if not json then return Logger.logError("memory stringify error", reason) end
+    -- local json, reason = Json.stringify(persistentMemory, { space = " ", indent = "  ", maxWidth = 0 })
+    -- if not json then return Logger.logError("memory stringify error", reason) end
 
-    local file = io.open(memoryPath, "w+")
-    file:write(json)
-    file:close()
+    -- local file = io.open(memoryPath, "w+")
+    -- file:write(json)
+    -- file:close()
 
-    Logger.logInfo("memory saved to", memoryPath)
+    -- Logger.logInfo("memory saved to", memoryPath)
 end
 
 local function isMovable(x, y, z)
@@ -150,7 +152,12 @@ local collectMapRule = {
     name = "tt: collect map",
     when = function()
         if not Memoried.ttHome then return end
-        if 0 < #persistentMemory.openNodes then return 1 end
+        if
+            not persistentMemory.startNodeAdded or
+            0 < #persistentMemory.openNodes
+        then
+            return 1
+        end
     end,
     action = function(self)
         local opens = persistentMemory.openNodes

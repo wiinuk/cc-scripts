@@ -20,7 +20,7 @@ local function ruleThread()
         -- BasicRules.craftTorchRule,
         -- BasicRules.setTorchRule,
         BasicRules.refuelRule,
-        BasicRules.goHomeRule,
+        -- BasicRules.goHomeRule,
         TTBasicRules.checkHomeRule,
         TTBasicRules.collectMapRule
     )
