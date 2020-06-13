@@ -257,6 +257,9 @@ local function moveToInitialPosition(rightCount, downCount)
     for _ = 1, 2 do
         moveBack()
     end
+    for _ = 1, -downCount do
+        moveDown()
+    end
 end
 local function digHugeTree()
     local self = {
@@ -299,7 +302,7 @@ local function digTree()
 
     -- 巨木
     if forwardIsLog() then
-        return digHugeTree()
+        digHugeTree()
     else
         digNormalTree()
     end
