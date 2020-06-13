@@ -186,8 +186,8 @@ local function limitedDig(globalDirection)
 end
 
 ---@param globalDirection integer
----@param disableDig boolean|nil
----@param disableAttack boolean|nil
+---@param disableDig boolean|function|nil
+---@param disableAttack boolean|function|nil
 ---@param isUnlimited boolean|nil
 local function mineMove1(globalDirection, disableDig, disableAttack, isUnlimited)
 
@@ -195,7 +195,13 @@ local function mineMove1(globalDirection, disableDig, disableAttack, isUnlimited
     -- 行けなかった
 
     -- ブロックがあるなら掘る
-    if not disableDig and Memoried.getOperationAt(globalDirection).detect() then
+    local canDig = true
+    if disableDig == true then canDig = false end
+    if type(disableDig) == "function" then
+        canDig = not disableDig(globalDirection)
+    end
+
+    if canDig and Memoried.getOperationAt(globalDirection).detect() then
 
         -- 掘る
         if isUnlimited then
@@ -220,7 +226,13 @@ local function mineMove1(globalDirection, disableDig, disableAttack, isUnlimited
         end
     end
 
-    if not disableAttack then
+    local canAttack = true
+    if disableAttack == true then canAttack = false end
+    if type(disableAttack) == "function" then
+        canAttack = not disableAttack(globalDirection)
+    end
+
+    if canAttack then
         -- エンティティがいる?
         while not Memoried.getOperationAt(globalDirection).detect() do
             if Memoried.getOperationAt(globalDirection).move() then return true end
