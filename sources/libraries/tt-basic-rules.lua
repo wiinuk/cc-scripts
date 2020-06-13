@@ -15,10 +15,13 @@ local Tree = require "tree-core"
 
 
 local DisableDig = true
+local EnableDig = false
 local DisableAttack = true
+local EnableAttack = false
 
 local Grass = "minecraft:grass"
 local Log = "minecraft:log"
+local Leaves = "minecraft:leaves"
 local Sapling = "minecraft:sapling"
 local Dirt = "minecraft:dirt"
 local StainedGlass = "minecraft:stained_glass"
@@ -46,6 +49,14 @@ end
 
 local function ready()
     return Memoried.ttHome
+end
+
+local function goTo(maxRetryCount, x, y, z, isMovable, disableDig, disableAttack)
+    local complete, path = Mex.findPath(x, y, z, isMovable)
+    if not complete then return false, "path not found" end
+    local ok, reason = Mex.goToGoal(maxRetryCount, path, disableDig, disableAttack)
+    if not ok then return false, reason end
+    return true
 end
 
 local checkHomeRule = {
@@ -167,6 +178,16 @@ local function registerEdgeInfo(info, direction)
     mainLogger.logInfo("register", cx, cy, cz, color)
 end
 
+local function mineToDirection(direction, disableDig, disableAttack)
+    local tx, ty, tz = Mex.globalDirectionToPosition(direction)
+    return Mex.mineTo(7, tx, ty, tz, disableDig, disableAttack)
+end
+
+local function disableDig(direction)
+    local ok, info = Memoried.getOperationAt(direction).inspect()
+    return not (ok and info.name == Leaves)
+end
+
 local collectMapRule = {
     name = "tt: collect map",
     when = function()
@@ -191,10 +212,8 @@ local collectMapRule = {
 
         -- 最も近い未探索道に向かう
         local node = popNearestNode(persistentMemory.openNodes)
-        local complete, path = Mex.findPath(node.x, node.y, node.z, isMovable)
-        if not complete then return Logger.logError(self.name, "path not found") end
-        local ok, reason = Mex.goToGoal(5, path, DisableDig, DisableAttack)
-        if not ok then return Logger.logError(self.name, "goToGoal", reason) end
+        local ok, reason = goTo(5, node.x, node.y, node.z, isMovable, DisableDig, DisableAttack)
+        if not ok then return Logger.logError(self.name, reason) end
 
         -- 分岐か確認する
         local _, info = Memoried.getOperationAt(Down).inspect()
@@ -208,7 +227,8 @@ local collectMapRule = {
         while true do
 
             -- 1m 移動
-            local ok, reason = Memoried.getOperationAt(node.direction).move()
+            -- 葉ブロックの掘り有効
+            local ok, reason = mineToDirection(node.direction, disableDig, DisableAttack)
             if not ok then return Logger.logError(self.name, "move", reason) end
 
             local _, info = Memoried.getOperationAt(Down).inspect()
@@ -237,50 +257,55 @@ local collectMapRule = {
     end,
 }
 
+---@generic T
+---@param array table<integer, T>
+---@param toPriority fun(item: T): number|nil
+---@return T|nil maxPriorityItem
+---@return number|nil maxPriority
+local function maxByArray(array, toPriority)
+    if not array or #array == 0 then return end
+
+    local maxPriority = -1 / 0
+    local maxPriorityItem = nil
+    for i = 1, #array do
+        local item = array[i]
+        local priority = toPriority(item)
+        if priority and maxPriority <= priority then
+            maxPriorityItem = item
+            maxPriority = priority
+        end
+    end
+    return maxPriorityItem, maxPriority
+end
+
 local function minCheckClock(treeFarmLocation)
     local check = treeFarmLocation.lastCheckClock or 0
-    local success = treeFarmLocation.lastSuccessClock or 0
-    return success + (check - success) * 2
+    local modify = treeFarmLocation.lastModifyClock or 0
+    return modify + (check - modify) * 2
 end
 
 local function treeFarmLocationPriority(treeFarmLocation, clock, cx, cy, cz)
     if clock < minCheckClock(treeFarmLocation) then return end
 
-    local success = treeFarmLocation.lastSuccessClock or 0
+    local modify = treeFarmLocation.lastModifyClock or 0
     local d = Vec3.manhattanDistance(
         treeFarmLocation.x, treeFarmLocation.y, treeFarmLocation.z,
         cx, cy, cz
     )
-    local span = clock - success
+    local span = clock - modify
     return -d + span
 end
 
 local function getHighestPriorityTreeFarmLocation()
     local locations = persistentMemory.colorToLocations[treeFarmColor]
-    if not locations or #locations == 0 then return end
-
     local clock = os.clock()
     local cx, cy, cz = Memoried.currentPosition()
-    local maxPriorityLocation = nil
-    local maxPriority = -1 / 0
-    for i = 1, #locations do
-        local l = locations[i]
-        local p = treeFarmLocationPriority(l, clock, cx, cy, cz)
-        if p and maxPriority <= p then
-            maxPriorityLocation = l
-            maxPriority = p
-        end
-    end
-    return maxPriorityLocation
+    return maxByArray(locations, function (location)
+        return treeFarmLocationPriority(location, clock, cx, cy, cz)
+    end)
 end
 
-local function existsSaplingInInventory()
-    local slot = Tree.findSimpleHugeSaplingSlot()
-    if slot then return true else return false end
-end
-
-local function placeSapling()
-    local slot = Tree.findSimpleHugeSaplingSlot()
+local function placeSapling(slot)
     turtle.select(slot)
 
     -- 右下に移動
@@ -334,15 +359,20 @@ local function placeSapling()
     -- [v]
 end
 
+local function showNextCheckClock(location)
+    local nextSpan = minCheckClock(location) - os.clock()
+    if 0 < nextSpan then
+        mainLogger.logInfo("next check is", nextSpan, "s later", location.x, location.y, location.z)
+    end
+
+end
+
 local treeFarmingRule = {
     name = "tt: tree farming",
     when = function()
 
         -- 準備ができていない
         if not ready() then return end
-
-        -- インベントリに苗木が無い
-        if not existsSaplingInInventory() then return end
 
         -- 植林場を知らない
         local location = getHighestPriorityTreeFarmLocation()
@@ -364,10 +394,8 @@ local treeFarmingRule = {
     end,
     action = function(self, location)
         local fx, fy, fz, direction = location.x, location.y, location.z, location.direction
-        local complete, path = Mex.findPath(fx, fy, fz)
-        if not complete then return Logger.logError(self.name, "path not found", fx, fy, fz) end
 
-        local ok, reason = Mex.goToGoal(10, path, DisableDig, DisableAttack)
+        local ok, reason = goTo(10, fx, fy, fz, isMovable, disableDig, DisableAttack)
         if not ok then return Logger.logError(self.name, reason) end
 
         Memoried.getOperationAt(Up).dig()
@@ -378,21 +406,21 @@ local treeFarmingRule = {
 
         if info.name == Log then
             Tree.digTree()
-            location.lastSuccessClock = os.clock()
-            Memoried.getOperationAt(Down).move()
+            location.lastModifyClock = os.clock()
 
         elseif info.name == Sapling then
             -- TODO: 骨粉
-            Memoried.getOperationAt(Down).move()
-
-            local nextSpan = minCheckClock(location) - os.clock()
-            if 0 < nextSpan then
-                mainLogger.logInfo("next check is", nextSpan, "s later", fx, fy, fz)
-            end
+            showNextCheckClock(location)
 
         elseif not ok then
             -- 何も植えていなかったので苗木を植える
-            placeSapling()
+            local slot = Tree.findSimpleHugeSaplingSlot()
+            if slot then
+                placeSapling(slot)
+                location.lastModifyClock = os.clock()
+            else
+                showNextCheckClock(location)
+            end
         end
     end
 }
