@@ -32,7 +32,7 @@ local Dirt = "minecraft:dirt"
 local treeFarmColor = "green"
 
 local treeFarmingPriority = 0.5
-local suckSaplingPriority = 0.4
+local suckSaplingPriority = 0.5
 
 ---@generic T
 ---@param array table<integer, T>
@@ -337,7 +337,7 @@ local suckSaplingRule = {
         local suckItemPriority = 0
         local lifeSpan = os.clock() - (location.lastDigSuccessClock or 0)
         if lifeSpan < itemLifeSpan then
-            suckItemPriority = lifeSpan / itemLifeSpan * 2
+            suckItemPriority = (lifeSpan / itemLifeSpan) * 3
         end
 
         return suckSaplingPriority + suckItemPriority, location
@@ -364,7 +364,7 @@ local suckSaplingRule = {
             [ ][ ][ ][ ][ ][ ][ ][ ] 0
         ]]
         local map = {}
-        initializeSaplingMap(map, 8, 8, 2, 4)
+        initializeSaplingMap(map, 10, 10, 3, 5)
 
         while true do
 
