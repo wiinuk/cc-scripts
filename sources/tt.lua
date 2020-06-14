@@ -10,6 +10,7 @@ local parseSubCommand = ArgParser.parseSubCommand
 local splitCommand = ArgParser.splitCommand
 local TTBasic = require "tt-basic-rules"
 local TTTree = require "tt-tree-rules"
+local TTSorting = require "tt-sorting-rules"
 
 Logger.addListener(Logger.fileWriterListener "/logs/tt.log")
 Logger.addListener(Logger.rednetListener("left"))
@@ -27,7 +28,10 @@ local function ruleThread()
         TTBasic.checkHomeRule,
         TTBasic.collectMapRule,
         TTTree.treeFarmingRule,
-        TTTree.suckSaplingRule
+        TTTree.suckSaplingRule,
+
+        TTSorting.checkSortedChestRule,
+        TTSorting.transferItemToSortedChestRule
     )
     Rules.evaluate()
 end
