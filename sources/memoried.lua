@@ -173,7 +173,7 @@ end
 ---@return integer y
 ---@return integer z
 local function currentLeft()
-    return applyRotationTruncate(-1, 0, 1)
+    return applyRotationTruncate(-1, 0, 0)
 end
 --- 顔の後ろの方向を表す長さ 1 のベクトルを返す
 ---@return integer x
