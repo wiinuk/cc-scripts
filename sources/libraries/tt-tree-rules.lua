@@ -399,7 +399,13 @@ local suckSaplingRule = {
                     mainLogger.logWarning(self.name, reason, l.x, l.y, l.z)
                     l.sucked = true
                 else
-                    Memoried.getOperationAt(direction).suck()
+                    while
+                        -- ぶつからない = チェストではない
+                        not Memoried.getOperationAt(direction).detect()
+                        -- 複数のアイテムを回収
+                        and Memoried.getOperationAt(direction).suck()
+                        do
+                        end
 
                     -- 移動できるようにするため情報を取得
                     Memoried.getOperationAt(direction).inspect()
