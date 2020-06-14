@@ -79,13 +79,21 @@ local function findUnsortedChest(direction)
         if not ok or not isChest(info) then
             return false, "chest not found"
         end
-        return Down
+        return Down, 1
     end
-    return direction
+
+    -- 積み上げられたチェストの高さをチェック
+    local height = 1
+    while true do
+        if not Memoried.getOperationAt(Up).move() then break end
+        local ok, info = Memoried.getOperationAt(direction).inspect()
+        if not ok or not isChest(info) then break end
+        height = height + 1
+    end
+    return direction, height
 end
 
-local function suckMany(direction)
-    local slots = nil
+local function suckMany(slots, direction)
     while true do
         local slot = Mex.findLastEmptySlot()
 
@@ -104,17 +112,18 @@ local function suckMany(direction)
 end
 
 local function inspectItems(items, direction)
-    local slots = suckMany(direction)
-    if not slots then return false end
+    local slots = suckMany(nil, direction)
+    if not slots then return items end
 
     for i = 1, #slots do
         local slot = slots[i]
 
         turtle.select(slot)
+        items = items or {}
         items[#items+1] = turtle.getItemDetail(slot)
         Memoried.getOperationAt(direction).drop()
     end
-    return true
+    return items
 end
 
 ---@class ChestInfo
@@ -142,7 +151,7 @@ local function checkNeighborSingleKindChests()
             -- 一番下がチェストなら入っているアイテムを記録
             local items = {}
             local height = 1
-            inspectItems(items, d)
+            items = inspectItems(items, d)
 
             -- 上をチェックしていく
             while true do
@@ -152,7 +161,7 @@ local function checkNeighborSingleKindChests()
                 local ok, info = Memoried.getOperationAt(d).inspect()
                 if not ok or not isChest(info) then break end
 
-                inspectItems(items, d)
+                items = inspectItems(items, d)
                 height = height + 1
             end
 
@@ -183,8 +192,7 @@ local function checkNeighborMultipleKindChests()
             local ok, info = Memoried.getOperationAt(d).inspect()
             if not ok or not isChest(info) then break end
 
-            local items = {}
-            inspectItems(items, d)
+            local items = inspectItems({}, d)
             chests[#chests+1] = {
                 baseX = bx,
                 baseY = by,
@@ -358,14 +366,14 @@ local transferItemToSortedChestRule = {
         return moveToSortedChestPriority, location
     end,
     action = function(self, location)
-        local tx, ty, tz, direction = location.x, location.y, location.z, location.direction
+        local tx, ty, tz, d = location.x, location.y, location.z, location.direction
 
         local ok, reason = goTo(10, tx, ty, tz, isMovable, disableDig, DisableAttack)
         if not ok then return Logger.logError(self.name, reason) end
 
         -- チェストの位置を検索
-        direction, reason = findUnsortedChest(direction)
-        if not direction then return Logger.logError(self.name, reason) end
+        local direction, height = findUnsortedChest(d)
+        if not direction then return Logger.logError(self.name, height) end
 
         -- 空きを作る
         compactItems()
@@ -373,7 +381,14 @@ local transferItemToSortedChestRule = {
         -- TODO: 複数のチェストが重なっている場合下にアイテムを移動
 
         -- チェストからインベントリの空きスロットに移動
-        local slots = suckMany(direction)
+        goTo(10, tx, ty, tz, isMovable, disableDig, DisableAttack)
+        local slots = suckMany(nil, direction)
+
+        -- 上のチェストをチェック
+        for _ = 2, height do
+            Memoried.getOperationAt(Up).move()
+            slots = suckMany(slots, direction)
+        end
 
         location.lastCheckClock = os.clock()
 
@@ -381,6 +396,7 @@ local transferItemToSortedChestRule = {
         if not slots then return mainLogger.logInfo(self.name, "all item can not moved") end
 
         -- 取得したアイテムの移動先を検索
+        local unmovableSlots = nil
         ---@type table<integer, ChestInfo>
         local slotToChest = nil
         for i = #slots, 1, -1 do
@@ -389,14 +405,42 @@ local transferItemToSortedChestRule = {
             local chest = findChestFromSortedChestLocations(item)
             if not chest then
 
-                -- 移動先が見つからなかったので仕分け前チェストに戻す
+                -- 移動先が見つからなかった
                 mainLogger.logInfo(self.name, "not found", slot, pretty(item))
-                turtle.select(slot)
-                Memoried.getOperationAt(direction).drop()
+                unmovableSlots = unmovableSlots or {}
+                unmovableSlots[#unmovableSlots+1] = slot
             else
                 mainLogger.logInfo(self.name, "find", item, pretty(chest))
                 slotToChest = slotToChest or {}
                 slotToChest[slot] = chest
+            end
+        end
+
+        -- 移動先が見つからなかったアイテムを仕分け前チェストに戻す
+        if unmovableSlots then
+
+            -- 一番下に戻る
+            goTo(1, tx, ty, tz, isMovable, disableDig, DisableAttack)
+
+            local i = 1
+            for _ = 1, height do
+                local slot = unmovableSlots[i]
+
+                -- 戻すのが成功したら次のスロット
+                turtle.select(slot)
+                if Memoried.getOperationAt(direction).drop() then i = i + 1 end
+
+                -- 全てのスロットを移し終えたので終わり
+                if #unmovableSlots < i then break end
+
+                -- 上に移動
+                Memoried.getOperationAt(Up).move()
+            end
+
+            -- 全てのアイテムは移せなかった
+            if not (#unmovableSlots < i) then
+                local itemName = turtle.getItemDetail(unmovableSlots[i]).name
+                mainLogger.logWarning(self.name, "item drop failed", itemName)
             end
         end
 
