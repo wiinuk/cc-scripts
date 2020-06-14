@@ -334,7 +334,13 @@ local suckSaplingRule = {
         local location = getHighestPriorityTreeFarmLocationBy(treeFarmLocationPriorityForSuckSapling)
         if not location then return end
 
-        return suckSaplingPriority, location
+        local suckItemPriority = 0
+        local lifeSpan = os.clock() - (location.lastDigSuccessClock or 0)
+        if lifeSpan < itemLifeSpan then
+            suckItemPriority = lifeSpan / itemLifeSpan
+        end
+
+        return suckSaplingPriority + suckItemPriority, location
     end,
     action = function(self, location)
         local fx, fy, fz, direction = location.x, location.y, location.z, location.direction
