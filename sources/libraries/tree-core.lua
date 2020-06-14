@@ -254,10 +254,25 @@ local function moveToInitialPosition(rightCount, downCount)
         end
         turtle.turnLeft()
     end
-    for _ = 1, 2 do
-        moveBack()
+    if moveRight < 0 then
+        turtle.turnLeft()
+        for _ = 1, -moveRight do
+            move()
+        end
+        turtle.turnRight()
     end
+
+    turtle.turnRight()
+    turtle.turnRight()
+    for _ = 1, 2 do
+        turtle.dig()
+        move()
+    end
+    turtle.turnRight()
+    turtle.turnRight()
+
     for _ = 1, -downCount do
+        turtle.digDown()
         moveDown()
     end
 end
