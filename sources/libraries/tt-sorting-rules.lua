@@ -15,6 +15,7 @@ local Up = Memoried.Up
 local Logger = require "logger"
 local Mex = require "memoried_extensions"
 local compactItems = Mex.compactItems
+local pretty = require "pretty"
 
 
 local DisableAttack = false
@@ -24,8 +25,8 @@ local unsortedChestColor = "gray"
 local singleKindChestColor = "light_blue"
 local multipleKindChestColor = "blue"
 
-local moveToChestMultiPriority = 1
-local checkSortedChestPriority = 1
+local moveToSortedChestPriority = 0.4
+local checkSortedChestPriority = 0.5
 
 local function minCheckClock(chestLocation)
     local check = chestLocation.lastCheckClock or 0
@@ -53,6 +54,11 @@ end
 local function findHighPrioritySortedChestLocation()
     local multipleLocation, multiplePriority = findHighPriorityLocation(persistentMemory.colorToLocations[singleKindChestColor])
     local singleLocation, singlePriority = findHighPriorityLocation(persistentMemory.colorToLocations[multipleKindChestColor])
+
+    if not multipleLocation and not singleLocation then return end
+    if multipleLocation and not singleLocation then return multipleLocation end
+    if not multipleLocation and singleLocation then return singleLocation end
+
     if multiplePriority < singlePriority then
         return multipleKindChestColor, singleLocation
     else
@@ -254,6 +260,7 @@ local checkSortedChestRule = {
             local newChests = checkNeighborSingleKindChests()
             if isChestsUpdated(oldChests, newChests) then
                 location.lastModifyClock = os.clock()
+                mainLogger.logDebug(self.name, "updated ( single )", tx, ty, tz, newChests)
             end
             location.chests = newChests
 
@@ -262,6 +269,7 @@ local checkSortedChestRule = {
             local newChests = checkNeighborMultipleKindChests()
             if isChestsUpdated(oldChests, newChests) then
                 location.lastModifyClock = os.clock()
+                mainLogger.logInfo(self.name, "updated ( multi )", tx, ty, tz, newChests)
             end
             location.chests = newChests
 
@@ -315,11 +323,16 @@ local function transferToChestOnBase(slot, chest)
 end
 
 local function findChestFromChestLocations(locations, item)
+    if not locations then return end
+
     for _, location in ipairs(locations) do
-        for _, chest in ipairs(location.chests) do
-            for _, chestItem in ipairs(chest.items) do
-                if item.name == chestItem.name then
-                    return chest
+        local chests = location.chests
+        if chests then
+            for _, chest in ipairs(chests) do
+                for _, chestItem in ipairs(chest.items) do
+                    if item.name == chestItem.name then
+                        return chest
+                    end
                 end
             end
         end
@@ -342,7 +355,7 @@ local transferItemToSortedChestRule = {
         local location = findHighPriorityUnsortedChestLocation()
         if not location then return end
 
-        return moveToChestMultiPriority, location
+        return moveToSortedChestPriority, location
     end,
     action = function(self, location)
         local tx, ty, tz, direction = location.x, location.y, location.z, location.direction
@@ -360,7 +373,7 @@ local transferItemToSortedChestRule = {
         -- TODO: 複数のチェストが重なっている場合下にアイテムを移動
 
         -- チェストからインベントリの空きスロットに移動
-        local slots = suckMany()
+        local slots = suckMany(direction)
 
         location.lastCheckClock = os.clock()
 
@@ -377,13 +390,13 @@ local transferItemToSortedChestRule = {
             if not chest then
 
                 -- 移動先が見つからなかったので仕分け前チェストに戻す
-                mainLogger.logInfo(self.name, "sorted chest not found", slot, item)
+                mainLogger.logInfo(self.name, "not found", slot, pretty(item))
                 turtle.select(slot)
                 Memoried.getOperationAt(direction).drop()
             else
-                mainLogger.logInfo(self.name, "find sorting chest", item, chest)
+                mainLogger.logInfo(self.name, "find", item, pretty(chest))
                 slotToChest = slotToChest or {}
-                slotToChest[i] = chest
+                slotToChest[slot] = chest
             end
         end
 
@@ -391,6 +404,7 @@ local transferItemToSortedChestRule = {
         if not slotToChest then return end
 
         while true do
+
             -- 最も近いチェストを検索
             local slot, chest = popNearestChest(slotToChest)
             if not slot then break end
