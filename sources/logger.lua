@@ -1,5 +1,6 @@
 local Ex = require "extensions"
 local pretty = require "pretty"
+local Json = require "json"
 
 
 ---@class LogListener
@@ -227,6 +228,23 @@ local function loggerListener(logger)
     }
 end
 
+local function rednetListener(side, id)
+    rednet.open(side)
+    return {
+        onMessage = function(_, level, ...)
+            local message = Json.stringify { level = level, messages = {...} }
+            if id then
+                rednet.send(id, message)
+            else
+                rednet.broadcast(message)
+            end
+        end,
+        dispose = function()
+            rednet.close(side)
+        end
+    }
+end
+
 return {
     Output = Output,
     Error = Error,
@@ -248,4 +266,5 @@ return {
     fileWriterListener = fileWriterListener,
     terminalListener = terminalListener,
     loggerListener = loggerListener,
+    rednetListener = rednetListener,
 }
