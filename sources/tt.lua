@@ -1,13 +1,15 @@
 package.path = package.path..";./libraries/?.lua"
 
+local TT = require "tt-core"
+local mainLogger = TT.mainLogger
 local Rules = require "rules"
 local Logger = require "logger"
 local BasicRules = require "basic_rules"
 local ArgParser = require "arg-parser"
 local parseSubCommand = ArgParser.parseSubCommand
 local splitCommand = ArgParser.splitCommand
-local TTBasicRules = require "tt-basic-rules"
-local mainLogger = TTBasicRules.mainLogger
+local TTBasic = require "tt-basic-rules"
+local TTTree = require "tt-tree-rules"
 
 Logger.addListener(Logger.fileWriterListener "/logs/tt.log")
 
@@ -21,9 +23,10 @@ local function ruleThread()
         -- BasicRules.setTorchRule,
         BasicRules.refuelRule,
         -- BasicRules.goHomeRule,
-        TTBasicRules.checkHomeRule,
-        TTBasicRules.collectMapRule,
-        TTBasicRules.treeFarmingRule
+        TTBasic.checkHomeRule,
+        TTBasic.collectMapRule,
+        TTTree.treeFarmingRule,
+        TTTree.suckSaplingRule
     )
     Rules.evaluate()
 end

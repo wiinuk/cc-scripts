@@ -1,39 +1,31 @@
 package.path = package.path..";../?.lua"
 
+local TT = require "tt-core"
+local mainLogger = TT.mainLogger
+local goTo = TT.goTo
+local isHomeChecked = TT.isHomeChecked
+local persistentMemory = TT.persistentMemory
+local savePersistentMemory = TT.savePersistentMemory
+local isMovable = TT.isMovable
+local disableDig = TT.disableDig
 local Memoried = require "memoried"
 local Down = Memoried.Down
-local Up = Memoried.Up
-local Forward = Memoried.Forward
-local Back = Memoried.Back
-local Right = Memoried.Right
-local Left = Memoried.Left
 local Logger = require "logger"
 -- local Json = require "json"
 local Mex = require "memoried_extensions"
 local Vec3 = require "vec3"
-local Tree = require "tree-core"
 
 
 local DisableDig = true
-local EnableDig = false
 local DisableAttack = true
-local EnableAttack = false
 
-local Grass = "minecraft:grass"
-local Log = "minecraft:log"
 local Leaves = "minecraft:leaves"
-local Sapling = "minecraft:sapling"
-local Dirt = "minecraft:dirt"
 local StainedGlass = "minecraft:stained_glass"
 local branchBlockColor = "black"
 local normalEdgeColor = "white"
-local treeFarmColor = "green"
 local homeBlockName = "minecraft:obsidian"
 
-local mainLogger = Logger.create("main-logger")
-
 local collectMapPriority = 1
-local treeFarmingPriority = 0.5
 
 local function isHomeBlock(info)
     return info and info.name == homeBlockName
@@ -47,22 +39,10 @@ local function isAnyEdge(info)
     return info and info.name == StainedGlass and info.state and info.state.color ~= branchBlockColor
 end
 
-local function ready()
-    return Memoried.ttHome
-end
-
-local function goTo(maxRetryCount, x, y, z, isMovable, disableDig, disableAttack)
-    local complete, path = Mex.findPath(x, y, z, isMovable)
-    if not complete then return false, "path not found" end
-    local ok, reason = Mex.goToGoal(maxRetryCount, path, disableDig, disableAttack)
-    if not ok then return false, reason end
-    return true
-end
-
 local checkHomeRule = {
     name = "tt: check home",
     when = function()
-        if not ready() then return 10 end
+        if not isHomeChecked() then return 10 end
     end,
     action = function()
         local cx, cy, cz = Memoried.currentPosition()
@@ -77,52 +57,6 @@ local checkHomeRule = {
         Memoried.ttHome = {}
     end
 }
-
-local function newDefaultPersistentMemory()
-    return {
-        startNodeAdded = false,
-        openNodes = {},
-        closeNodes = {},
-        colorToLocations = {},
-    }
-end
--- local memoryPath = "/settings/tt.json"
-local function loadOrCreatePersistentMemory()
-    return newDefaultPersistentMemory()
-
-    -- if not fs.exists(memoryPath) then
-    --     Logger.logInfo("new creating memory")
-    --     return newDefaultPersistentMemory()
-    -- end
-
-    -- local file = io.open(memoryPath, "r+")
-    -- local contents = file:read("*a")
-    -- file:close()
-
-    -- local ok, result = Json.parse(contents)
-    -- if not ok then return error(result) end
-
-    -- Logger.logInfo("loading memory from", memoryPath)
-    -- return result
-end
-
-local persistentMemory = loadOrCreatePersistentMemory()
-
-local function savePersistentMemory()
-    -- local json, reason = Json.stringify(persistentMemory, { space = " ", indent = "  ", maxWidth = 0 })
-    -- if not json then return Logger.logError("memory stringify error", reason) end
-
-    -- local file = io.open(memoryPath, "w+")
-    -- file:write(json)
-    -- file:close()
-
-    -- Logger.logInfo("memory saved to", memoryPath)
-end
-
-local function isMovable(x, y, z)
-    local location = Memoried.getLocation(x, y, z)
-    return location and (location.move == true or location.detect == false)
-end
 
 local function popNearestNode(openSet)
     if #openSet <= 0 then return end
@@ -183,15 +117,10 @@ local function mineToDirection(direction, disableDig, disableAttack)
     return Mex.mineTo(7, tx, ty, tz, disableDig, disableAttack)
 end
 
-local function disableDig(direction)
-    local ok, info = Memoried.getOperationAt(direction).inspect()
-    return not (ok and info.name == Leaves)
-end
-
 local collectMapRule = {
     name = "tt: collect map",
     when = function()
-        if not ready() then return end
+        if not isHomeChecked() then return end
         if
             not persistentMemory.startNodeAdded or
             0 < #persistentMemory.openNodes
@@ -257,177 +186,7 @@ local collectMapRule = {
     end,
 }
 
----@generic T
----@param array table<integer, T>
----@param toPriority fun(item: T): number|nil
----@return T|nil maxPriorityItem
----@return number|nil maxPriority
-local function maxByArray(array, toPriority)
-    if not array or #array == 0 then return end
-
-    local maxPriority = -1 / 0
-    local maxPriorityItem = nil
-    for i = 1, #array do
-        local item = array[i]
-        local priority = toPriority(item)
-        if priority and maxPriority <= priority then
-            maxPriorityItem = item
-            maxPriority = priority
-        end
-    end
-    return maxPriorityItem, maxPriority
-end
-
-local function minCheckClock(treeFarmLocation)
-    local check = treeFarmLocation.lastCheckClock or 0
-    local modify = treeFarmLocation.lastModifyClock or 0
-    return modify + (check - modify) * 2
-end
-
-local function treeFarmLocationPriority(treeFarmLocation, clock, cx, cy, cz)
-    if clock < minCheckClock(treeFarmLocation) then return end
-
-    local modify = treeFarmLocation.lastModifyClock or 0
-    local d = Vec3.manhattanDistance(
-        treeFarmLocation.x, treeFarmLocation.y, treeFarmLocation.z,
-        cx, cy, cz
-    )
-    local span = clock - modify
-    return -d + span
-end
-
-local function getHighestPriorityTreeFarmLocation()
-    local locations = persistentMemory.colorToLocations[treeFarmColor]
-    local clock = os.clock()
-    local cx, cy, cz = Memoried.currentPosition()
-    return maxByArray(locations, function (location)
-        return treeFarmLocationPriority(location, clock, cx, cy, cz)
-    end)
-end
-
-local function placeSapling(slot)
-    turtle.select(slot)
-
-    -- 右下に移動
-    -- [?][?][?]
-    -- [?][ ][?]
-    --    [^]
-    Memoried.getOperation(Down).move()
-    Memoried.getOperation(Right).move()
-    local _, info = Memoried.getOperation(Left).inspect()
-    if info.name ~= Dirt or info.name ~= Grass then
-        Memoried.getOperation(Left).move()
-        Memoried.turnRight()
-    end
-    -- [D][D]
-    -- [D][D]
-    --    [^]
-
-    Memoried.getOperation(Up).dig()
-    Memoried.getOperation(Up).move()
-    Memoried.getOperation(Up).dig()
-    Memoried.getOperation(Up).move()
-    Memoried.getOperation(Forward).dig()
-    Memoried.getOperation(Forward).move()
-    Memoried.getOperation(Down).place()
-    -- [D??][D??]
-    -- [D??][DS^]
-    Memoried.getOperation(Forward).dig()
-    Memoried.getOperation(Forward).move()
-    Memoried.getOperation(Down).dig()
-    Memoried.getOperation(Down).place()
-    -- [D??][DS^]
-    -- [D??][DS ]
-    Memoried.getOperation(Left).dig()
-    Memoried.getOperation(Forward).move()
-    Memoried.getOperation(Down).dig()
-    Memoried.getOperation(Down).place()
-    -- [DS<][DS]
-    -- [D??][DS]
-    Memoried.getOperation(Left).dig()
-    Memoried.getOperation(Forward).move()
-    Memoried.getOperation(Down).dig()
-    Memoried.getOperation(Down).place()
-    -- [DS ][DS]
-    -- [DSv][DS]
-
-    Memoried.getOperation(Forward).move()
-    Memoried.getOperation(Down).move()
-    Memoried.getOperation(Down).move()
-    -- [DS][DS]
-    -- [DS][DS]
-    -- [v]
-end
-
-local function showNextCheckClock(location)
-    local nextSpan = minCheckClock(location) - os.clock()
-    if 0 < nextSpan then
-        mainLogger.logInfo("next check is", nextSpan, "s later", location.x, location.y, location.z)
-    end
-
-end
-
-local treeFarmingRule = {
-    name = "tt: tree farming",
-    when = function()
-
-        -- 準備ができていない
-        if not ready() then return end
-
-        -- 植林場を知らない
-        local location = getHighestPriorityTreeFarmLocation()
-        if not location then return end
-
-        local cx, cy, cz = Memoried.currentPosition()
-        local fuelLevelPriority = 0
-        local needLevel = Vec3.manhattanDistance(location.x, location.y, location.z, cx, cy, cz) * 1.5
-        local level = turtle.getFuelLevel()
-        if level ~= "unlimited" and needLevel ~= 0 then
-            -- level = 500, needLevel = 50 => 0.1
-            -- level = 100, needLevel = 50 => 0.5
-            -- level = 50, needLevel = 50 => 1
-            -- level = 10, needLevel = 50 => 5
-            fuelLevelPriority = 1 / (level / needLevel)
-        end
-
-        return treeFarmingPriority + fuelLevelPriority, location
-    end,
-    action = function(self, location)
-        local fx, fy, fz, direction = location.x, location.y, location.z, location.direction
-
-        local ok, reason = goTo(10, fx, fy, fz, isMovable, disableDig, DisableAttack)
-        if not ok then return Logger.logError(self.name, reason) end
-
-        Memoried.getOperationAt(Up).dig()
-        Memoried.getOperationAt(Up).move()
-
-        location.lastCheckClock = os.clock()
-        local ok, info = Memoried.getOperationAt(direction).inspect()
-
-        if info.name == Log then
-            Tree.digTree()
-            location.lastModifyClock = os.clock()
-
-        elseif info.name == Sapling then
-            -- TODO: 骨粉
-            showNextCheckClock(location)
-
-        elseif not ok then
-            -- 何も植えていなかったので苗木を植える
-            local slot = Tree.findSimpleHugeSaplingSlot()
-            if slot then
-                placeSapling(slot)
-                location.lastModifyClock = os.clock()
-            else
-                showNextCheckClock(location)
-            end
-        end
-    end
-}
-
 return {
-    mainLogger = mainLogger,
     checkHomeRule = checkHomeRule,
     collectMapRule = collectMapRule,
-    treeFarmingRule = treeFarmingRule,
 }
