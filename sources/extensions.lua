@@ -61,6 +61,27 @@ local function containsArray(array, target)
     return existsArray(array, function (x) return x == target end)
 end
 
+---@generic T
+---@param array table<integer, T>
+---@param toPriority fun(item: T): number|nil
+---@return T|nil maxPriorityItem
+---@return number|nil maxPriority
+local function maxByArray(array, toPriority)
+    if not array or #array == 0 then return end
+
+    local maxPriority = -1 / 0
+    local maxPriorityItem = nil
+    for i = 1, #array do
+        local item = array[i]
+        local priority = toPriority(item, i)
+        if priority and maxPriority <= priority then
+            maxPriorityItem = item
+            maxPriority = priority
+        end
+    end
+    return maxPriorityItem, maxPriority
+end
+
 return {
     printError = printError,
     clearTable = clearTable,
@@ -68,6 +89,7 @@ return {
     appendArray = appendArray,
     containsArray = containsArray,
     existsArray = existsArray,
+    maxByArray = maxByArray,
     noop = noop,
     id = id,
     const = const,
