@@ -12,6 +12,7 @@ local TTBasic = require "tt-basic-rules"
 local TTTree = require "tt-tree-rules"
 
 Logger.addListener(Logger.fileWriterListener "/logs/tt.log")
+Logger.addListener(Logger.rednetListener("left"))
 
 mainLogger.addListener(Logger.printListener(Logger.Info))
 mainLogger.addListener(Logger.loggerListener(Logger.getDefaultLogger()))
