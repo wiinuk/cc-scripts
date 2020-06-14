@@ -337,7 +337,7 @@ local suckSaplingRule = {
         local suckItemPriority = 0
         local lifeSpan = os.clock() - (location.lastDigSuccessClock or 0)
         if lifeSpan < itemLifeSpan then
-            suckItemPriority = lifeSpan / itemLifeSpan
+            suckItemPriority = lifeSpan / itemLifeSpan * 2
         end
 
         return suckSaplingPriority + suckItemPriority, location
