@@ -20,6 +20,8 @@ local Mex = require "memoried_extensions"
 local Vec3 = require "vec3"
 local Tree = require "tree-core"
 local Box3 = require "box3"
+local Ex = require "extensions"
+local maxByArray = Ex.maxByArray
 
 
 local DisableAttack = true
@@ -33,27 +35,6 @@ local treeFarmColor = "green"
 
 local treeFarmingPriority = 0.5
 local suckSaplingPriority = 0.5
-
----@generic T
----@param array table<integer, T>
----@param toPriority fun(item: T): number|nil
----@return T|nil maxPriorityItem
----@return number|nil maxPriority
-local function maxByArray(array, toPriority)
-    if not array or #array == 0 then return end
-
-    local maxPriority = -1 / 0
-    local maxPriorityItem = nil
-    for i = 1, #array do
-        local item = array[i]
-        local priority = toPriority(item, i)
-        if priority and maxPriority <= priority then
-            maxPriorityItem = item
-            maxPriority = priority
-        end
-    end
-    return maxPriorityItem, maxPriority
-end
 
 local function minCheckClock(treeFarmLocation)
     local check = treeFarmLocation.lastCheckClock or 0
