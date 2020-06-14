@@ -228,7 +228,8 @@ local treeFarmingRule = {
 local itemLifeSpan = 60 * 5
 local function treeFarmLocationPriorityForSuckSapling(treeFarmLocation, clock, cx, cy, cz)
 
-    -- 記憶上で一度も原木採取したことがなかったとしても確認はする
+    -- 原木採取したことがなかった
+    if not treeFarmLocation.lastDigSuccessClock then return end
 
     local suck = treeFarmLocation.lastSuckTryClock or 0
     local dig = treeFarmLocation.lastDigSuccessClock or 0
