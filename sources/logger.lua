@@ -238,6 +238,7 @@ return {
     log = default.log,
     logError = default.logError,
     logInfo = default.logInfo,
+    logWarning = default.logWarning,
     logDebug = default.logDebug,
     addListener = default.addListener,
     getDefaultLogger = getDefaultLogger,
