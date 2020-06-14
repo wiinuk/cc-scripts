@@ -237,7 +237,10 @@ local function treeFarmLocationPriorityForSuckSapling(treeFarmLocation, clock, c
 
     -- 燃料を節約するため、前回の苗木採取からある程度時間を空ける
     local nextCheckClock = dig + (suck - dig) * 2
-    if clock < nextCheckClock then return end
+    if clock < nextCheckClock then
+        mainLogger.log("next check clock is", nextCheckClock)
+        return
+    end
 
     -- 原木採取してからある程度経過すると苗木は消えてしまう
     local span = clock - dig
