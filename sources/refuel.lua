@@ -55,20 +55,23 @@ local function refuel(options)
     table.sort(slotAndNames, function(l, r)
         return itemNameToFuelLevel[l.name] < itemNameToFuelLevel[r.name]
     end)
-    turtle.select(slotAndNames[1].slot)
-    return turtle.refuel(1)
+    local slotAndName = slotAndNames[1]
+    turtle.select(slotAndName.slot)
+    return turtle.refuel(1), slotAndName.name, 1
 end
 
 return function(options)
+    local _, name, count
     if isEmptyFuel() then
-        refuel(options)
+        _, name, count = refuel(options)
         if isEmptyFuel() then
             print("need fuel")
             while isEmptyFuel() do
-                refuel(options)
+                _, name, count = refuel(options)
                 emptyFuelMessage()
             end
             print("tasty!")
         end
     end
+    return name, count
 end
