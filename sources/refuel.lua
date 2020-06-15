@@ -42,7 +42,7 @@ local function refuel(options)
                 if turtle.refuel(1) then
                     local newLevel = turtle.getFuelLevel()
                     itemNameToFuelLevel[name] = newLevel - oldLevel
-                    return true
+                    return true, name, 1
                 else
                     itemNameToFuelLevel[name] = 0
                 end
