@@ -228,11 +228,35 @@ local function loggerListener(logger)
     }
 end
 
-local function rednetListener(side, id)
-    rednet.open(side)
+local sides = { "forward", "left", "back", "right", "bottom", "top", }
+local function getPeripheralSideByType(type)
+    for _, s in ipairs(sides) do
+        if type and peripheral.getType(s) == type then
+            return s
+        end
+    end
+end
+
+local messageTypeId = "407DDBF1-A720-4933-B1D1-0B75E024536F"
+
+---@param id integer|nil
+local function rednetListener(id)
+    local side = getPeripheralSideByType "modem" or "left"
     return {
         onMessage = function(_, level, ...)
-            local message = Json.stringify { level = level, messages = {...} }
+            if math.random(1, 5) == 1 and not rednet.isOpen(side) then
+                local s = getPeripheralSideByType "modem"
+                if s then
+                    rednet.open(s)
+                    side = s
+                end
+            end
+
+            local message = Json.stringify {
+                __typeId = messageTypeId,
+                level = level,
+                messages = {...}
+            }
             if id then
                 rednet.send(id, message)
             else
@@ -251,6 +275,7 @@ return {
     Warning = Warning,
     Info = Info,
     Debug = Debug,
+    MessageTypeId = messageTypeId,
 
     logCore = default.logCore,
     log = default.log,
