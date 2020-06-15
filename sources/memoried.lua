@@ -39,7 +39,9 @@ local memory = {
     -- { [positionToKey(0,0,0)] = ..., [positionToKey(0,0,-1)] = ... }
     map = {},
     -- { nil, "minecraft:diamond_pickaxe", ... }
-    equippedItemNames = {}
+    equippedItemNames = {},
+    -- { ["minecraft:stone"] = 10, ["minecraft:log"] = 1/0 }
+    reservedItemNameToCount = {},
 }
 ---@param name string
 local function hasRequest(name)
@@ -289,6 +291,26 @@ local function inspect()
     return ok, data
 end
 
+---@param itemName string
+---@param count integer|nil
+local function addReservedItem(itemName, count)
+    local map = memory.reservedItemNameToCount
+    map[itemName] = (map[itemName] or 0) + (count or (1/0))
+end
+
+local function getReservedItemCount(itemName)
+    return memory.reservedItemNameToCount[itemName] or 0
+end
+
+local function isFuel(item)
+    return getReservedItemCount(item.name) <= 0
+end
+
+---@type RefuelOptions
+local refuelOptions = {
+    isFuel = isFuel,
+}
+
 ---@param move fun(): boolean
 ---@param nx number
 ---@param ny number
@@ -296,8 +318,7 @@ end
 local function moveGeneric(move, nx, ny, nz)
     local level = turtle.getFuelLevel()
     if level ~= "unlimited" and level <= 0 then
-        refuel()
-        return false
+        Logger.logInfo("refueled", refuel(refuelOptions))
     end
 
     local x, y, z = position[1], position[2], position[3]
@@ -744,4 +765,7 @@ return {
 
     getOperation = getOperation,
     getOperationAt = getOperationAt,
+
+    addReservedItem = addReservedItem,
+    getReservedItemCount = getReservedItemCount,
 }
