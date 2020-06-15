@@ -18,15 +18,22 @@ end
 --- `{ ["minecraft:coal"] = 320, ["minecraft:stone"] = 0 ... }`
 local itemNameToFuelLevel = {}
 
-local function refuel()
-    local slotAndNames = {}
+---@class RefuelOptions
+---@field public isFuel fun(item: ItemDetail): boolean
+
+---@param options RefuelOptions|nil
+local function refuel(options)
+    local isFuel = (options and options.isFuel) or nil
+
+    local slotAndNames = nil
     for slot = 1, 16 do
         local item = turtle.getItemDetail(slot)
-        if item then
+        if item and (not isFuel or isFuel(item)) then
             local name = item.name
             local level = itemNameToFuelLevel[name]
             if level then
                 if 0 < level then
+                    slotAndNames = slotAndNames or {}
                     slotAndNames[#slotAndNames+1] = { slot = slot, name = name }
                 end
             else
@@ -42,7 +49,7 @@ local function refuel()
             end
         end
     end
-    if #slotAndNames == 0 then return false end
+    if not slotAndNames or #slotAndNames == 0 then return false end
 
     -- 燃料レベルが低いアイテムを優先して消費する
     table.sort(slotAndNames, function(l, r)
@@ -52,13 +59,13 @@ local function refuel()
     return turtle.refuel(1)
 end
 
-return function()
+return function(options)
     if isEmptyFuel() then
-        refuel()
+        refuel(options)
         if isEmptyFuel() then
             print("need fuel")
             while isEmptyFuel() do
-                refuel()
+                refuel(options)
                 emptyFuelMessage()
             end
             print("tasty!")
