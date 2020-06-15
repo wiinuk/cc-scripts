@@ -35,28 +35,49 @@ local function getPeripheralSideByType(type, options)
     return s
 end
 
-local function receiveThread()
-    rednet.open(getPeripheralSideByType "modem")
-    Logger.log("starting receive")
+local messageHandlers = {}
+local function addHandler(type, handler)
+    local hs = messageHandlers[type] or {}
+    hs[#hs+1] = handler
+    messageHandlers[type] = hs
+end
 
-    while true do
-        local id, message = rednet.receive()
-        local ok, result = Json.parse(message)
-        if ok and result.__typeId == Logger.LoggerMessageTypeId then
-            Logger.logCore(result.level, tostring(id)..">", unpack(result.messages))
-        else
-            Logger.log(tostring(id)..">", message)
+addHandler("rednet_message", function(id, message)
+    local ok, result = Json.parse(message)
+    if ok and result.__typeId == Logger.MessageTypeId then
+        Logger.logCore(result.level, tostring(id)..">", unpack(result.messages))
+    else
+        Logger.log(tostring(id)..">", message)
+    end
+end)
+
+local function onPeripheralChanged()
+    local m = peripheral.find("monitor")
+    if m then
+        m.setTextScale(0.5)
+        Logger.addListener(Logger.terminalListener(m, Logger.Debug))
+    end
+end
+onPeripheralChanged()
+addHandler("peripheral", onPeripheralChanged)
+addHandler("peripheral_detach", onPeripheralChanged)
+
+local function processEvent(event, ...)
+    local handlers = messageHandlers[event]
+    if handlers then
+        for _, handler in ipairs(handlers) do
+            handler(...)
         end
     end
 end
 
-
-local monitor = peripheral.find "monitor"
-if monitor then
-    monitor.setTextScale(0.5)
-    Logger.addListener(Logger.terminalListener(monitor, Logger.Debug))
+local function eventLoop()
+    while true do processEvent(os.pullEvent()) end
 end
+
 
 Logger.addListener(Logger.printListener(Logger.Info))
 shell.openTab("shell")
-receiveThread()
+rednet.open(getPeripheralSideByType "modem")
+Logger.log("starting receive")
+eventLoop()
