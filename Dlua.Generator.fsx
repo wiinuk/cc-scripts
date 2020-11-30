@@ -1,6 +1,6 @@
 ﻿
-#load ".paket/load/netstandard2.1/AngleSharp.Css.fsx"
-#load ".paket/load/netstandard2.1/FParsec.fsx"
+#r "nuget: AngleSharp.Css"
+#r "nuget: FParsec"
 #r "System.Net.Http.dll"
 open AngleSharp
 open AngleSharp.Css.Dom
