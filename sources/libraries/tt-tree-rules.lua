@@ -180,7 +180,9 @@ local treeFarmingRule = {
         local ok, info = Memoried.getOperationAt(direction).inspect()
 
         if ok and info.name == Log then
-            Tree.digTree()
+            local ok, reason = Tree.digTree()
+            if not ok then error(reason) end
+
             local now = os.clock()
             location.lastModifyClock = now
             location.lastDigSuccessClock = now

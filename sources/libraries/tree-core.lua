@@ -313,7 +313,7 @@ end
 --- - 掘れる道具を装備している必要がある
 --- - 目の前に原木または原木につながる葉がある必要がある
 local function digTree()
-    if not digAndMoveForwardLog() then return error("log not found") end
+    if not digAndMoveForwardLog() then return false, "log not found" end
 
     -- 巨木
     if forwardIsLog() then
