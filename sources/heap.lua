@@ -4,7 +4,7 @@ local function defaultCompare(x, y)
     return 1
 end
 
----@generic
+---@generic T
 ---@param heap T[]
 ---@param value T
 ---@param compare fun(x: T, y: T): integer

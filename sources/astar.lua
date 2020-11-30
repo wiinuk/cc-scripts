@@ -9,7 +9,7 @@ local Heap = require "heap"
 ---@field public goalZ integer
 ---@field public isMovable fun(x: integer, y: integer, z: integer): boolean
 ---@field public opens table<integer, AStarKey> @heap
-
+---
 ---@field public compareNodeOfCost fun(a: AStarKey, b: AStarKey): number
 ---@field public positionToStatus table<AStarKey, integer>
 ---@field public positionToCost table<AStarKey, number>
