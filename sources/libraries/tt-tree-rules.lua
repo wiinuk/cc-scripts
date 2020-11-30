@@ -14,6 +14,7 @@ local Forward = Memoried.Forward
 local Back = Memoried.Back
 local Right = Memoried.Right
 local Left = Memoried.Left
+local addReservedItem = Memoried.addReservedItem
 local Logger = require "logger"
 -- local Json = require "json"
 local Mex = require "memoried_extensions"
@@ -22,6 +23,7 @@ local Tree = require "tree-core"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local maxByArray = Ex.maxByArray
+local Tex = require "turtle_extensions"
 
 
 local DisableAttack = true
@@ -142,6 +144,50 @@ local function showNextCheckClock(location)
 
 end
 
+local function getFuelLevel()
+    local l = turtle.getFuelLevel()
+    if l == "unlimited" then return 1/0 end
+    return l
+end
+
+local function getLogCount()
+    local count = 0
+    Tex.eachItem(function (item)
+        if item.name == Log then count = count + item.count end
+    end)
+    return count
+end
+
+local function refuel(needFuelLevel)
+    if needFuelLevel <= getFuelLevel() then return true end
+
+    Tex.eachItem(function (item, slot)
+        if 0 < Memoried.getReservedItemCount(item.name) then
+            turtle.select(slot)
+            while getFuelLevel() < needFuelLevel and turtle.refuel(1) do end
+        end
+    end)
+
+    return needFuelLevel <= getFuelLevel()
+end
+
+---@return integer actualCount
+local function refuelLog(logCount)
+    local actualCount = 0
+    Tex.eachItem(function (item, slot)
+        if logCount <= 0 or item.name ~= Log then return end
+
+        turtle.select(slot)
+
+        local count = math.min(logCount, item.count)
+        if turtle.refuel(count) then
+            actualCount = actualCount + (item.count - turtle.getItemCount())
+        end
+        logCount = logCount - count
+    end)
+    return actualCount
+end
+
 local treeFarmingRule = {
     name = "tt: tree farming",
     when = function()
@@ -154,15 +200,36 @@ local treeFarmingRule = {
         if not location then return end
 
         local cx, cy, cz = Memoried.currentPosition()
+
+        -- 必要な最大燃料レベルを推測
+        local needFuelLevel =
+
+            -- 今いる場所から植林場への道のり
+            1.5 * Vec3.manhattanDistance(cx, cy, cz, location.x, location.y, location.z) +
+
+            -- 苗を植える
+            16 +
+
+            -- 植林場からホームへの道のり
+            1.5 * Vec3.manhattanDistance(location.x, location.y, location.z, 0, 0, 0) +
+
+            -- 予備
+            10
+
+        refuel(needFuelLevel)
+        local remaining = needFuelLevel - getFuelLevel()
+        if 0 < remaining then
+            mainLogger.logInfo("need fuel level:", remaining)
+            return
+        end
+
         local fuelLevelPriority = 0
-        local needLevel = Vec3.manhattanDistance(location.x, location.y, location.z, cx, cy, cz) * 1.5
         local level = turtle.getFuelLevel()
-        if level ~= "unlimited" and needLevel ~= 0 then
+        if level ~= "unlimited" and needFuelLevel ~= 0 then
             -- level = 500, needLevel = 50 => 0.1
             -- level = 100, needLevel = 50 => 0.5
             -- level = 50, needLevel = 50 => 1
-            -- level = 10, needLevel = 50 => 5
-            fuelLevelPriority = 1 / (level / needLevel)
+            fuelLevelPriority = 1 / (level / needFuelLevel)
         end
 
         return treeFarmingPriority + fuelLevelPriority, location
@@ -180,12 +247,17 @@ local treeFarmingRule = {
         local ok, info = Memoried.getOperationAt(direction).inspect()
 
         if ok and info.name == Log then
+            local oldLogCount = getLogCount()
             Tree.digTree()
             local now = os.clock()
             location.lastModifyClock = now
             location.lastDigSuccessClock = now
+            local newLogCount = getLogCount()
             Memoried.getOperationAt(Down).move()
+
+            local refuelCount = refuelLog((newLogCount - oldLogCount) / 2)
             mainLogger.logInfo(self.name, "finished")
+            mainLogger.logInfo(self.name, "refuel", refuelCount, "logs")
 
         elseif ok and info.name == Sapling then
             -- TODO: 骨粉
@@ -353,15 +425,31 @@ local suckSaplingRule = {
         local map = {}
         initializeSaplingMap(map, 10, 10, 3, 5)
 
+        local oldSaplingSlot = Tree.findSimpleHugeSaplingSlot()
         while true do
 
             -- 探索していない中で最も近い位置を取得
             local l = findNearestNoSuckLocation(map, Memoried.currentPosition())
 
             if not l then
+
                 -- 全ての位置を探索し終えた
-                location.lastSuckTryClock = os.clock()
-                mainLogger.log(self.name, "finished")
+                local now = os.clock()
+                location.lastSuckTryClock = now
+                mainLogger.logInfo(self.name, "finished")
+
+                local newSaplingSlot = Tree.findSimpleHugeSaplingSlot()
+
+                if oldSaplingSlot == nil and newSaplingSlot ~= nil then
+
+                    -- 苗木を拾ったことによって木が植えられるようになったら
+                    -- 植林場の依存状態が変化したといえる
+                    local locations = persistentMemory.colorToLocations[treeFarmColor]
+                    for _, location in ipairs(locations) do
+                        location.lastModifyClock = now
+                    end
+                end
+
                 return
             end
 
@@ -398,6 +486,7 @@ local suckSaplingRule = {
     end
 }
 
+addReservedItem(Sapling)
 return {
     mainLogger = mainLogger,
     treeFarmingRule = treeFarmingRule,

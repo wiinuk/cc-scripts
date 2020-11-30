@@ -13,8 +13,7 @@ local TTTree = require "tt-tree-rules"
 local TTSorting = require "tt-sorting-rules"
 
 Logger.addListener(Logger.fileWriterListener "/logs/tt.log")
-local ok, result = pcall(Logger.rednetListener, "left")
-if ok then Logger.addListener(result) end
+Logger.addListener(Logger.rednetListener())
 
 mainLogger.addListener(Logger.printListener(Logger.Info))
 mainLogger.addListener(Logger.loggerListener(Logger.getDefaultLogger()))
