@@ -5,3 +5,4 @@ paket-files/
 private/
 
 .fake
+/.vs/
