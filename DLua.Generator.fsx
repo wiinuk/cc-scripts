@@ -576,7 +576,7 @@ let downloadDocCached cacheDir path (address: Uri) = async {
     let path =
         match path with
         | Some path ->
-            if Path.IsPathRooted path
+            if Path.IsPathRooted(path + "")
             then path
             else cacheDir/path
 
