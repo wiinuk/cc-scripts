@@ -444,6 +444,27 @@ local function collectMissingMapAt(gd)
     end
 end
 
+---@class GoToOptions
+---@field public maxRetryCount number|nil
+---@field public isMovable fun(x: integer, y: integer, z: integer): boolean @ allow nil
+---@field public disableDig fun(globalDirection: number): boolean @ allow nil|boolean
+---@field public disableAttack fun(globalDirection: number): boolean @ allow nil|boolean
+local emptyOptions = {}
+
+---@param x number
+---@param y number
+---@param z number
+---@param options GoToOptions|nil
+local function goTo(x, y, z, options)
+    options = options or emptyOptions
+
+    local complete, path = findPath(x, y, z, options.isMovable)
+    if not complete then return false, "path not found" end
+    local ok, reason = goToGoal(options.maxRetryCount or 10, path, options.disableDig, options.disableAttack)
+    if not ok then return false, reason end
+    return true
+end
+
 return {
     directionToNormal = directionToNormal,
     globalDirectionToPosition = globalDirectionToPosition,
@@ -454,6 +475,8 @@ return {
     suckIf = suckIf,
     compactItems = compactItems,
     goToGoal = goToGoal,
+    goTo = goTo,
+    isMovableInMemory = isMovableInMemory,
     distanceToHome = distanceToHome,
     getNeedFuelLevel = getNeedFuelLevel,
     isImportantItem = isImportantItem,
