@@ -211,6 +211,7 @@ local function downDig(self, upCount)
 end
 
 local function findSimpleHugeSaplingSlot()
+    Tex.compactItems()
     return Tex.findItemSlot(function(item)
         return
             item.name == Sapling and
@@ -321,6 +322,7 @@ local function digTree()
     else
         digNormalTree()
     end
+    return true
 end
 
 return {
