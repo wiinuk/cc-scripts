@@ -139,39 +139,40 @@ local homeGlobalDirection = Memoried.toGlobalDirection(Memoried.Forward)
 local cx, cy, cz = Memoried.currentPosition()
 
 local nextDigTreeOsClock = 0
+local function growAndDig()
+
+    -- クールダウン期間の後か
+    if os.clock() < nextDigTreeOsClock then
+        Logger.logDebug("next clock:", nextDigTreeOsClock, ", current clock:", os.clock())
+        Logger.logInfo("Logging will be skipped. The next felling is at least", nextDigTreeOsClock - os.clock(), "seconds later.")
+        return false
+    end
+
+    -- ホームまで移動
+    Mex.goTo(cx, cy, cz, gotoOptions)
+    Memoried.getOperationAt(homeGlobalDirection).detect()
+
+    -- 木が成長しているか確認する
+    local ok, error = growForwardTree()
+    if not ok then Logger.logWarning("growForwardTree failure:", error); return false end
+
+    -- 伐採する
+    local ok, reason = Tree.digTree()
+    if not ok then Logger.logWarning("digTree failure:", ok, reason) end
+
+    nextDigTreeOsClock = os.clock() + digCoolDownSeconds
+
+    Logger.logDebug("set next clock:", nextDigTreeOsClock)
+    Logger.logInfo("The next felling is at least", digCoolDownSeconds, "seconds later.")
+    return true
+end
+
 local loopCount = 0
 sleepLoop(function ()
     loopCount = loopCount + 1
     Logger.logInfo("main loop", loopCount)
 
-    local changedTheWorld = false
-
-    -- クールダウン後、木が成長しているか確認する
-    if nextDigTreeOsClock <= os.clock() then
-
-        -- ホームまで移動
-        Mex.goTo(cx, cy, cz, gotoOptions)
-        Memoried.getOperationAt(homeGlobalDirection).detect()
-
-        local ok, error = growForwardTree()
-        if not ok then
-            Logger.logWarning("growForwardTree failure:", error)
-        else
-
-            -- 伐採する
-            local ok, reason = Tree.digTree()
-            if not ok then Logger.logWarning("digTree failure:", ok, reason) end
-
-            changedTheWorld = true
-            nextDigTreeOsClock = os.clock() + digCoolDownSeconds
-
-            Logger.logDebug("set next clock:", nextDigTreeOsClock)
-            Logger.logInfo("The next felling is at least", digCoolDownSeconds, "seconds later.")
-        end
-    else
-        Logger.logDebug("next clock:", nextDigTreeOsClock, ", current clock:", os.clock())
-        Logger.logInfo("Logging will be skipped. The next felling is at least", nextDigTreeOsClock - os.clock(), "seconds later.")
-    end
+    local changedTheWorld = growAndDig()
 
     -- 床まで下がる
     Mex.goTo(cx, cy - 5, cz, gotoOptions) -- 床にぶつかるまで下がるのでエラーハンドリング不要
