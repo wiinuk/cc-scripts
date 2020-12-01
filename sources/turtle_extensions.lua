@@ -1,3 +1,4 @@
+local Mex = require "memoried_extensions"
 local refuel = require "refuel"
 
 local function findItemSlot(predicate)
@@ -46,6 +47,7 @@ local function moveDown()
 end
 
 return {
+    compactItems = Mex.compactItems,
     findItemSlot = findItemSlot,
     selectItem = selectItem,
     eachItem = eachItem,
