@@ -167,6 +167,7 @@ local function growAndDig()
     return true
 end
 
+Memoried.addReservedItem(Sapling)
 local loopCount = 0
 sleepLoop(function ()
     loopCount = loopCount + 1
