@@ -49,6 +49,7 @@ end
 return {
     compactItems = Mex.compactItems,
     findItemSlot = findItemSlot,
+    findLastEmptySlot = Mex.findLastEmptySlot,
     selectItem = selectItem,
     eachItem = eachItem,
     move = move,
