@@ -1,7 +1,6 @@
 local refuel = require "refuel"
 local Tex = require "turtle_extensions"
-local findItemSlot = Tex.findItemSlot
-local selectItem = Tex.selectItem
+local Memoried = require "memoried"
 
 local Bucket = "minecraft:bucket"
 local FlowingWater = "minecraft:flowing_water"
@@ -14,7 +13,7 @@ local WaterBucket = "minecraft:water_bucket"
 
 
 local function findItemSlotByName(name)
-    return findItemSlot(function (item) return item.name == name end)
+    return Tex.findItemSlot(function (item) return item.name == name end)
 end
 
 local function select(slot)
@@ -37,7 +36,7 @@ local function isRoadBlock(item)
 end
 
 local function selectRoadBlock()
-    if selectItem(isRoadBlock) then return end
+    if Tex.selectItem(isRoadBlock) then return end
     selectEmptySlot()
 end
 
@@ -45,11 +44,11 @@ local function blockIsLava(info)
     return info and info.name == Lava or info.name == FlowingLava
 end
 local function downIsLava()
-    local ok, info = turtle.inspectDown()
+    local ok, info = Memoried.getOperation(Memoried.Down).inspect()
     return ok and blockIsLava(info)
 end
 local function upIsLava()
-    local ok, info = turtle.inspectUp()
+    local ok, info = Memoried.getOperation(Memoried.Up).inspect()
     return ok and blockIsLava(info)
 end
 
@@ -57,30 +56,30 @@ local function makeRoad()
     if downIsLava() then
         local slot = findItemSlotByName(WaterBucket)
         if slot then
-            turtle.up()
+            Memoried.getOperation(Memoried.Up).move()
             turtle.select(slot)
-            turtle.placeDown()
+            Memoried.getOperation(Memoried.Down).place()
             os.sleep(0.5)
-            turtle.placeDown()
-            turtle.down()
+            Memoried.getOperation(Memoried.Down).place()
+            Memoried.getOperation(Memoried.Down).move()
         end
     end
     selectRoadBlock()
-    turtle.placeDown()
+    Memoried.getOperation(Memoried.Down).place()
 
     if upIsLava() then
-        turtle.up()
+        Memoried.getOperation(Memoried.Up).move()
         selectRoadBlock()
-        turtle.placeUp()
-        turtle.down()
+        Memoried.getOperation(Memoried.Up).place()
+        Memoried.getOperation(Memoried.Down).move()
     end
 end
 
 
 local forwardCount = 0
-local function goForwardAndRefuel()
+local function refuelAndGoForward()
     refuel()
-    if turtle.forward() then
+    if Memoried.getOperation(Memoried.Forward).move() then
         forwardCount = forwardCount + 1
     end
 end
@@ -88,11 +87,11 @@ end
 local function pumpToBucket(bucketName, liquidName, flowingLiquidName)
     local bucketSlot = findItemSlotByName(Bucket)
     if bucketSlot and not findItemSlotByName(bucketName) then
-        local ok, info = turtle.inspectDown()
+        local ok, info = Memoried.getOperation(Memoried.Down).inspect()
         if ok then
             if info.name == liquidName or (info.name == flowingLiquidName and info.state.level == 0) then
                 turtle.select(bucketSlot)
-                turtle.placeDown()
+                Memoried.getOperation(Memoried.Down).place()
             end
         end
     end
@@ -104,27 +103,24 @@ local function pumpDown()
 end
 
 local function placeTorch()
-    if selectItem(function (item) return item.name == Torch end) then
-        turtle.turnRight()
-        turtle.turnRight()
-        turtle.place()
-        turtle.turnLeft()
-        turtle.turnLeft()
-    end
+    if not Tex.selectItem(function (item) return item.name == Torch end) then return end
+    Memoried.getOperation(Memoried.Back).place()
+    Memoried.getOperation(Memoried.Back).detect()
 end
 
+local torchPlaceSpan = 7
 local length = tonumber(({...})[1])
 while forwardCount < length do
-    turtle.digUp()
+    Memoried.getOperation(Memoried.Up).dig()
 
     pumpDown()
     makeRoad()
 
-    turtle.dig()
-    goForwardAndRefuel()
+    Memoried.getOperation(Memoried.Forward).dig()
+    refuelAndGoForward()
 
-    if forwardCount % 7 == 3 then
+    if forwardCount % torchPlaceSpan == math.floor(torchPlaceSpan / 2) then
         placeTorch()
     end
 end
-turtle.digUp()
+Memoried.getOperation(Memoried.Up).dig()
