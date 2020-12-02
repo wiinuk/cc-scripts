@@ -121,8 +121,8 @@ local settings = {
 }
 
 local function loadSettings()
-    local file, error = io.open(settingsPath, "r")
-    if not file then Logger.logWarning("The file", settingsPath, "could not be opened:", error); return end
+    local file, reason = io.open(settingsPath, "r")
+    if not file then Logger.logWarning("The file", settingsPath, "could not be opened:", reason); return end
     local contents = file:read("*a")
     file:close()
 
@@ -136,12 +136,12 @@ end
 local function saveSettings()
     local json = Json.stringify(settings)
 
-    local file, error = io.open(settingsPath, "w")
-    if not file then Logger.logError("The file", settingsPath, "could not be opened:", error); return end
-    local _, error = file:write(json)
+    local file, reason = io.open(settingsPath, "w")
+    if not file then Logger.logError("The file", settingsPath, "could not be opened:", reason); return end
+    local _, reason = file:write(json)
     file:close()
 
-    if error then Logger.logError("Failed to write to file ", settingsPath, "."); return end
+    if reason then Logger.logError("Failed to write to file ", settingsPath, "."); return end
     Logger.logInfo("Saved:", settingsPath)
 end
 
@@ -185,13 +185,13 @@ local allDigDirections = {
     Memoried.Back,
 }
 
-local defaultGoToOptions = {
-    isMovable = Mex.isMovableInMemoryOrCheckAround
-}
-local function goTo(x, y, z, options)
-    local options = options or defaultGoToOptions
-    options.isMovable = options.isMovable or defaultGoToOptions.isMovable
-    return Mex.goTo(x, y, z, options)
+local function goTo(x, y, z)
+    if Mex.goTo(x, y, z) then return true end
+
+    local _, path = Mex.findNearMovablePath(x, y, z, true)
+    if path then return Mex.goToGoal(100, path) end
+
+    return false, "path not found"
 end
 
 local function digUntil(globalDirection)
@@ -226,15 +226,37 @@ local function mineAroundAndReturn(rareBlockRate, digDirections)
             local ok, reason = goTo(cx, cy, cz)
             if not ok then
                 Logger.logError("goTo failure:", reason)
-                error("goTo failure:", reason)
+                return error("goTo failure:", reason)
             end
         end
     end
     Memoried.getOperationAt(currentDirection).detect()
 end
 
-local length = tonumber(({...})[1])
-local torchPlaceSpan = 7
+local args = {...}
+if #args == 0 then
+    print("Usage:")
+    print("  branch <forward> [no-collect] [no-return]")
+    print("")
+    print("Options:")
+    print("  forward     Distance to move forward.")
+    print("  no-collect  Does not collect the ore around.")
+    print("  no-return   It does not return to the starting position.")
+    return
+end
+
+local length = tonumber(args[1])
+local noCollect = false
+local noReturn = false
+for i = 2, #args do
+    local argument = args[i]
+    if argument == "no-collect" then noCollect = true
+    elseif argument == "no-return" then noReturn = true
+    else return error("Unexpected argument '"..argument.."'")
+    end
+end
+
+local torchPlaceSpan = 2
 local rareBlockRate = 0.1
 Logger.addListener(Logger.printListener(Logger.Debug))
 Logger.addListener(Logger.fileWriterListener(logPath))
@@ -244,13 +266,24 @@ loadSettings()
 local mineDirection = Memoried.Forward
 
 while forwardCount < length do
-    Tex.compactItems()
 
-    mineAroundAndReturn(rareBlockRate, topDigDirections)
-    if digUntil(Memoried.Up) then
-        Memoried.getOperationAt(Memoried.Up).move()
-        mineAroundAndReturn(rareBlockRate, upDigDirections)
-        Memoried.getOperationAt(Memoried.Down).move()
+    -- アイテムが満杯なら終わり
+    Tex.compactItems()
+    if not Tex.findLastEmptySlot() then
+        Logger.log("Mining was interrupted at ", forwardCount, "m because there were no empty slots.")
+        break
+    end
+
+    if not noCollect then
+        mineAroundAndReturn(rareBlockRate, topDigDirections)
+        if digUntil(Memoried.Up) then
+            Memoried.getOperationAt(Memoried.Up).move()
+            mineAroundAndReturn(rareBlockRate, upDigDirections)
+            Memoried.getOperationAt(Memoried.Down).move()
+        end
+    else
+        digUntil(Memoried.Up)
+        Memoried.getOperationAt(Memoried.Up).detect()
     end
 
     pumpDown()
@@ -266,3 +299,15 @@ end
 digUntil(Memoried.Up)
 
 saveSettings()
+
+-- 帰る
+if not noReturn then
+    Memoried.getOperationAt(Memoried.Up).move()
+    Memoried.getOperation(Memoried.Back).detect()
+    while 0 < forwardCount do
+        forwardCount = forwardCount - 1
+        Memoried.getOperation(Memoried.Forward).move()
+    end
+    Memoried.getOperationAt(Memoried.Down).move()
+    Memoried.getOperationAt(mineDirection).detect()
+end
