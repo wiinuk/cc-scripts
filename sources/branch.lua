@@ -205,7 +205,9 @@ local function digUntil(globalDirection)
     return success
 end
 
-local function mineAroundAndReturn(rareBlockRate, digDirections)
+local function mineAroundAndReturn(rareBlockRate, digDirections, depth)
+    if 10 < depth then return end
+
     local currentDirection = Memoried.toGlobalDirection(Memoried.Forward)
 
     local globalDirections = {}
@@ -221,7 +223,7 @@ local function mineAroundAndReturn(rareBlockRate, digDirections)
             local cx, cy, cz = Memoried.currentPosition()
             digUntil(d)
             Memoried.getOperationAt(d).move()
-            mineAroundAndReturn(rareBlockRate, allDigDirections)
+            mineAroundAndReturn(rareBlockRate, allDigDirections, (depth or 0) + 1)
 
             local ok, reason = goTo(cx, cy, cz)
             if not ok then
@@ -275,10 +277,10 @@ while forwardCount < length do
     end
 
     if not noCollect then
-        mineAroundAndReturn(rareBlockRate, topDigDirections)
+        mineAroundAndReturn(rareBlockRate, topDigDirections, 0)
         if digUntil(Memoried.Up) then
             Memoried.getOperationAt(Memoried.Up).move()
-            mineAroundAndReturn(rareBlockRate, upDigDirections)
+            mineAroundAndReturn(rareBlockRate, upDigDirections, 0)
             Memoried.getOperationAt(Memoried.Down).move()
         end
     else
