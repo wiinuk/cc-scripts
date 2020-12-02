@@ -1,6 +1,9 @@
 local refuel = require "refuel"
 local Tex = require "turtle_extensions"
 local Memoried = require "memoried"
+local Mex = require "memoried_extensions"
+local Logger = require "logger"
+local Json = require "json"
 
 local Bucket = "minecraft:bucket"
 local FlowingWater = "minecraft:flowing_water"
@@ -11,6 +14,8 @@ local Torch = "minecraft:torch"
 local Water = "minecraft:water"
 local WaterBucket = "minecraft:water_bucket"
 
+local settingsPath = ".settings/branch.json"
+local logPath = "logs/branch.log"
 
 local function findItemSlotByName(name)
     return Tex.findItemSlot(function (item) return item.name == name end)
@@ -77,9 +82,11 @@ end
 
 
 local forwardCount = 0
-local function refuelAndGoForward()
+
+---@param globalDirection number
+local function refuelAndGo(globalDirection)
     refuel()
-    if Memoried.getOperation(Memoried.Forward).move() then
+    if Memoried.getOperationAt(globalDirection).move() then
         forwardCount = forwardCount + 1
     end
 end
@@ -108,19 +115,154 @@ local function placeTorch()
     Memoried.getOperation(Memoried.Back).detect()
 end
 
-local torchPlaceSpan = 7
+local settings = {
+    totalBlockCount = 0,
+    blockNameToCount = {}
+}
+
+local function loadSettings()
+    local file, error = io.open(settingsPath, "r")
+    if not file then Logger.logWarning("The file", settingsPath, "could not be opened:", error); return end
+    local contents = file:read("*a")
+    file:close()
+
+    local ok, value = Json.parse(contents)
+    if not ok or type(value) ~= "table" then Logger.logError("The file", settingsPath, "could not be parsed:", value); return end
+
+    for k, v in pairs(value) do settings[k] = v end
+    Logger.logInfo("Loaded:", settingsPath)
+end
+
+local function saveSettings()
+    local json = Json.stringify(settings)
+
+    local file, error = io.open(settingsPath, "w")
+    if not file then Logger.logError("The file", settingsPath, "could not be opened:", error); return end
+    local _, error = file:write(json)
+    file:close()
+
+    if error then Logger.logError("Failed to write to file ", settingsPath, "."); return end
+    Logger.logInfo("Saved:", settingsPath)
+end
+
+local function updateBlockRarity(inspectData)
+    local count = (settings.blockNameToCount[inspectData.name] or 0) + 1
+    settings.blockNameToCount[inspectData.name] = count
+    settings.totalBlockCount = settings.totalBlockCount + 1
+
+    local rarity = (settings.blockNameToCount[inspectData.name] or 0) / settings.totalBlockCount
+    Logger.logDebug(inspectData.name, count, "/", settings.totalBlockCount, "=", string.format("%0.2f", rarity * 100), "%")
+    if 9 < math.random(1, 10) then saveSettings() end
+end
+local function dynamicBlockRarity(inspectData)
+    updateBlockRarity(inspectData)
+
+    if settings.totalBlockCount == 0 then return 0.5 end
+    return (settings.blockNameToCount[inspectData.name] or 0) / settings.totalBlockCount
+end
+
+local noDigItemNameSet = {
+    [Lava] = true,
+    [Torch] = true,
+    [Water] = true,
+}
+local topDigDirections = {
+    Memoried.Down,
+    Memoried.Left,
+    Memoried.Right,
+}
+local upDigDirections = {
+    Memoried.Left,
+    Memoried.Right,
+    Memoried.Up,
+}
+local allDigDirections = {
+    Memoried.Down,
+    Memoried.Left,
+    Memoried.Right,
+    Memoried.Up,
+    Memoried.Forward,
+    Memoried.Back,
+}
+
+local defaultGoToOptions = {
+    isMovable = Mex.isMovableInMemoryOrCheckAround
+}
+local function goTo(x, y, z, options)
+    local options = options or defaultGoToOptions
+    options.isMovable = options.isMovable or defaultGoToOptions.isMovable
+    return Mex.goTo(x, y, z, options)
+end
+
+local function digUntil(globalDirection)
+    local function updateRarityAndDig(globalDirection)
+        local ok, data = Memoried.getOperationAt(globalDirection).inspect()
+        if ok then updateBlockRarity(data) end
+        return Memoried.getOperationAt(globalDirection).dig()
+    end
+    local success = false
+    while updateRarityAndDig(globalDirection) do success = true end
+    return success
+end
+
+local function mineAroundAndReturn(rareBlockRate, digDirections)
+    local currentDirection = Memoried.toGlobalDirection(Memoried.Forward)
+
+    local globalDirections = {}
+    for i, d in ipairs(digDirections) do
+        globalDirections[i] = Memoried.toGlobalDirection(d)
+    end
+
+    for _, d in ipairs(globalDirections) do
+        local ok, data = Memoried.getOperationAt(d).inspect()
+        if ok and not noDigItemNameSet[data.name] and dynamicBlockRarity(data) <= rareBlockRate then
+            Logger.logInfo("rare block!!!", Json.stringify(data))
+
+            local cx, cy, cz = Memoried.currentPosition()
+            digUntil(d)
+            Memoried.getOperationAt(d).move()
+            mineAroundAndReturn(rareBlockRate, allDigDirections)
+
+            local ok, reason = goTo(cx, cy, cz)
+            if not ok then
+                Logger.logError("goTo failure:", reason)
+                error("goTo failure:", reason)
+            end
+        end
+    end
+    Memoried.getOperationAt(currentDirection).detect()
+end
+
 local length = tonumber(({...})[1])
+local torchPlaceSpan = 7
+local rareBlockRate = 0.1
+Logger.addListener(Logger.printListener(Logger.Debug))
+Logger.addListener(Logger.fileWriterListener(logPath))
+loadSettings()
+
+--- globalDirection
+local mineDirection = Memoried.Forward
+
 while forwardCount < length do
-    Memoried.getOperation(Memoried.Up).dig()
+    Tex.compactItems()
+
+    mineAroundAndReturn(rareBlockRate, topDigDirections)
+    if digUntil(Memoried.Up) then
+        Memoried.getOperationAt(Memoried.Up).move()
+        mineAroundAndReturn(rareBlockRate, upDigDirections)
+        Memoried.getOperationAt(Memoried.Down).move()
+    end
 
     pumpDown()
     makeRoad()
 
-    Memoried.getOperation(Memoried.Forward).dig()
-    refuelAndGoForward()
+    digUntil(mineDirection)
+    refuelAndGo(mineDirection)
 
     if forwardCount % torchPlaceSpan == math.floor(torchPlaceSpan / 2) then
         placeTorch()
     end
 end
-Memoried.getOperation(Memoried.Up).dig()
+digUntil(Memoried.Up)
+
+saveSettings()
