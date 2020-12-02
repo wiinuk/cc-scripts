@@ -155,6 +155,9 @@ local collectMapRule = {
 
         while true do
 
+            -- 移動できなければ道ではないので終了
+            if Memoried.getOperationAt(node.direction).detect() then break end
+
             -- 1m 移動
             -- 葉ブロックの掘り有効
             local ok, reason = mineToDirection(node.direction, disableDig, DisableAttack)
@@ -183,6 +186,7 @@ local collectMapRule = {
             end
         end
         savePersistentMemory()
+        Logger.logInfo(self.name, "finished")
     end,
 }
 

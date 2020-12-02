@@ -69,12 +69,12 @@ end
 local function maxByArray(array, toPriority)
     if not array or #array == 0 then return end
 
-    local maxPriority = -1 / 0
+    local maxPriority = nil
     local maxPriorityItem = nil
     for i = 1, #array do
         local item = array[i]
         local priority = toPriority(item, i)
-        if priority and maxPriority <= priority then
+        if priority and (not maxPriority or maxPriority <= priority) then
             maxPriorityItem = item
             maxPriority = priority
         end

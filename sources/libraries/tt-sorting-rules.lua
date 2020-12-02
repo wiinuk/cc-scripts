@@ -20,13 +20,13 @@ local pretty = require "pretty"
 
 local DisableAttack = false
 local Chest = "minecraft:chest"
-local TrappedChest = "minecraft:chest"
+local TrappedChest = "minecraft:trapped_chest"
 local unsortedChestColor = "gray"
-local singleKindChestColor = "light_blue"
-local multipleKindChestColor = "blue"
+local multipleKindChestColor = "light_blue"
+local singleKindChestColor = "blue"
 
 local moveToSortedChestPriority = 0.4
-local checkSortedChestPriority = 0.5
+local checkSortedChestPriority = 0.8
 
 local function minCheckClock(chestLocation)
     local check = chestLocation.lastCheckClock or 0
@@ -34,35 +34,44 @@ local function minCheckClock(chestLocation)
     return modify + (check - modify) * 2
 end
 
-local function findHighPriorityLocation(locations)
+local function findHighPriorityLocation(color)
+    local locations = persistentMemory.colorToLocations[color]
     local clock = os.clock()
     local cx, cy, cz = Memoried.currentPosition()
     return maxByArray(locations, function(l)
-        if clock < minCheckClock(l) then return end
+        local next = minCheckClock(l)
+        if clock < next then
+            mainLogger.logInfo("findHighPriorityLocation", color, "next", next, next - clock, "s later")
+            return
+        end
 
         local modify = l.lastModifyClock or 0
         local d = manhattanDistance(l.x, l.y, l.z, cx, cy, cz)
         local span = clock - modify
+        mainLogger.logInfo("findHighPriorityLocation", color, "ok span", span, "s")
         return -d + span
     end)
 end
 
 local function findHighPriorityUnsortedChestLocation()
-    return findHighPriorityLocation(persistentMemory.colorToLocations[unsortedChestColor])
+    return findHighPriorityLocation(unsortedChestColor)
 end
 
 local function findHighPrioritySortedChestLocation()
-    local multipleLocation, multiplePriority = findHighPriorityLocation(persistentMemory.colorToLocations[singleKindChestColor])
-    local singleLocation, singlePriority = findHighPriorityLocation(persistentMemory.colorToLocations[multipleKindChestColor])
+    local multipleLocation, multiplePriority = findHighPriorityLocation(multipleKindChestColor)
+    local singleLocation, singlePriority = findHighPriorityLocation(singleKindChestColor)
 
-    if not multipleLocation and not singleLocation then return end
-    if multipleLocation and not singleLocation then return multipleLocation end
-    if not multipleLocation and singleLocation then return singleLocation end
+    mainLogger.logInfo("findHighPrioritySortedChestLocation", pretty(multipleLocation))
+    mainLogger.logInfo("findHighPrioritySortedChestLocation", pretty(singleLocation))
+
+    if multipleLocation == nil and singleLocation == nil then return end
+    if multipleLocation ~= nil and singleLocation == nil then return multipleKindChestColor, multipleLocation end
+    if multipleLocation == nil and singleLocation ~= nil then return singleKindChestColor, singleLocation end
 
     if multiplePriority < singlePriority then
-        return multipleKindChestColor, singleLocation
+        return singleKindChestColor, singleLocation
     else
-        return singleKindChestColor, multipleLocation
+        return multipleKindChestColor, multipleLocation
     end
 end
 
@@ -76,13 +85,18 @@ local function findUnsortedChest(direction)
         -- 正面にチェストがないなら前の下
         Memoried.getOperationAt(direction).move()
         local ok, info = Memoried.getOperationAt(Down).inspect()
-        if not ok or not isChest(info) then
-            return false, "chest not found"
-        end
-        return Down, 1
+        if not ok or not isChest(info) then return false, "chest not found" end
+
+        local bx, by, bz = Memoried.currentPosition()
+        return {
+            direction = Down,
+            baseX = bx, baseY = by, baseZ = bz,
+            height = 1,
+        }
     end
 
     -- 積み上げられたチェストの高さをチェック
+    local x, y, z = Memoried.currentPosition()
     local height = 1
     while true do
         if not Memoried.getOperationAt(Up).move() then break end
@@ -90,7 +104,12 @@ local function findUnsortedChest(direction)
         if not ok or not isChest(info) then break end
         height = height + 1
     end
-    return direction, height
+
+    return {
+        direction = direction,
+        baseX = x, baseY = y, baseZ = z,
+        height = height,
+    }
 end
 
 local function suckMany(slots, direction)
@@ -250,7 +269,7 @@ local checkSortedChestRule = {
         if not TT.isHomeChecked() then return end
 
         local color, location = findHighPrioritySortedChestLocation()
-        if not location then return end
+        if not color then return end
 
         return checkSortedChestPriority, color, location
     end,
@@ -268,7 +287,7 @@ local checkSortedChestRule = {
             local newChests = checkNeighborSingleKindChests()
             if isChestsUpdated(oldChests, newChests) then
                 location.lastModifyClock = os.clock()
-                mainLogger.logDebug(self.name, "updated ( single )", tx, ty, tz, newChests)
+                mainLogger.logDebug(self.name, "updated ( single )", tx, ty, tz, pretty(newChests))
             end
             location.chests = newChests
 
@@ -277,7 +296,7 @@ local checkSortedChestRule = {
             local newChests = checkNeighborMultipleKindChests()
             if isChestsUpdated(oldChests, newChests) then
                 location.lastModifyClock = os.clock()
-                mainLogger.logInfo(self.name, "updated ( multi )", tx, ty, tz, newChests)
+                mainLogger.logInfo(self.name, "updated ( multi )", tx, ty, tz, pretty(newChests))
             end
             location.chests = newChests
 
@@ -372,8 +391,14 @@ local transferItemToSortedChestRule = {
         if not ok then return Logger.logError(self.name, reason) end
 
         -- チェストの位置を検索
-        local direction, height = findUnsortedChest(d)
-        if not direction then return Logger.logError(self.name, height) end
+        local chest, reason = findUnsortedChest(d)
+        if not chest then return Logger.logError(self.name, reason) end
+        local bx, by, bz = chest.baseX, chest.baseY, chest.baseZ
+        local direction = chest.direction
+        local height = chest.height
+
+        -- チェストに移動
+        goTo(5, bx, by, bz, isMovable, disableDig, DisableAttack)
 
         -- 空きを作る
         compactItems()
@@ -381,7 +406,6 @@ local transferItemToSortedChestRule = {
         -- TODO: 複数のチェストが重なっている場合下にアイテムを移動
 
         -- チェストからインベントリの空きスロットに移動
-        goTo(10, tx, ty, tz, isMovable, disableDig, DisableAttack)
         local slots = suckMany(nil, direction)
 
         -- 上のチェストをチェック
@@ -420,20 +444,23 @@ local transferItemToSortedChestRule = {
         if unmovableSlots then
 
             -- 一番下に戻る
-            goTo(1, tx, ty, tz, isMovable, disableDig, DisableAttack)
+            goTo(1, bx, by, bz, isMovable, disableDig, DisableAttack)
 
             local i = 1
             for _ = 1, height do
-                local slot = unmovableSlots[i]
 
                 -- 戻すのが成功したら次のスロット
-                turtle.select(slot)
-                if Memoried.getOperationAt(direction).drop() then i = i + 1 end
+                while
+                    i <= #unmovableSlots and
+                    turtle.select(unmovableSlots[i]) and
+                    Memoried.getOperationAt(direction).drop()
+                    do i = i + 1
+                end
 
                 -- 全てのスロットを移し終えたので終わり
                 if #unmovableSlots < i then break end
 
-                -- 上に移動
+                -- まだアイテムが残っているので上に移動
                 Memoried.getOperationAt(Up).move()
             end
 
