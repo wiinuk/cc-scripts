@@ -256,7 +256,7 @@ for i = 2, #args do
     end
 end
 
-local torchPlaceSpan = 2
+local torchPlaceSpan = 7
 local rareBlockRate = 0.1
 Logger.addListener(Logger.printListener(Logger.Debug))
 Logger.addListener(Logger.fileWriterListener(logPath))
