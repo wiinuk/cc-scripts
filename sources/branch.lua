@@ -13,6 +13,7 @@ local LavaBucket = "minecraft:lava_bucket"
 local Torch = "minecraft:torch"
 local Water = "minecraft:water"
 local WaterBucket = "minecraft:water_bucket"
+local CobbleStone = "minecraft:cobblestone"
 
 local settingsPath = ".settings/branch.json"
 local logPath = "logs/branch.log"
@@ -161,10 +162,13 @@ local function dynamicBlockRarity(inspectData)
     return (settings.blockNameToCount[inspectData.name] or 0) / settings.totalBlockCount
 end
 
-local noDigItemNameSet = {
+local ignoreBlockNameSet = {
     [Lava] = true,
     [Torch] = true,
     [Water] = true,
+    [FlowingLava] = true,
+    [FlowingWater] = true,
+    [CobbleStone] = true,
 }
 local topDigDirections = {
     Memoried.Down,
@@ -217,7 +221,7 @@ local function mineAroundAndReturn(rareBlockRate, digDirections, depth)
 
     for _, d in ipairs(globalDirections) do
         local ok, data = Memoried.getOperationAt(d).inspect()
-        if ok and not noDigItemNameSet[data.name] and dynamicBlockRarity(data) <= rareBlockRate then
+        if ok and not ignoreBlockNameSet[data.name] and dynamicBlockRarity(data) <= rareBlockRate then
             Logger.logInfo("rare block!!!", Json.stringify(data))
 
             local cx, cy, cz = Memoried.currentPosition()
