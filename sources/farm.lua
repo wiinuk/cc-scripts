@@ -57,6 +57,7 @@ local function dig()
     end
 
     if isDigAtDown() then
+        Tex.compactItems()
         turtle.digDown()
         selectItem(isSeed)
         turtle.placeDown()
