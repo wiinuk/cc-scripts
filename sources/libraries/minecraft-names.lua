@@ -37,4 +37,5 @@ return {
     StainedGlass = "minecraft:stained_glass",
     Grass = "minecraft:grass",
     Dirt = "minecraft:dirt",
+    Reeds = "minecraft:reeds"
 }
