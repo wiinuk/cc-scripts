@@ -1,3 +1,4 @@
+package.path = package.path..";./libraries/?.lua"
 local refuel = require "refuel"
 local Tex = require "turtle_extensions"
 local Memoried = require "memoried"

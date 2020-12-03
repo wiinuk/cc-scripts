@@ -1,3 +1,4 @@
+package.path = package.path..";./libraries/?.lua"
 local Tex = require "turtle_extensions"
 local findItem = Tex.findItemSlot
 local selectItem = Tex.selectItem

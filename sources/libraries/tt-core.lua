@@ -1,3 +1,4 @@
+package.path = package.path..";./libraries/?.lua"
 local Logger = require "logger"
 local Memoried = require "memoried"
 local Mex = require "memoried_extensions"

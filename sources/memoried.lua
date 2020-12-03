@@ -1,3 +1,4 @@
+package.path = package.path..";./libraries/?.lua"
 local Vec2 = require "vec2"
 local Ex = require "extensions"
 local Logger = require "logger"

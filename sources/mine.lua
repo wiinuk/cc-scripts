@@ -1,5 +1,6 @@
 
 ---@version: 0.4.7
+package.path = package.path..";./libraries/?.lua"
 local Memoried = require "memoried"
 local ArgParser = require "arg-parser"
 local Box3 = require "box3"
