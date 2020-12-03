@@ -4,11 +4,12 @@ local move = Tex.move
 local moveUp = Tex.moveUp
 local moveDown = Tex.moveDown
 local moveBack = Tex.moveBack
+local Names = require "minecraft-names"
 
 
-local Log = "minecraft:log"
-local Sapling = "minecraft:sapling"
-local Leaves = "minecraft:leaves"
+local Log = Names.Log
+local Sapling = Names.Sapling
+local Leaves = Names.Leaves
 
 local treeDamageToIsSimpleHuge = {
     [0] = false, -- オーク

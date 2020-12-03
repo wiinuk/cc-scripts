@@ -14,16 +14,16 @@ local Logger = require "logger"
 -- local Json = require "json"
 local Mex = require "memoried_extensions"
 local Vec3 = require "vec3"
+local Names = require "minecraft-names"
 
 
 local DisableDig = true
 local DisableAttack = true
 
-local Leaves = "minecraft:leaves"
-local StainedGlass = "minecraft:stained_glass"
+local StainedGlass = Names.StainedGlass
 local branchBlockColor = "black"
 local normalEdgeColor = "white"
-local homeBlockName = "minecraft:obsidian"
+local homeBlockName = Names.Obsidian
 
 local collectMapPriority = 1
 

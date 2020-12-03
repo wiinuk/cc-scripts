@@ -2,6 +2,7 @@ local Vec2 = require "vec2"
 local Ex = require "extensions"
 local Logger = require "logger"
 local refuel = require "refuel"
+local Names = require "minecraft-names"
 
 -- スクリプト開始時の座標をホームとする
 
@@ -247,7 +248,7 @@ local function detect()
 end
 ---@param data InspectResult
 local function addHistory(data, x, y, z)
-    if data.name == "minecraft:chest" then
+    if data.name == Names.Chest then
         Logger.logInfo("add chest history", x, y, z)
         memory.chestHistory[#memory.chestHistory+1] = { x, y, z }
     end
@@ -584,7 +585,7 @@ local function drop(count)
 end
 
 local function addPlaceHistory(item, tx, ty, tz)
-    if item.name == "minecraft:torch" then
+    if item.name == Names.Torch then
         memory.setTorchHistory[#memory.setTorchHistory+1] = { tx, ty, tz }
     end
 end

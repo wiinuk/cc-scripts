@@ -22,15 +22,16 @@ local Tree = require "tree-core"
 local Box3 = require "box3"
 local Ex = require "extensions"
 local maxByArray = Ex.maxByArray
+local Names = require "minecraft-names"
 
 
 local DisableAttack = true
 local EnableAttack = false
 
-local Grass = "minecraft:grass"
-local Log = "minecraft:log"
-local Sapling = "minecraft:sapling"
-local Dirt = "minecraft:dirt"
+local Grass = Names.Grass
+local Log = Names.Log
+local Sapling = Names.Sapling
+local Dirt = Names.Dirt
 local treeFarmColor = "green"
 
 local treeFarmingPriority = 0.5

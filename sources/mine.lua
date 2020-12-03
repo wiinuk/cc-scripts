@@ -6,6 +6,7 @@ local Box3 = require "box3"
 local Logger = require "logger"
 local Rules = require "rules"
 local M = require "memoried_extensions"
+local Names = require "minecraft-names"
 local findItemInNearDrop = M.findItemInNearDrop
 local findNearMovablePath = M.findNearMovablePath
 local findPath = M.findPath
@@ -25,8 +26,8 @@ local Right = Memoried.Right
 local Down = Memoried.Down
 local Up = Memoried.Up
 
-local DiamondPickaxe = "minecraft:diamond_pickaxe"
-local Chest = "minecraft:chest"
+local DiamondPickaxe = Names.DiamondPickaxe
+local Chest = Names.Chest
 
 local mainLogger = Logger.create("main")
 
@@ -415,9 +416,9 @@ local function isMinYBound(minY, y)
     if not ok then return false end
 
     return
-        info.name == "minecraft:bedrock" or
-        info.name == "minecraft:lava" or
-        info.name == "minecraft:flowing_lava"
+        info.name == Names.Bedrock or
+        info.name == Names.Lava or
+        info.name == Names.FlowingLava
 end
 local function isUpDig(request, y)
     if request.options.up then

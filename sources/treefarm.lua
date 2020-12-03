@@ -5,11 +5,7 @@ local Tree = require "tree-core"
 local Memoried = require "memoried"
 local Mex = require "memoried_extensions"
 local Logger = require "logger"
-
-local Log = "minecraft:log"
-local Leaves = "minecraft:leaves"
-local Sapling = "minecraft:sapling"
-local Dye = "minecraft:dye"
+local Names = require "minecraft-names"
 
 
 ---@class WorkState
@@ -65,15 +61,15 @@ local function growForwardTree()
 
         -- 目の前が原木か葉なら成功
         local ok, item = Memoried.getOperation(Memoried.Forward).inspect()
-        if ok and (item.name == Log or item.name == Leaves) then return true end
+        if ok and (item.name == Names.Log or item.name == Names.Leaves) then return true end
 
         -- 目の前が苗でなければ失敗
-        if not ok or item.name ~= Sapling then return false, "The '"..Sapling.."' wasn't in front of me. actual item is "..(ok and item.name or "???").."." end
+        if not ok or item.name ~= Names.Sapling then return false, "The '"..Names.Sapling.."' wasn't in front of me. actual item is "..(ok and item.name or "???").."." end
 
         -- TODO: クラフトで骨粉を手に入れる
         -- 骨粉を持っていなければ失敗
         local ok = Tex.selectItem(function (item)
-            return item.name == Dye and item.damage == 15 -- 骨粉
+            return item.name == Names.Dye and item.damage == 15 -- 骨粉
         end)
         if not ok then return false, "Please have bone meal." end
 
@@ -167,7 +163,7 @@ local function growAndDig()
     return true
 end
 
-Memoried.addReservedItem(Sapling)
+Memoried.addReservedItem(Names.Sapling)
 local loopCount = 0
 sleepLoop(function ()
     loopCount = loopCount + 1

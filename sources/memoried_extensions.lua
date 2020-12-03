@@ -2,11 +2,12 @@ local Memoried = require "memoried"
 local AStar = require "astar"
 local Logger = require "logger"
 local Vec3 = require "vec3"
+local Names = require "minecraft-names"
 
-local DiamondPickaxe = "minecraft:diamond_pickaxe"
-local Torch = "minecraft:torch"
-local CraftingTable = "minecraft:crafting_table"
-local Chest = "minecraft:chest"
+local DiamondPickaxe = Names.DiamondPickaxe
+local Torch = Names.Torch
+local CraftingTable = Names.CraftingTable
+local Chest = Names.Chest
 
 local Left = Memoried.Left
 local Right = Memoried.Right

@@ -1,10 +1,11 @@
 local Logger = require "logger"
 local Memoried = require "memoried"
 local Mex = require "memoried_extensions"
+local Names = require "minecraft-names"
 
 
 local mainLogger = Logger.create "main-logger"
-local Leaves = "minecraft:leaves"
+local Leaves = Names.Leaves
 
 local function goTo(maxRetryCount, x, y, z, isMovable, disableDig, disableAttack)
     local complete, path = Mex.findPath(x, y, z, isMovable)

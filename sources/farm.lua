@@ -2,21 +2,22 @@ local Tex = require "turtle_extensions"
 local findItem = Tex.findItemSlot
 local selectItem = Tex.selectItem
 local eachItem = Tex.eachItem
+local Names = require "minecraft-names"
 
-local Chest = "minecraft:chest"
-local Coal = "minecraft:coal"
+local Chest = Names.Chest
+local Coal = Names.Coal
 
 local w = io.open("./logs/farm.log", "w+")
 
 local plantNames = {
-    "minecraft:wheat",
-    "minecraft:carrots",
-    "minecraft:potatoes",
+    Names.Wheat,
+    Names.Carrots,
+    Names.Potatoes,
 }
 local seedNames = {
-    "minecraft:wheat_seeds",
-    "minecraft:carrot",
-    "minecraft:potato",
+    Names.WheatSeeds,
+    Names.Carrot,
+    Names.Potato,
 }
 local function exists(array, predicate)
     for _, v in ipairs(array) do
@@ -125,7 +126,7 @@ local function craftAndPutChest()
     if not chestOp then return end
 
     -- 小麦のスロットを検索
-    local slot = findItem(function (i) return i.name == "minecraft:wheat" end)
+    local slot = findItem(function (i) return i.name == Names.Wheat end)
     if not slot then return end
     if turtle.getItemCount(slot) < 3 then return end
 

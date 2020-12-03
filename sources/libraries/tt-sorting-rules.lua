@@ -16,11 +16,12 @@ local Logger = require "logger"
 local Mex = require "memoried_extensions"
 local compactItems = Mex.compactItems
 local pretty = require "pretty"
+local Names = require "minecraft-names"
 
 
 local DisableAttack = false
-local Chest = "minecraft:chest"
-local TrappedChest = "minecraft:chest"
+local Chest = Names.Chest
+local TrappedChest = Names.Chest
 local unsortedChestColor = "gray"
 local singleKindChestColor = "light_blue"
 local multipleKindChestColor = "blue"
