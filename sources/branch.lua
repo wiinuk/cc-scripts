@@ -14,6 +14,7 @@ local Torch = "minecraft:torch"
 local Water = "minecraft:water"
 local WaterBucket = "minecraft:water_bucket"
 local CobbleStone = "minecraft:cobblestone"
+local Obsidian = "minecraft:obsidian"
 
 local settingsPath = ".settings/branch.json"
 local logPath = "logs/branch.log"
@@ -169,6 +170,7 @@ local ignoreBlockNameSet = {
     [FlowingLava] = true,
     [FlowingWater] = true,
     [CobbleStone] = true,
+    [Obsidian] = true,
 }
 local topDigDirections = {
     Memoried.Down,
