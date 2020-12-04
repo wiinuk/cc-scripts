@@ -5,11 +5,10 @@ local Mex = require "memoried_extensions"
 local Names = require "minecraft-names"
 local Tex = require "turtle_extensions"
 local Vec3 = require "vec3"
+local Json = require "json"
 
 local goToOptions = {
     isMovable = function (x, y, z)
-        Logger.logDebug("Check", x, y, z)
-
         if Memoried.getLocation(x, y, z) == nil then return true end
         return Mex.isMovableInMemory(x, y, z)
     end,
@@ -26,10 +25,19 @@ end
 
 --- 記憶にない場所は行けるとして、記憶にないブロックにぶつかるなどして移動に失敗したなら周辺情報を収集してリトライする
 local function goTo(x, y, z)
+    local cx, cy, cz = Memoried.currentPosition()
+    Logger.logDebug("goTo start", cx, cy, cz, "->", x, y, z)
+
     local retryCount = 0
     while true do
         local cx, cy, cz = Memoried.currentPosition()
-        if Mex.goTo(x, y, z, goToOptions) then return true end
+        local ok, reason = Mex.goTo(x, y, z, goToOptions)
+        if ok then
+            Logger.logDebug("goTo success")
+            return true
+        end
+
+        Logger.logDebug("goTo failure[", retryCount, "] @", cx, cy, cz, reason)
 
         collectMemory(Memoried.Forward)
         collectMemory(Memoried.Back)
@@ -45,7 +53,7 @@ local function goTo(x, y, z)
             return false, reason
         end
 
-        Logger.logDebug("goTo failure[", retryCount, "] @", nx, ny, nz, reason)
+        Logger.logDebug("goTo retry[", retryCount, "] @", nx, ny, nz, reason)
         retryCount = retryCount + 1
     end
 end
@@ -406,17 +414,130 @@ end
 
 local function farm()
     local initialX, initialY, initialZ = Memoried.currentPosition()
+    Logger.logInfo("Registered", initialX, initialY, initialZ, "as home.")
+
     local initialDirection = Memoried.toGlobalDirection(Memoried.Forward)
     local manager = managerWithInitialPosition(initialX, initialY, initialZ)
     local chestInfo = findAroundChestInfo()
+    local function logChestInfo()
+        if chestInfo then
+            Logger.logInfo("I have registered a chest. location:", chestInfo.x, chestInfo.y, chestInfo.z, chestInfo.direction)
+        else
+            Logger.logInfo "The chest is unregistered."
+        end
+    end
+    logChestInfo()
+
+    local function transferSugarCaneToAroundChest(chestDirection)
+        while
+            Tex.selectItem(function (item) return item.name == Names.Reeds end) and
+            Memoried.getOperationAt(chestDirection).drop()
+            do
+            Logger.logInfo("Transferred ..'"..Names.Reeds.."' to chest.")
+        end
+    end
+
+    --- チェストが満杯なら、インベントリに空きができるまでメッセージを表示しつつ待機する
+    local function waitUntilFindEmptySlot(chestDirectionOrNil)
+        Logger.log "Harvesting was interrupted because there were no empty slots."
+        Logger.log "Please make space in inventory."
+
+        repeat
+            Tex.compactItems()
+            if chestDirectionOrNil then
+                transferSugarCaneToAroundChest(chestDirectionOrNil)
+            end
+            os.sleep(5)
+        until Tex.findLastEmptySlot()
+
+        Logger.log "Thank you."
+    end
+
+    local function makeInventorySpaceWhenChestIsRegistered()
+        Logger.logDebug "Start processing when the chest is registered."
+
+        -- 作物を預ける
+        transferSugarCaneToAroundChest(chestInfo.direction)
+
+        if not Tex.findLastEmptySlot() then
+            waitUntilFindEmptySlot(chestInfo.direction)
+        end
+
+        -- TODO: 燃料をついでに補給する
+    end
+
+    --- チェストが登録されていない場合の処理
+    --- 現在の場所は限定されない
+    local function makeInventorySpaceWhenChestIsNotRegistered()
+        Logger.logDebug "Start processing when the chest is not registered."
+
+        -- ホームまで移動する
+        Logger.logDebug("Move to", initialX, initialY, initialZ)
+        manager.goToOrRecovery(initialX, initialY, initialZ)
+
+        -- チェストを検索する
+        chestInfo = findAroundChestInfo()
+        logChestInfo()
+
+        if chestInfo then
+
+            -- チェストを発見した
+            return makeInventorySpaceWhenChestIsRegistered()
+        end
+
+        -- チェストが発見できなかったなら
+        Logger.logDebug "Chest is not found."
+
+        -- インベントリに空きができるまでメッセージを表示しつつ待機する
+        waitUntilFindEmptySlot(nil)
+    end
+
+    --- インベントリに空きスロットがないとき、以下の方法で空きを作る
+    --- - 登録してあるチェストに移動して作物を預ける
+    --- - ホームに移動してアイテムをプレイヤーに引き取ってもらう
+    local function makeInventorySpace()
+
+        -- アイテムに空きがあるなら終わり
+        Tex.compactItems()
+        if Tex.findLastEmptySlot() then return end
+
+        local returnX, returnY, returnZ = Memoried.currentPosition()
+
+        -- チェストが登録されていない場合
+        if not chestInfo then return makeInventorySpaceWhenChestIsNotRegistered() end
+
+        -- チェストが登録されている場合
+        -- チェストまで移動する
+        Logger.logDebug("Chest is registered. Move to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(chestInfo.x, chestInfo.y, chestInfo.z)
+
+        local ok, block = Memoried.getOperationAt(chestInfo.direction).inspect()
+        if ok and block.name == Names.Chest then
+            makeInventorySpaceWhenChestIsRegistered()
+        else
+
+            -- チェストがなかった
+            Logger.logDebug("Chest is missing.", ok, Json.stringify(block))
+            chestInfo = nil
+            logChestInfo()
+
+            makeInventorySpaceWhenChestIsNotRegistered()
+        end
+
+        -- 元の場所に帰る
+        Logger.logDebug("Return to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(returnX, returnY, returnZ)
+        Logger.logDebug "Returned"
+    end
 
     local function farmLine(lineDirection)
-        local lineCount = 0
+        local count = 0
         while true do
-            -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
-            -- TODO: インベントリが満杯なら作物をチェストに入れて元の位置に戻る
 
-            Logger.logDebug("farmLine:", lineCount, lineDirection)
+            -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
+
+            makeInventorySpace()
+
             manager.mineAround(lineDirection)
 
             -- 農場の上でないなら農場の上に戻って終わり
@@ -425,7 +546,7 @@ local function farm()
                 return
             end
 
-            lineCount = lineCount + 1
+            count = count + 1
         end
     end
 
@@ -483,7 +604,7 @@ local function farm()
         return false
     end
 
-    -- 周りの農場に移動して、向きを決める
+    -- 周りの作物の上に移動して、列の向きを推測する
     local initialFarmDirection = initialDirection
     if not onSugarCane() then
         initialFarmDirection = turnToSugarCane()
@@ -500,12 +621,12 @@ local function farm()
     end
 
     while true do
-        local originX, originY, originZ = Memoried.currentPosition()
+        local farmOriginX, farmOriginY, farmOriginZ = Memoried.currentPosition()
         farmPlane(initialFarmDirection)
         while checkAndMoveToNextPlane(initialFarmDirection) do
             farmPlane(initialFarmDirection)
         end
-        manager.goToOrRecovery(originX, originY, originZ)
+        manager.goToOrRecovery(farmOriginX, farmOriginY, farmOriginZ)
     end
 end
 
