@@ -385,7 +385,23 @@ local function reverseDirection(direction)
     if direction == Memoried.Right then return Memoried.Left end
     if direction == Memoried.Up then return Memoried.Down end
     if direction == Memoried.Down then return Memoried.Up end
-    return 0
+    return direction
+end
+
+local function turnRightDirection(direction)
+    if direction == Memoried.Forward then return Memoried.Right end
+    if direction == Memoried.Right then return Memoried.Back end
+    if direction == Memoried.Back then return Memoried.Left end
+    if direction == Memoried.Left then return Memoried.Forward end
+    return direction
+end
+
+local function turnLeftDirection(direction)
+    if direction == Memoried.Forward then return Memoried.Left end
+    if direction == Memoried.Left then return Memoried.Back end
+    if direction == Memoried.Back then return Memoried.Right end
+    if direction == Memoried.Right then return Memoried.Forward end
+    return direction
 end
 
 local function farm()
@@ -413,17 +429,60 @@ local function farm()
         end
     end
 
+    local function checkAndMoveToNextLine(farmDirection, isRight)
+        local turnDirection = isRight and turnRightDirection(farmDirection) or turnLeftDirection(farmDirection)
 
+        -- 横に 1 マス移動
+        manager.mineAround(turnDirection)
+
+        -- 農場なら次の方向を返して終わり
+        if onSugarCane() then return reverseDirection(farmDirection) end
+
+        -- さらに横に 1 マス移動
+        manager.mineAround(turnDirection)
+
+        -- 農場なら次の方向を返して終わり
+        if onSugarCane() then return reverseDirection(farmDirection) end
+
+        -- 農場でなかったので元の位置に戻る
+        local turnReverseDirection = reverseDirection(turnDirection)
+        manager.mineAround(turnReverseDirection)
+        manager.mineAround(turnReverseDirection)
+        return nil
+    end
+
+    local function farmPlane(farmDirection)
+        local x, y, z = Memoried.currentPosition()
+
+        farmLine(farmDirection)
+
+        local isRight = true
+        while true do
+            farmDirection = checkAndMoveToNextLine(farmDirection, isRight)
+            if not farmDirection then break end
+            isRight = not isRight
+            farmLine(farmDirection)
+        end
+
+        manager.goToOrRecovery(x, y, z)
+    end
+
+    local farmDirection = initialDirection
     if not onSugarCane() then
-        local farmDirection = turnToSugarCane()
+        farmDirection = turnToSugarCane()
         if not farmDirection then
-            Logger.logError("'"..Names.Reeds.."' not found")
-            return error()
+            manager.mineAround(initialDirection)
+            if not onSugarCane() then
+                Logger.logError("'"..Names.Reeds.."' not found")
+                return error()
+            else
+                farmDirection = initialDirection
+            end
         end
         manager.mineAround(farmDirection)
     end
 
-    farmLine(initialDirection)
+    farmPlane(farmDirection)
 end
 
 local function farmCommand(args)
