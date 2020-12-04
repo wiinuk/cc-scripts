@@ -312,6 +312,11 @@ end
 local function showHelp()
     print "Usage:"
     print "  sugar-cane-farm init <forward> <right>"
+    print "  sugar-cane-farm"
+    print ""
+    print "Options:"
+    print "  <forward>  The number of sugar cane per row."
+    print "  <right>    Number of row."
 end
 
 local function initCommand(args)
@@ -322,7 +327,121 @@ local function initCommand(args)
     return init(forwardCount, lineCount)
 end
 
-local function command(args)
+local function isChest(direction)
+    local ok, block = Memoried.getOperationAt(direction).inspect()
+    return ok and block.name == Names.Chest
+end
+
+local directions = {
+    Memoried.Forward,
+    Memoried.Left,
+    Memoried.Right,
+    Memoried.Back,
+    Memoried.Down,
+    Memoried.Up,
+}
+local function findAroundChestInfo()
+    for _, d in ipairs(directions) do
+        if isChest(d) then
+            local x, y, z = Memoried.currentPosition()
+            return { x = x, y = y, z = z, direction = d }
+        end
+    end
+    return nil
+end
+
+local function turnToSugarCane()
+    for _, d in ipairs(directions) do
+        local ok, block = Memoried.getOperationAt(d).inspect()
+        if ok and block.name == Names.Reeds then return d end
+    end
+    return nil
+end
+
+local function moveToStartSugarCaneHeight()
+    local initialDirection = turnToSugarCane()
+    if not initialDirection then
+        Logger.logError("'"..Names.Reeds.."' not found")
+        return error()
+    end
+
+    -- TODO: 高さを調節する
+    return initialDirection
+end
+
+local function farm()
+    local chestInfo = findAroundChestInfo()
+    local initialDirection = moveToStartSugarCaneHeight()
+
+    local function mineIfSugarCane(lineDirection)
+        local ok, block = Memoried.getOperationAt(lineDirection).inspect()
+        if ok and block.name == Names.Reeds then
+            -- [>] = タートル
+            -- [S] = サトウキビ
+            -- [D] = 土
+            -- [?] = 不明
+
+            -- [?][?]
+            -- [>][S]
+            -- [?][S]
+            -- [?][D]
+            Memoried.getOperationAt(lineDirection).dig()
+            Memoried.getOperationAt(lineDirection).move()
+
+            -- [?][?]
+            -- [ ][>]
+            -- [?][S]
+            -- [?][D]
+            return true
+    end
+
+    local function farmStep(lineDirection)
+        -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
+        -- TODO: インベントリが満杯なら作物をチェストに入れて元の位置に戻る
+
+        local ok, block = Memoried.getOperationAt(Memoried.Down).inspect()
+
+        local ok, block = Memoried.getOperationAt(lineDirection).inspect()
+        if ok and block.name == Names.Reeds then
+            -- [>] = タートル
+            -- [S] = サトウキビ
+            -- [D] = 土
+            -- [?] = 不明
+
+            -- [?][?]
+            -- [>][S]
+            -- [?][S]
+            -- [?][D]
+            Memoried.getOperationAt(lineDirection).dig()
+            Memoried.getOperationAt(lineDirection).move()
+
+            -- [?][?]
+            -- [ ][>]
+            -- [?][S]
+            -- [?][D]
+            return true
+        else
+
+        end
+    end
+
+    local function farmLine(lineDirection)
+        while farmStep(lineDirection) do end
+    end
+
+    farmLine()
+end
+
+local function farmCommand(args)
+    if 0 < #args then
+        Logger.logError("unrecognized command", args[1])
+        showHelp()
+        return
+    end
+    return farm()
+end
+
+local function main(args)
     Logger.addListener(Logger.printListener(Logger.Debug))
     Logger.addListener(Logger.fileWriterListener "logs/sugar-cane-farm.log")
 
@@ -334,8 +453,7 @@ local function command(args)
         return initCommand(args)
     end
 
-    Logger.logError("unrecognized command", args[1])
-    return
+    return farmCommand(args)
 end
 
-command {...}
+main {...}
