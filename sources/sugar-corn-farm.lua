@@ -58,13 +58,39 @@ local function dig(globalDirection)
     Memoried.getOperationAt(globalDirection).dig()
 end
 
+--- インベントリの空スロットに拾ったアイテムを入れる。
+--- 条件に合わなければ捨てる。
+--- 拾ったアイテムが入ったスロットは選択される。
+local function suckToEmptyItemSlot(localDirection, predicate)
+
+    -- 空スロットを選択
+    local slot = Tex.findLastEmptySlot()
+    if not slot then return false, "empty slot not found" end
+    turtle.select(slot)
+
+    -- アイテムを拾う
+    local ok, reason = Memoried.getOperation(localDirection).suck()
+    if not ok then return false, reason end
+
+    -- 条件に一致しているなら終わり
+    if predicate(turtle.getItemDetail(slot)) then return true end
+
+    -- 一致していないなら捨てる
+    local ok, reason = Memoried.getOperation(localDirection).drop()
+    if not ok then return false, reason end
+    return false, "item did not match the predicate"
+end
+
 local function waitAdd(message, predicate)
     if Tex.selectItem(predicate) then return end
 
     Logger.log(message)
     while not Tex.selectItem(predicate) do
+        if suckToEmptyItemSlot(Memoried.Up, predicate) then return end
+        if suckToEmptyItemSlot(Memoried.Down, predicate) then return end
+
         for _ = 1, 4 do
-            Memoried.getOperationAt(Memoried.Right).detect()
+            if suckToEmptyItemSlot(Memoried.Right, predicate) then return end
         end
     end
 end
