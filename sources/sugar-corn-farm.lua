@@ -81,6 +81,14 @@ local function suckToEmptyItemSlot(localDirection, predicate)
     return false, "item did not match the predicate"
 end
 
+local function findItemSlotByName(name)
+    return Tex.findItemSlot(function (item) return item.name == name end)
+end
+
+local function selectItemByName(name)
+    return Tex.selectItem(function (item) return item.name == name end)
+end
+
 local function waitAdd(message, predicate)
     if Tex.selectItem(predicate) then return end
 
