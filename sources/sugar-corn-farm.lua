@@ -222,6 +222,24 @@ local function initLine(forwardCount)
     -- f=6 1↓ 3↑ 2↓ 5↑ 4↓ 6↓
     -- f=7 1↓ 3↑ 2↓ 5↑ 4↓ >< 6↓
     local function fillWaterway()
+        local lastTorchX, lastTorchY, lastTorchZ = Memoried.currentPosition()
+        local function setTorch()
+            local x, y, z = Memoried.currentPosition()
+            if Vec3.manhattanDistance(lastTorchX, lastTorchY, lastTorchZ, x, y, z) < 5 then return end
+
+            lastTorchX, lastTorchY, lastTorchZ = x, y, z
+
+            if not findItemSlotByName(Names.Torch) then return end
+            if not findItemSlotByName(Names.Dirt) then return end
+
+            selectItemByName(Names.Dirt)
+            Memoried.getOperationAt(initialForward).place()
+            mineAround(Memoried.Up)
+            selectItemByName(Names.Torch)
+            Memoried.getOperationAt(initialForward).place()
+            mineAround(Memoried.Down)
+        end
+
         relativeBackAndPlaceWaterBucket(0)
         if forwardCount <= 1 then return end
 
@@ -229,6 +247,7 @@ local function initLine(forwardCount)
 
         for i = 1, math.floor((forwardCount - 2) / 2) do
             relativeForwardAndWaterPump(1)
+            setTorch()
             relativeBackAndPlaceWaterBucket(math.min(3 + i * 2, forwardCount) - (i * 2))
         end
 
