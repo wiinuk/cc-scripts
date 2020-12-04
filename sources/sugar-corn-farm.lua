@@ -4,6 +4,7 @@ local Memoried = require "memoried"
 local Mex = require "memoried_extensions"
 local Names = require "minecraft-names"
 local Tex = require "turtle_extensions"
+local Vec3 = require "vec3"
 
 local goToOptions = {
     isMovable = function (x, y, z)
@@ -209,7 +210,7 @@ local function initLine(forwardCount)
 
     local function relativeForwardAndWaterPump(forwardCount)
         mineToRelative(0, 0, forwardCount)
-        if Tex.selectItem(function (item) return item.name == Names.Bucket end) then
+        if selectItemByName(Names.Bucket) then
             Memoried.getOperation(Memoried.Down).place()
         end
     end
@@ -263,7 +264,7 @@ local function initLine(forwardCount)
             dig(Memoried.Down)
 
             -- サトウキビはなくてもいい
-            if Tex.selectItem(function (item) return item.name == Names.Reeds end) then
+            if selectItemByName(Names.Reeds) then
                 Memoried.getOperationAt(Memoried.Down).place()
             end
 
@@ -286,7 +287,7 @@ local function initLine(forwardCount)
 
     fillWaterway()
 
-    if Tex.findItemSlot(function (item) return item.name == Names.Reeds end) then
+    if findItemSlotByName(Names.Reeds) then
         goToOrRecovery(ix, iy, iz)
         mineAround(Memoried.Up)
         mineAround(initialForward)
