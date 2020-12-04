@@ -16,19 +16,26 @@ local goToOptions = {
     maxRetryCount = 10,
 }
 
---- 記憶にない場所は行けるとして、記憶にないブロックにぶつかるなどして移動に失敗したなら周辺情報を更新してリトライする
+local function collectMemory(direction)
+    local x, y, z = Memoried.currentPosition()
+    local cx, cy, cz = Memoried.getOperationAt(direction).currentNormal()
+    if Memoried.getLocation(x + cx, y + cy, z + cz) then return end
+    Memoried.getOperationAt(direction).detect()
+end
+
+--- 記憶にない場所は行けるとして、記憶にないブロックにぶつかるなどして移動に失敗したなら周辺情報を収集してリトライする
 local function goTo(x, y, z)
     local retryCount = 0
     while true do
         local cx, cy, cz = Memoried.currentPosition()
         if Mex.goTo(x, y, z, goToOptions) then return true end
 
-        Memoried.getOperationAt(Memoried.Forward).detect()
-        Memoried.getOperationAt(Memoried.Back).detect()
-        Memoried.getOperation(Memoried.Up).detect()
-        Memoried.getOperation(Memoried.Down).detect()
-        Memoried.getOperationAt(Memoried.Right).detect()
-        Memoried.getOperationAt(Memoried.Left).detect()
+        collectMemory(Memoried.Forward)
+        collectMemory(Memoried.Back)
+        collectMemory(Memoried.Up)
+        collectMemory(Memoried.Down)
+        collectMemory(Memoried.Right)
+        collectMemory(Memoried.Left)
         local ok, reason = Mex.goTo(x, y, z, goToOptions)
         if ok then return true end
 
