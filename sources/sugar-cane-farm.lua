@@ -311,8 +311,7 @@ end
 
 local function showHelp()
     print "Usage:"
-    print "  sugar-corn-farm init <forward> <right>"
-    print "  "
+    print "  sugar-cane-farm init <forward> <right>"
 end
 
 local function initCommand(args)
@@ -325,7 +324,7 @@ end
 
 local function command(args)
     Logger.addListener(Logger.printListener(Logger.Debug))
-    Logger.addListener(Logger.fileWriterListener "logs/sugar-corn-farm.log")
+    Logger.addListener(Logger.fileWriterListener "logs/sugar-cane-farm.log")
 
     if #args == 0 then return showHelp() end
 
