@@ -102,7 +102,8 @@ local function waitAddByName(name)
 end
 
 local function replaceToImperviousBlock(globalDirection)
-    if Memoried.getOperationAt(globalDirection).detect() then return true end
+    local ok, block = Memoried.getOperationAt(globalDirection).inspect()
+    if ok and block.name == Names.Dirt then return true end
 
     waitAddByName(Names.Dirt)
     Memoried.getOperationAt(globalDirection).place()
