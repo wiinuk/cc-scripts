@@ -135,8 +135,8 @@ end
 
 local function managerWithInitialPosition(ix, iy, iz)
     local function recovery(reason)
+        Logger.logError("recovering:", reason)
         goTo(ix, iy, iz)
-        Logger.logError("goTo failure:", reason)
         return error(reason)
     end
 
@@ -467,22 +467,46 @@ local function farm()
         manager.goToOrRecovery(x, y, z)
     end
 
-    local farmDirection = initialDirection
+    local function checkAndMoveToNextPlane(initialFarmDirection)
+
+        -- 上の階に移動
+        manager.mineAround(reverseDirection(initialFarmDirection))
+        manager.mineToRelative(0, 4, 0)
+        manager.mineAround(initialDirection)
+
+        -- 農場かどうか
+        if onSugarCane() then return true end
+
+        -- 農場でなかったので戻る
+        manager.mineAround(reverseDirection(initialDirection))
+        manager.mineToRelative(0, -4, 0)
+        return false
+    end
+
+    -- 周りの農場に移動して、向きを決める
+    local initialFarmDirection = initialDirection
     if not onSugarCane() then
-        farmDirection = turnToSugarCane()
-        if not farmDirection then
+        initialFarmDirection = turnToSugarCane()
+        if not initialFarmDirection then
             manager.mineAround(initialDirection)
             if not onSugarCane() then
                 Logger.logError("'"..Names.Reeds.."' not found")
                 return error()
             else
-                farmDirection = initialDirection
+                initialFarmDirection = initialDirection
             end
         end
-        manager.mineAround(farmDirection)
+        manager.mineAround(initialFarmDirection)
     end
 
-    farmPlane(farmDirection)
+    while true do
+        local originX, originY, originZ = Memoried.currentPosition()
+        farmPlane(initialFarmDirection)
+        while checkAndMoveToNextPlane(initialFarmDirection) do
+            farmPlane(initialFarmDirection)
+        end
+        manager.goToOrRecovery(originX, originY, originZ)
+    end
 end
 
 local function farmCommand(args)
