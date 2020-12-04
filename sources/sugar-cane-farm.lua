@@ -133,31 +133,11 @@ local function replaceToGrowableBlock(globalDirection)
     Memoried.getOperationAt(globalDirection).place()
 end
 
-local function initLine(forwardCount)
-    local ix, iy, iz = Memoried.currentPosition()
-    local initialForward = Memoried.toGlobalDirection(Memoried.Forward)
-    local initialBack = Memoried.toGlobalDirection(Memoried.Back)
-    local initialRight = Memoried.toGlobalDirection(Memoried.Right)
-    local initialLeft = Memoried.toGlobalDirection(Memoried.Left)
-
+local function managerWithInitialPosition(ix, iy, iz)
     local function recovery(reason)
         goTo(ix, iy, iz)
         Logger.logError("goTo failure:", reason)
         return error(reason)
-    end
-
-    local function goToRelativeWithRecovery(x, y, z)
-        local ok, reason = goToRelative(x, y, z)
-        if ok then return end
-
-        return recovery(reason)
-    end
-
-    local function goToOrRecovery(x, y, z)
-        local ok, reason = goTo(x, y, z)
-        if ok then return end
-
-        return recovery(reason)
     end
 
     local function mineToRelative(relativeX, relativeY, relativeZ)
@@ -178,21 +158,50 @@ local function initLine(forwardCount)
         return mineToRelative(Memoried.getOperationAt(globalDirection).currentNormal())
     end
 
+    return {
+        recovery = recovery,
+        goToRelativeWithRecovery = function(x, y, z)
+            local ok, reason = goToRelative(x, y, z)
+            if ok then return end
+
+            return recovery(reason)
+        end,
+
+        goToOrRecovery = function(x, y, z)
+            local ok, reason = goTo(x, y, z)
+            if ok then return end
+
+            return recovery(reason)
+        end,
+
+        mineToRelative = mineToRelative,
+        mineAround = mineAround,
+    }
+end
+
+local function initLine(forwardCount)
+    local ix, iy, iz = Memoried.currentPosition()
+    local manager = managerWithInitialPosition(ix, iy, iz)
+    local initialForward = Memoried.toGlobalDirection(Memoried.Forward)
+    local initialBack = Memoried.toGlobalDirection(Memoried.Back)
+    local initialRight = Memoried.toGlobalDirection(Memoried.Right)
+    local initialLeft = Memoried.toGlobalDirection(Memoried.Left)
+
     local function buildWaterwayBlocks()
-        mineAround(Memoried.Down)
+        manager.mineAround(Memoried.Down)
         replaceToImperviousBlock(initialBack)
         replaceToGrowableBlock(initialRight)
         replaceToGrowableBlock(initialLeft)
         replaceToImperviousBlock(Memoried.Down)
 
         for _ = 3, forwardCount do
-            mineAround(initialForward)
+            manager.mineAround(initialForward)
             replaceToGrowableBlock(initialRight)
             replaceToGrowableBlock(initialLeft)
             replaceToImperviousBlock(Memoried.Down)
         end
 
-        mineAround(initialForward)
+        manager.mineAround(initialForward)
         replaceToGrowableBlock(initialRight)
         replaceToGrowableBlock(initialLeft)
         replaceToImperviousBlock(Memoried.Down)
@@ -201,7 +210,7 @@ local function initLine(forwardCount)
 
     local function relativeBackAndPlaceWaterBucket(backCount)
         for _ = 1, backCount do
-            mineAround(initialBack)
+            manager.mineAround(initialBack)
         end
 
         waitAddByName(Names.WaterBucket)
@@ -209,7 +218,7 @@ local function initLine(forwardCount)
     end
 
     local function relativeForwardAndWaterPump(forwardCount)
-        mineToRelative(0, 0, forwardCount)
+        manager.mineToRelative(0, 0, forwardCount)
         if selectItemByName(Names.Bucket) then
             Memoried.getOperation(Memoried.Down).place()
         end
@@ -235,10 +244,10 @@ local function initLine(forwardCount)
 
             selectItemByName(Names.Dirt)
             Memoried.getOperationAt(initialForward).place()
-            mineAround(Memoried.Up)
+            manager.mineAround(Memoried.Up)
             selectItemByName(Names.Torch)
             Memoried.getOperationAt(initialForward).place()
-            mineAround(Memoried.Down)
+            manager.mineAround(Memoried.Down)
         end
 
         relativeBackAndPlaceWaterBucket(0)
@@ -275,25 +284,25 @@ local function initLine(forwardCount)
         placeReedsCore()
 
         for _ = 2, forwardCount do
-            mineAround(moveDirection)
+            manager.mineAround(moveDirection)
             placeReedsCore()
         end
     end
 
-    goToRelativeWithRecovery(1, 0, 1)
+    manager.goToRelativeWithRecovery(1, 0, 1)
     buildWaterwayBlocks()
 
-    mineAround(Memoried.Up)
+    manager.mineAround(Memoried.Up)
 
     fillWaterway()
 
     if findItemSlotByName(Names.Reeds) then
-        goToOrRecovery(ix, iy, iz)
-        mineAround(Memoried.Up)
-        mineAround(initialForward)
+        manager.goToOrRecovery(ix, iy, iz)
+        manager.mineAround(Memoried.Up)
+        manager.mineAround(initialForward)
 
         placeReeds(initialForward)
-        for _ = 1, 2 do mineAround(initialRight) end
+        for _ = 1, 2 do manager.mineAround(initialRight) end
         placeReeds(initialBack)
     end
 end
@@ -312,6 +321,11 @@ end
 local function showHelp()
     print "Usage:"
     print "  sugar-cane-farm init <forward> <right>"
+    print "  sugar-cane-farm"
+    print ""
+    print "Options:"
+    print "  <forward>  The number of sugar cane per row."
+    print "  <right>    Number of row."
 end
 
 local function initCommand(args)
@@ -322,20 +336,116 @@ local function initCommand(args)
     return init(forwardCount, lineCount)
 end
 
-local function command(args)
+local function isChest(direction)
+    local ok, block = Memoried.getOperationAt(direction).inspect()
+    return ok and block.name == Names.Chest
+end
+
+local function findAroundChestInfo()
+    local directions = {
+        Memoried.Forward,
+        Memoried.Left,
+        Memoried.Right,
+        Memoried.Back,
+        Memoried.Down,
+        Memoried.Up,
+    }
+    for _, d in ipairs(directions) do
+        if isChest(d) then
+            local x, y, z = Memoried.currentPosition()
+            return { x = x, y = y, z = z, direction = d }
+        end
+    end
+    return nil
+end
+
+local function turnToSugarCane()
+    local directions = {
+        Memoried.Forward,
+        Memoried.Left,
+        Memoried.Right,
+        Memoried.Back,
+    }
+    for _, d in ipairs(directions) do
+        local ok, block = Memoried.getOperationAt(d).inspect()
+        if ok and block.name == Names.Reeds then return d end
+    end
+    return nil
+end
+
+local function onSugarCane()
+    local ok, block = Memoried.getOperationAt(Memoried.Down).inspect()
+    return ok and block.name == Names.Reeds
+end
+
+local function reverseDirection(direction)
+    if direction == Memoried.Forward then return Memoried.Back end
+    if direction == Memoried.Back then return Memoried.Forward end
+    if direction == Memoried.Left then return Memoried.Right end
+    if direction == Memoried.Right then return Memoried.Left end
+    if direction == Memoried.Up then return Memoried.Down end
+    if direction == Memoried.Down then return Memoried.Up end
+    return 0
+end
+
+local function farm()
+    local initialX, initialY, initialZ = Memoried.currentPosition()
+    local initialDirection = Memoried.toGlobalDirection(Memoried.Forward)
+    local manager = managerWithInitialPosition(initialX, initialY, initialZ)
+    local chestInfo = findAroundChestInfo()
+
+    local function farmLine(lineDirection)
+        local lineCount = 0
+        while true do
+            -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
+            -- TODO: インベントリが満杯なら作物をチェストに入れて元の位置に戻る
+
+            Logger.logDebug("farmLine:", lineCount, lineDirection)
+            manager.mineAround(lineDirection)
+
+            -- 農場の上でないなら農場の上に戻って終わり
+            if not onSugarCane() then
+                manager.mineAround(reverseDirection(lineDirection))
+                return
+            end
+
+            lineCount = lineCount + 1
+        end
+    end
+
+
+    if not onSugarCane() then
+        local farmDirection = turnToSugarCane()
+        if not farmDirection then
+            Logger.logError("'"..Names.Reeds.."' not found")
+            return error()
+        end
+        manager.mineAround(farmDirection)
+    end
+
+    farmLine(initialDirection)
+end
+
+local function farmCommand(args)
+    if 0 < #args then
+        Logger.logError("unrecognized command", args[1])
+        showHelp()
+        return
+    end
+    return farm()
+end
+
+local function main(args)
     Logger.addListener(Logger.printListener(Logger.Debug))
     Logger.addListener(Logger.fileWriterListener "logs/sugar-cane-farm.log")
 
-    if #args == 0 then return showHelp() end
-
-    if args[1] == "init" then
+    if 1 <= #args and args[1] == "init" then
         local args = {unpack(args)}
         table.remove(args, 1)
         return initCommand(args)
     end
 
-    Logger.logError("unrecognized command", args[1])
-    return
+    return farmCommand(args)
 end
 
-command {...}
+main {...}
