@@ -277,6 +277,7 @@ local function init(forwardCount, lineCount)
         Memoried.getOperationAt(initialForward).detect()
         initLine(forwardCount)
         goTo(x + 3, y, z)
+        Memoried.getOperationAt(initialForward).detect()
     end
 end
 
