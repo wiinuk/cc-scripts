@@ -151,31 +151,39 @@ local function initLine(forwardCount)
         return recovery(reason)
     end
 
-    local function moveWithRecovery(globalDirection)
-        local ok, reason = Memoried.getOperationAt(globalDirection).move()
-        if ok then return end
+    local function mineToRelative(relativeX, relativeY, relativeZ)
+        local x, y, z = Memoried.currentPosition()
+        local ok, reason = Mex.mineTo(5, x + relativeX, y + relativeY, z + relativeZ)
+        if ok then return true end
 
         return recovery(reason)
     end
 
+    --- 指定された方向に、掘って1マス移動する
+    ---
+    --- ### 早く確実に移動するのが目的
+    --- - 周りを見渡す動きがない
+    --- - 大事なブロックを壊す可能性がある
+    --- - 掘れないブロックもある
+    local function mineAround(globalDirection)
+        return mineToRelative(Memoried.getOperationAt(globalDirection).currentNormal())
+    end
+
     local function buildWaterwayBlocks()
-        dig(Memoried.Down)
-        goToRelativeWithRecovery(0, -1, 0)
+        mineAround(Memoried.Down)
         replaceToImperviousBlock(initialBack)
         replaceToGrowableBlock(initialRight)
         replaceToGrowableBlock(initialLeft)
         replaceToImperviousBlock(Memoried.Down)
 
         for _ = 3, forwardCount do
-            dig(initialForward)
-            goToRelativeWithRecovery(0, 0, 1)
+            mineAround(initialForward)
             replaceToGrowableBlock(initialRight)
             replaceToGrowableBlock(initialLeft)
             replaceToImperviousBlock(Memoried.Down)
         end
 
-        dig(initialForward)
-        goToRelativeWithRecovery(0, 0, 1)
+        mineAround(initialForward)
         replaceToGrowableBlock(initialRight)
         replaceToGrowableBlock(initialLeft)
         replaceToImperviousBlock(Memoried.Down)
@@ -184,8 +192,7 @@ local function initLine(forwardCount)
 
     local function relativeBackAndPlaceWaterBucket(backCount)
         for _ = 1, backCount do
-            dig(initialBack)
-            goToRelativeWithRecovery(0, 0, -1)
+            mineAround(initialBack)
         end
 
         waitAddByName(Names.WaterBucket)
@@ -193,7 +200,7 @@ local function initLine(forwardCount)
     end
 
     local function relativeForwardAndWaterPump(forwardCount)
-        goToRelativeWithRecovery(0, 0, forwardCount)
+        mineToRelative(0, 0, forwardCount)
         if Tex.selectItem(function (item) return item.name == Names.Bucket end) then
             Memoried.getOperation(Memoried.Down).place()
         end
@@ -240,9 +247,7 @@ local function initLine(forwardCount)
         placeReedsCore()
 
         for _ = 2, forwardCount do
-            dig(moveDirection)
-            moveWithRecovery(moveDirection)
-
+            mineAround(moveDirection)
             placeReedsCore()
         end
     end
@@ -250,21 +255,19 @@ local function initLine(forwardCount)
     goToRelativeWithRecovery(1, 0, 1)
     buildWaterwayBlocks()
 
-    dig(Memoried.Up)
-    goToRelativeWithRecovery(0, 1, 0)
+    mineAround(Memoried.Up)
 
     fillWaterway()
 
-    goToOrRecovery(ix, iy, iz)
-    dig(Memoried.Up)
-    goToRelativeWithRecovery(0, 1, 0)
+    if Tex.findItemSlot(function (item) return item.name == Names.Reeds end) then
+        goToOrRecovery(ix, iy, iz)
+        mineAround(Memoried.Up)
+        mineAround(initialForward)
 
-    dig(initialForward)
-    moveWithRecovery(initialForward)
-
-    placeReeds(initialForward)
-    for _ = 1, 2 do dig(initialRight); goToRelativeWithRecovery(1, 0, 0) end
-    placeReeds(initialBack)
+        placeReeds(initialForward)
+        for _ = 1, 2 do mineAround(initialRight) end
+        placeReeds(initialBack)
+    end
 end
 
 local function init(forwardCount, lineCount)
