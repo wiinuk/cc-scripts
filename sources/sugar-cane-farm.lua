@@ -6,6 +6,7 @@ local Names = require "minecraft-names"
 local Tex = require "turtle_extensions"
 local Vec3 = require "vec3"
 local Json = require "json"
+local Refuel = require "refuel-core"
 
 local goToOptions = {
     isMovable = function (x, y, z)
@@ -456,6 +457,15 @@ local function farm()
     end
     logChestInfo()
 
+    local function transferItemsToAroundChest(chestDirection)
+        while
+            Tex.selectItem(function () return true end) and
+            Memoried.getOperationAt(chestDirection).drop()
+            do
+            Logger.logInfo("Transferred items to chest.")
+        end
+    end
+
     local function transferSugarCaneToAroundChest(chestDirection)
         while
             Tex.selectItem(function (item) return item.name == Names.Reeds end) and
@@ -549,12 +559,120 @@ local function farm()
         Logger.logDebug "Returned"
     end
 
+    local function memoriedFullFuelLevel()
+        local fuelLevel = turtle.getFuelLevel()
+
+        -- 記憶している燃料レベルを足す ( 補給したことがない燃料のレベルは 0 )
+        Tex.eachItem(function (item)
+            local level = Refuel.itemNameToMemoriedFuelLevel(item.name)
+            if level then fuelLevel = fuelLevel + level * item.count end
+        end)
+
+        return fuelLevel
+    end
+
+    --- 現在の総燃料量が指定量と同じか多いか推定する。
+    ---
+    --- - 総燃料量とは持っているアイテムを含めた燃料量。
+    --- - 正確に総燃料量を見積もるため、アイテムを消費する場合がある。
+    local function isEnoughAllFuelLevelTo(fuelLevel)
+        if turtle.getFuelLimit() == "unlimited" then return true end
+
+        -- 足りているなら終わり
+        if fuelLevel < memoriedFullFuelLevel() then return true end
+
+        -- 足りていないので、補給することでスロットのアイテムの燃料レベルを記憶し
+        while Refuel.refuel() do
+            Logger.logDebug "isEnoughAllFuelLevelTo: refueled"
+
+            -- 再びレベルを求める
+            if fuelLevel < memoriedFullFuelLevel() then
+
+                -- 足りていたので終わり
+                return true
+            end
+        end
+
+        -- 補給できなかったので足りていない
+        return false
+    end
+
+    local function refuelFromAroundChest(chestDirection)
+
+        -- 空きを作るためすべてのアイテムを預ける
+        Tex.compactItems()
+        transferItemsToAroundChest(chestDirection)
+
+        -- インベントリからアイテムを引き取る
+        while Memoried.getOperationAt(chestDirection).suck() do end
+
+        -- 引き取ったアイテムが燃料なら半分取って半分戻す
+        Tex.eachItem(function(item, index)
+            local level = Refuel.itemNameToMemoriedFuelLevel(item.name)
+            local dropCount = item.count
+            if level and 0 < level then
+                dropCount = math.floor(item.count / 2)
+            end
+
+            turtle.select(index)
+            Memoried.getOperationAt(chestDirection).drop(dropCount)
+            Logger.logInfo("returned "..item.name.." x", dropCount, "to chest.")
+        end)
+
+        Tex.compactItems()
+    end
+
+    local function waitUntilRequiredFuelLevelIsAllocated(requiredFuelLevel)
+        Logger.log "Harvesting was interrupted due to the risk of running out of fuel."
+        Logger.log "Please put fuel in inventory."
+
+        while true do
+            if isEnoughAllFuelLevelTo(requiredFuelLevel) then break end
+            os.sleep(5)
+        end
+
+        Logger.log "Thank you."
+    end
+
+    -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
+    local function allocateFuel()
+
+        -- ホームとのマンハッタン距離
+        local cx, cy, cz = Memoried.currentPosition()
+        local distance = Vec3.manhattanDistance(cx, cy, cz, initialX, initialY, initialZ)
+        local minFuelLevel = distance * 1.5
+
+        -- ホームに戻るのに燃料が足りそうなら終わり
+        if isEnoughAllFuelLevelTo(minFuelLevel) then return end
+
+        local requiredFuelLevel = math.min(turtle.getFuelLimit(), distance * 16)
+        local returnX, returnY, returnZ = Memoried.currentPosition()
+
+        -- 燃料が足りなさそうなら
+        Logger.logDebug("The fuel level was below the", minFuelLevel, ".")
+
+        -- チェストまたはホームまで移動
+        moveToChestOrHome()
+
+        -- チェストがあるなら燃料を補給
+        if chestInfo then refuelFromAroundChest(chestInfo.direction) end
+
+        -- 燃料が十分足りるまでメッセージを出しつつチェストから燃料を補給
+        if not isEnoughAllFuelLevelTo(requiredFuelLevel) then
+            waitUntilRequiredFuelLevelIsAllocated(requiredFuelLevel)
+        end
+
+        -- 元の場所に戻る
+        Logger.logDebug("Return to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(returnX, returnY, returnZ)
+        Logger.logDebug "Returned"
+    end
+
     local function farmLine(lineDirection)
         local count = 0
         while true do
 
-            -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
-
+            allocateFuel()
             makeInventorySpace()
 
             manager.mineAround(lineDirection)
