@@ -461,7 +461,7 @@ local function farm()
             Tex.selectItem(function (item) return item.name == Names.Reeds end) and
             Memoried.getOperationAt(chestDirection).drop()
             do
-            Logger.logInfo("Transferred ..'"..Names.Reeds.."' to chest.")
+            Logger.logInfo("Transferred '"..Names.Reeds.."' to chest.")
         end
     end
 
