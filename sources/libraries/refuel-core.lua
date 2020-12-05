@@ -64,11 +64,12 @@ return {
 
     ---@param itemName string
     ---@return number|nil
-    getFuelLevelByItemName = function(itemName)
+    itemNameToMemoriedFuelLevel = function(itemName)
         return itemNameToFuelLevel[itemName]
     end,
 
-    refuel = function(options)
+    refuel = refuel,
+    waitUntilRefueled = function(options)
         local _, name, count
         if isEmptyFuel() then
             _, name, count = refuel(options)
