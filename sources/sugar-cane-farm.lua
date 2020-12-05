@@ -5,38 +5,75 @@ local Mex = require "memoried_extensions"
 local Names = require "minecraft-names"
 local Tex = require "turtle_extensions"
 local Vec3 = require "vec3"
+local Json = require "json"
+local Refuel = require "refuel-core"
 
 local goToOptions = {
     isMovable = function (x, y, z)
-        Logger.logDebug("Check", x, y, z)
+        local location = Memoried.getLocation(x, y, z)
+        if location == nil then return true end
 
-        if Memoried.getLocation(x, y, z) == nil then return true end
-        return Mex.isMovableInMemory(x, y, z)
+        return location.move == true or (
+
+            -- ぶつからないで、さらに
+            location.detect == false and
+
+            -- 水だと判定されていないなら移動可能
+            not (
+                location.inspect and
+                (
+                    location.inspect.name == Names.Water or
+                    location.inspect.name == Names.FlowingWater
+                )
+            )
+        )
     end,
     disableDig = true,
+    disableMove = function (direction)
+
+        -- 水なら移動不可
+        local ok, block = Memoried.getOperationAt(direction).inspect()
+
+        local x, y, z = Memoried.currentPosition()
+        local r = ok and (block.name == Names.Water or block.name == Names.FlowingWater)
+        Logger.logDebug("disableMove", x, y, z, direction, block and block.name, r)
+        return r
+    end,
     maxRetryCount = 10,
 }
 
-local function collectMemory(direction)
-    local x, y, z = Memoried.currentPosition()
-    local cx, cy, cz = Memoried.getOperationAt(direction).currentNormal()
-    if Memoried.getLocation(x + cx, y + cy, z + cz) then return end
+local function updateMemory(direction)
     Memoried.getOperationAt(direction).detect()
+    Memoried.getOperationAt(direction).inspect()
 end
 
+local directions = {
+    Memoried.Forward,
+    Memoried.Back,
+    Memoried.Up,
+    Memoried.Down,
+    Memoried.Right,
+    Memoried.Left,
+}
 --- 記憶にない場所は行けるとして、記憶にないブロックにぶつかるなどして移動に失敗したなら周辺情報を収集してリトライする
 local function goTo(x, y, z)
+    local cx, cy, cz = Memoried.currentPosition()
+    Logger.logDebug("goTo start", cx, cy, cz, "->", x, y, z)
+
     local retryCount = 0
     while true do
         local cx, cy, cz = Memoried.currentPosition()
-        if Mex.goTo(x, y, z, goToOptions) then return true end
+        local ok, reason = Mex.goTo(x, y, z, goToOptions)
+        if ok then
+            Logger.logDebug("goTo success")
+            return true
+        end
 
-        collectMemory(Memoried.Forward)
-        collectMemory(Memoried.Back)
-        collectMemory(Memoried.Up)
-        collectMemory(Memoried.Down)
-        collectMemory(Memoried.Right)
-        collectMemory(Memoried.Left)
+        Logger.logDebug("goTo failure[", retryCount, "] @", cx, cy, cz, reason)
+
+        for i = 1, #directions do
+            updateMemory(directions[i])
+        end
         local ok, reason = Mex.goTo(x, y, z, goToOptions)
         if ok then return true end
 
@@ -45,7 +82,7 @@ local function goTo(x, y, z)
             return false, reason
         end
 
-        Logger.logDebug("goTo failure[", retryCount, "] @", nx, ny, nz, reason)
+        Logger.logDebug("goTo retry[", retryCount, "] @", nx, ny, nz, reason)
         retryCount = retryCount + 1
     end
 end
@@ -406,17 +443,238 @@ end
 
 local function farm()
     local initialX, initialY, initialZ = Memoried.currentPosition()
+    Logger.logInfo("Registered", initialX, initialY, initialZ, "as home.")
+
     local initialDirection = Memoried.toGlobalDirection(Memoried.Forward)
     local manager = managerWithInitialPosition(initialX, initialY, initialZ)
     local chestInfo = findAroundChestInfo()
+    local function logChestInfo()
+        if chestInfo then
+            Logger.logInfo("I have registered a chest. location:", chestInfo.x, chestInfo.y, chestInfo.z, chestInfo.direction)
+        else
+            Logger.logInfo "The chest is unregistered."
+        end
+    end
+    logChestInfo()
+
+    local function transferItemsToAroundChest(chestDirection)
+        while
+            Tex.selectItem(function () return true end) and
+            Memoried.getOperationAt(chestDirection).drop()
+            do
+            Logger.logInfo("Transferred items to chest.")
+        end
+    end
+
+    local function transferSugarCaneToAroundChest(chestDirection)
+        while
+            Tex.selectItem(function (item) return item.name == Names.Reeds end) and
+            Memoried.getOperationAt(chestDirection).drop()
+            do
+            Logger.logInfo("Transferred '"..Names.Reeds.."' to chest.")
+        end
+    end
+
+    --- チェストが満杯なら、インベントリに空きができるまでメッセージを表示しつつ待機する
+    local function waitUntilFindEmptySlot(chestDirectionOrNil)
+        Logger.log "Harvesting was interrupted because there were no empty slots."
+        Logger.log "Please make space in inventory."
+
+        repeat
+            Tex.compactItems()
+            if chestDirectionOrNil then
+                transferSugarCaneToAroundChest(chestDirectionOrNil)
+            end
+            os.sleep(5)
+        until Tex.findLastEmptySlot()
+
+        Logger.log "Thank you."
+    end
+
+    local function moveToHome()
+
+        -- ホームまで移動する
+        Logger.logDebug("Move to", initialX, initialY, initialZ)
+        manager.goToOrRecovery(initialX, initialY, initialZ)
+
+        -- チェストを検索する
+        chestInfo = findAroundChestInfo()
+        logChestInfo()
+
+        -- チェストを発見した
+        if chestInfo then return end
+
+        -- チェストが発見できなかった
+        Logger.logDebug "Chest is not found."
+    end
+
+    local function moveToChestOrHome()
+
+        -- チェストが登録されていない場合
+        if not chestInfo then return moveToHome() end
+
+        -- チェストが登録されている場合
+        -- チェストまで移動する
+        Logger.logDebug("Chest is registered. Move to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(chestInfo.x, chestInfo.y, chestInfo.z)
+
+        local ok, block = Memoried.getOperationAt(chestInfo.direction).inspect()
+        if ok and block.name == Names.Chest then return end
+
+        -- チェストがなかった
+        Logger.logDebug("Chest is missing.", ok, Json.stringify(block))
+        chestInfo = nil
+        logChestInfo()
+
+        moveToHome()
+    end
+
+    --- インベントリに空きスロットがないとき、以下の方法で空きを作る
+    --- - 登録してあるチェストに移動して作物を預ける
+    --- - ホームに移動してアイテムをプレイヤーに引き取ってもらう
+    local function makeInventorySpace()
+
+        -- アイテムに空きがあるなら終わり
+        Tex.compactItems()
+        if Tex.findLastEmptySlot() then return end
+
+        local returnX, returnY, returnZ = Memoried.currentPosition()
+
+        -- チェストかホームまで移動する
+        moveToChestOrHome()
+
+        -- 作物を預ける
+        if chestInfo then transferSugarCaneToAroundChest(chestInfo.direction) end
+
+        -- インベントリに空きができるまでメッセージを表示しつつ待機する
+        if not Tex.findLastEmptySlot() then
+            waitUntilFindEmptySlot(chestInfo and chestInfo.direction)
+        end
+
+        -- TODO: チェストがあるなら燃料を補給する
+
+        -- 元の場所に帰る
+        Logger.logDebug("Return to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(returnX, returnY, returnZ)
+        Logger.logDebug "Returned"
+    end
+
+    local function memoriedFullFuelLevel()
+        local fuelLevel = turtle.getFuelLevel()
+
+        -- 記憶している燃料レベルを足す ( 補給したことがない燃料のレベルは 0 )
+        Tex.eachItem(function (item)
+            local level = Refuel.itemNameToMemoriedFuelLevel(item.name)
+            if level then fuelLevel = fuelLevel + level * item.count end
+        end)
+
+        return fuelLevel
+    end
+
+    --- 現在の総燃料量が指定量と同じか多いか推定する。
+    ---
+    --- - 総燃料量とは持っているアイテムを含めた燃料量。
+    --- - 正確に総燃料量を見積もるため、アイテムを消費する場合がある。
+    local function isEnoughAllFuelLevelTo(fuelLevel)
+        if turtle.getFuelLimit() == "unlimited" then return true end
+
+        -- 足りているなら終わり
+        if fuelLevel < memoriedFullFuelLevel() then return true end
+
+        -- 足りていないので、補給することでスロットのアイテムの燃料レベルを記憶し
+        while Refuel.refuel() do
+            Logger.logDebug "isEnoughAllFuelLevelTo: refueled"
+
+            -- 再びレベルを求める
+            if fuelLevel < memoriedFullFuelLevel() then
+
+                -- 足りていたので終わり
+                return true
+            end
+        end
+
+        -- 補給できなかったので足りていない
+        return false
+    end
+
+    local function refuelFromAroundChest(chestDirection)
+
+        -- 空きを作るためすべてのアイテムを預ける
+        Tex.compactItems()
+        transferItemsToAroundChest(chestDirection)
+
+        -- インベントリからアイテムを引き取る
+        while Memoried.getOperationAt(chestDirection).suck() do end
+
+        -- 引き取ったアイテムが燃料なら半分取って半分戻す
+        Tex.eachItem(function(item, index)
+            local level = Refuel.itemNameToMemoriedFuelLevel(item.name)
+            local dropCount = item.count
+            if level and 0 < level then
+                dropCount = math.floor(item.count / 2)
+            end
+
+            turtle.select(index)
+            Memoried.getOperationAt(chestDirection).drop(dropCount)
+            Logger.logInfo("returned "..item.name.." x", dropCount, "to chest.")
+        end)
+
+        Tex.compactItems()
+    end
+
+    local function waitUntilRequiredFuelLevelIsAllocated(requiredFuelLevel)
+        Logger.log "Harvesting was interrupted due to the risk of running out of fuel."
+        Logger.log "Please put fuel in inventory."
+
+        while true do
+            if isEnoughAllFuelLevelTo(requiredFuelLevel) then break end
+            os.sleep(5)
+        end
+
+        Logger.log "Thank you."
+    end
+
+    -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
+    local function allocateFuel()
+
+        -- ホームとのマンハッタン距離
+        local cx, cy, cz = Memoried.currentPosition()
+        local distance = Vec3.manhattanDistance(cx, cy, cz, initialX, initialY, initialZ)
+        local minFuelLevel = distance * 1.5
+
+        -- ホームに戻るのに燃料が足りそうなら終わり
+        if isEnoughAllFuelLevelTo(minFuelLevel) then return end
+
+        local requiredFuelLevel = math.min(turtle.getFuelLimit(), distance * 16)
+        local returnX, returnY, returnZ = Memoried.currentPosition()
+
+        -- 燃料が足りなさそうなら
+        Logger.logDebug("The fuel level was below the", minFuelLevel, ".")
+
+        -- チェストまたはホームまで移動
+        moveToChestOrHome()
+
+        -- チェストがあるなら燃料を補給
+        if chestInfo then refuelFromAroundChest(chestInfo.direction) end
+
+        -- 燃料が十分足りるまでメッセージを出しつつチェストから燃料を補給
+        if not isEnoughAllFuelLevelTo(requiredFuelLevel) then
+            waitUntilRequiredFuelLevelIsAllocated(requiredFuelLevel)
+        end
+
+        -- 元の場所に戻る
+        Logger.logDebug("Return to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(returnX, returnY, returnZ)
+        Logger.logDebug "Returned"
+    end
 
     local function farmLine(lineDirection)
-        local lineCount = 0
+        local count = 0
         while true do
-            -- TODO: 燃料が足りないときはチェストから補給して元の位置に戻る
-            -- TODO: インベントリが満杯なら作物をチェストに入れて元の位置に戻る
 
-            Logger.logDebug("farmLine:", lineCount, lineDirection)
+            allocateFuel()
+            makeInventorySpace()
+
             manager.mineAround(lineDirection)
 
             -- 農場の上でないなら農場の上に戻って終わり
@@ -425,7 +683,7 @@ local function farm()
                 return
             end
 
-            lineCount = lineCount + 1
+            count = count + 1
         end
     end
 
@@ -483,7 +741,7 @@ local function farm()
         return false
     end
 
-    -- 周りの農場に移動して、向きを決める
+    -- 周りの作物の上に移動して、列の向きを推測する
     local initialFarmDirection = initialDirection
     if not onSugarCane() then
         initialFarmDirection = turnToSugarCane()
@@ -500,12 +758,12 @@ local function farm()
     end
 
     while true do
-        local originX, originY, originZ = Memoried.currentPosition()
+        local farmOriginX, farmOriginY, farmOriginZ = Memoried.currentPosition()
         farmPlane(initialFarmDirection)
         while checkAndMoveToNextPlane(initialFarmDirection) do
             farmPlane(initialFarmDirection)
         end
-        manager.goToOrRecovery(originX, originY, originZ)
+        manager.goToOrRecovery(farmOriginX, farmOriginY, farmOriginZ)
     end
 end
 
