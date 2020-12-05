@@ -481,23 +481,7 @@ local function farm()
         Logger.log "Thank you."
     end
 
-    local function makeInventorySpaceWhenChestIsRegistered()
-        Logger.logDebug "Start processing when the chest is registered."
-
-        -- 作物を預ける
-        transferSugarCaneToAroundChest(chestInfo.direction)
-
-        if not Tex.findLastEmptySlot() then
-            waitUntilFindEmptySlot(chestInfo.direction)
-        end
-
-        -- TODO: 燃料をついでに補給する
-    end
-
-    --- チェストが登録されていない場合の処理
-    --- 現在の場所は限定されない
-    local function makeInventorySpaceWhenChestIsNotRegistered()
-        Logger.logDebug "Start processing when the chest is not registered."
+    local function moveToHome()
 
         -- ホームまで移動する
         Logger.logDebug("Move to", initialX, initialY, initialZ)
@@ -507,17 +491,32 @@ local function farm()
         chestInfo = findAroundChestInfo()
         logChestInfo()
 
-        if chestInfo then
+        -- チェストを発見した
+        if chestInfo then return end
 
-            -- チェストを発見した
-            return makeInventorySpaceWhenChestIsRegistered()
-        end
-
-        -- チェストが発見できなかったなら
+        -- チェストが発見できなかった
         Logger.logDebug "Chest is not found."
+    end
 
-        -- インベントリに空きができるまでメッセージを表示しつつ待機する
-        waitUntilFindEmptySlot(nil)
+    local function moveToChestOrHome()
+
+        -- チェストが登録されていない場合
+        if not chestInfo then return moveToHome() end
+
+        -- チェストが登録されている場合
+        -- チェストまで移動する
+        Logger.logDebug("Chest is registered. Move to", chestInfo.x, chestInfo.y, chestInfo.z)
+        manager.goToOrRecovery(chestInfo.x, chestInfo.y, chestInfo.z)
+
+        local ok, block = Memoried.getOperationAt(chestInfo.direction).inspect()
+        if ok and block.name == Names.Chest then return end
+
+        -- チェストがなかった
+        Logger.logDebug("Chest is missing.", ok, Json.stringify(block))
+        chestInfo = nil
+        logChestInfo()
+
+        moveToHome()
     end
 
     --- インベントリに空きスロットがないとき、以下の方法で空きを作る
@@ -531,26 +530,18 @@ local function farm()
 
         local returnX, returnY, returnZ = Memoried.currentPosition()
 
-        -- チェストが登録されていない場合
-        if not chestInfo then return makeInventorySpaceWhenChestIsNotRegistered() end
+        -- チェストかホームまで移動する
+        moveToChestOrHome()
 
-        -- チェストが登録されている場合
-        -- チェストまで移動する
-        Logger.logDebug("Chest is registered. Move to", chestInfo.x, chestInfo.y, chestInfo.z)
-        manager.goToOrRecovery(chestInfo.x, chestInfo.y, chestInfo.z)
+        -- 作物を預ける
+        if chestInfo then transferSugarCaneToAroundChest(chestInfo.direction) end
 
-        local ok, block = Memoried.getOperationAt(chestInfo.direction).inspect()
-        if ok and block.name == Names.Chest then
-            makeInventorySpaceWhenChestIsRegistered()
-        else
-
-            -- チェストがなかった
-            Logger.logDebug("Chest is missing.", ok, Json.stringify(block))
-            chestInfo = nil
-            logChestInfo()
-
-            makeInventorySpaceWhenChestIsNotRegistered()
+        -- インベントリに空きができるまでメッセージを表示しつつ待機する
+        if not Tex.findLastEmptySlot() then
+            waitUntilFindEmptySlot(chestInfo and chestInfo.direction)
         end
+
+        -- TODO: チェストがあるなら燃料を補給する
 
         -- 元の場所に帰る
         Logger.logDebug("Return to", chestInfo.x, chestInfo.y, chestInfo.z)
