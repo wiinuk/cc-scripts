@@ -9,20 +9,51 @@ local Json = require "json"
 
 local goToOptions = {
     isMovable = function (x, y, z)
-        if Memoried.getLocation(x, y, z) == nil then return true end
-        return Mex.isMovableInMemory(x, y, z)
+        local location = Memoried.getLocation(x, y, z)
+        if location == nil then return true end
+
+        return location.move == true or (
+
+            -- ぶつからないで、さらに
+            location.detect == false and
+
+            -- 水だと判定されていないなら移動可能
+            not (
+                location.inspect and
+                (
+                    location.inspect.name == Names.Water or
+                    location.inspect.name == Names.FlowingWater
+                )
+            )
+        )
     end,
     disableDig = true,
+    disableMove = function (direction)
+
+        -- 水なら移動不可
+        local ok, block = Memoried.getOperationAt(direction).inspect()
+
+        local x, y, z = Memoried.currentPosition()
+        local r = ok and (block.name == Names.Water or block.name == Names.FlowingWater)
+        Logger.logDebug("disableMove", x, y, z, direction, block and block.name, r)
+        return r
+    end,
     maxRetryCount = 10,
 }
 
-local function collectMemory(direction)
-    local x, y, z = Memoried.currentPosition()
-    local cx, cy, cz = Memoried.getOperationAt(direction).currentNormal()
-    if Memoried.getLocation(x + cx, y + cy, z + cz) then return end
+local function updateMemory(direction)
     Memoried.getOperationAt(direction).detect()
+    Memoried.getOperationAt(direction).inspect()
 end
 
+local directions = {
+    Memoried.Forward,
+    Memoried.Back,
+    Memoried.Up,
+    Memoried.Down,
+    Memoried.Right,
+    Memoried.Left,
+}
 --- 記憶にない場所は行けるとして、記憶にないブロックにぶつかるなどして移動に失敗したなら周辺情報を収集してリトライする
 local function goTo(x, y, z)
     local cx, cy, cz = Memoried.currentPosition()
@@ -39,12 +70,9 @@ local function goTo(x, y, z)
 
         Logger.logDebug("goTo failure[", retryCount, "] @", cx, cy, cz, reason)
 
-        collectMemory(Memoried.Forward)
-        collectMemory(Memoried.Back)
-        collectMemory(Memoried.Up)
-        collectMemory(Memoried.Down)
-        collectMemory(Memoried.Right)
-        collectMemory(Memoried.Left)
+        for i = 1, #directions do
+            updateMemory(directions[i])
+        end
         local ok, reason = Mex.goTo(x, y, z, goToOptions)
         if ok then return true end
 
